@@ -262,7 +262,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 2</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 3</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -1421,14 +1421,14 @@ function locBody(ops){
       '<div class="field"><label>1ª CONTAGEM (ARMAZÉM)</label><select data-chg="lassign" data-key="'+esc(wkey)+'" aria-label="1ª contagem do armazém '+esc(w.name)+'">'+locOpts(ops,asg[wkey])+'</select></div><div class="field"><label>2ª CONTAGEM (ARMAZÉM)</label><select data-chg="lassign" data-key="2'+esc(wkey)+'" aria-label="2ª contagem do armazém '+esc(w.name)+'">'+locOpts(ops,asg['2'+wkey])+'</select></div></div>'+
       gs.map(g=>{
         const ok='o:'+w.k+'~'+g.k,open=q||S.lopen.has(ok),allSel=g.items.every(i=>S.lsel.has(i.id));
-        let h='<div class="gr"><div class="gh"><div class="gl"><button class="tg" data-act="lopen" data-k="'+esc(ok)+'" aria-expanded="'+!!open+'">'+(open?'▾':'▸')+'</button><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" data-chg="lgsel" data-k="'+esc(ok)+'" data-gk="'+esc(g.key)+'"'+(allSel?' checked':'')+' aria-label="Marcar todo o grupo"><span class="nm">🗂️ '+esc(g.name)+'</span></label><span class="sub">'+g.items.length+' produtos · '+g.done+' contados</span>'+(g.noAddr?'<span class="chip warn">'+g.noAddr+' sem endereço</span>':'')+'</div>'+
+        let h='<div class="gr"><div class="gh"><div class="gl"><button class="tg" data-act="lopen" data-k="'+esc(ok)+'" aria-expanded="'+!!open+'">'+(open?'▾':'▸')+'</button><span class="nm">🗂️ '+esc(g.name)+'</span><span class="sub">'+g.items.length+' produtos · '+g.done+' contados</span>'+(g.noAddr?'<span class="chip warn">'+g.noAddr+' sem endereço</span>':'')+'</div>'+
           '<div class="field"><label>1ª contagem</label><select data-chg="lassign" data-key="'+esc(g.key)+'" aria-label="1ª contagem do grupo '+esc(g.name)+'">'+locOpts(ops,asg[g.key])+'</select></div><div class="field"><label>2ª contagem</label><select data-chg="lassign" data-key="2'+esc(g.key)+'" aria-label="2ª contagem do grupo '+esc(g.name)+'">'+locOpts(ops,asg['2'+g.key])+'</select></div></div>';
         if(open){
-          h+='<div class="scroll"><table class="tbl"><thead><tr><th></th><th>Código</th><th>Descrição</th><th>Endereço</th><th>1ª / 2ª contagem</th><th>Situação</th></tr></thead><tbody>'+
+          h+='<div class="scroll"><table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th>Endereço</th><th>1ª / 2ª contagem</th><th>Situação</th></tr></thead><tbody>'+
             g.items.slice().sort(byLoc).slice(0,300).map(it=>{
               const who=assigneeOf(it),who2=assignee2(it),k=statusKey(it);
-              return'<tr><td><input type="checkbox" data-chg="lisel" data-id="'+esc(it.id)+'"'+(S.lsel.has(it.id)?' checked':'')+' aria-label="Marcar '+esc(it.code)+'"></td><td class="mono">'+esc(it.code)+'</td><td class="wc">'+esc(it.desc)+'</td><td>'+(hasAddr(it)?esc(it.moved||locTxt(it)):'<span class="warnad">⚠ Sem endereço: cadastre este código na aba Endereçamento</span>')+'</td><td>'+(who?esc(nm(who)):'<span class="sub">—</span>')+(asg['i:'+it.id]?' <span class="chip info">produto</span>':'')+' <span class="sub">/</span> '+(who2?esc(nm(who2==='*'?'(qualquer)':who2)):'<span class="sub">—</span>')+(asg['2i:'+it.id]?' <span class="chip info">produto</span>':'')+'</td><td><span class="chip '+(STATE_CHIP[k]||'')+'">'+esc(STATE_LABEL[k]||k)+'</span></td></tr>'}).join('')+
-            '</tbody></table></div>'+(g.items.length>300?'<div class="sub">Mostrando 300 de '+g.items.length+'. Use a busca para achar os demais.</div>':'');
+              return'<tr><td class="mono">'+esc(it.code)+'</td><td class="wc">'+esc(it.desc)+'</td><td>'+(hasAddr(it)?esc(it.moved||locTxt(it)):'<span class="warnad">⚠ Sem endereço: cadastre este código na aba Endereçamento</span>')+'</td><td>'+(who?esc(nm(who)):'<span class="sub">—</span>')+(asg['i:'+it.id]?' <span class="chip info">produto</span>':'')+' <span class="sub">/</span> '+(who2?esc(nm(who2==='*'?'(qualquer)':who2)):'<span class="sub">—</span>')+(asg['2i:'+it.id]?' <span class="chip info">produto</span>':'')+'</td><td><span class="chip '+(STATE_CHIP[k]||'')+'">'+esc(STATE_LABEL[k]||k)+'</span></td></tr>'}).join('')+
+            '</tbody></table></div>'+(g.items.length>300?'<div class="sub">Mostrando 300 de '+g.items.length+'. </div>':'');
         }
         return h+'</div>'}).join('')+'</div>';
   }).join('');
@@ -1436,9 +1436,6 @@ function locBody(ops){
 function locHtml(ops){
   const n=S.lsel.size;
   return'<div class="card"><div class="hd"><h2>🏭 Quem conta o quê — por armazém e grupo</h2></div><div class="bd stack">'+
-    '<div class="sub">Abra o grupo para ver os produtos e o endereço de cada um. O responsável pode ser definido no armazém, no grupo ou, marcando produtos, item a item (o mais específico vale).</div>'+
-    '<div class="row"><div class="field" style="flex:1;min-width:200px"><label for="lq">BUSCAR PRODUTO OU GRUPO</label><input type="search" id="lq" data-inp="lq" placeholder="Código, descrição ou grupo" value="'+esc(S.q.lq||'')+'"></div></div>'+
-    '<div class="row sel-bar card" style="padding:10px 12px;align-items:flex-end"><span class="sub" id="lcount">'+n+' produto(s) marcado(s)</span><div class="field"><label for="lto">RESPONSÁVEL PELOS MARCADOS</label><select id="lto">'+locOpts(ops,'').replace('Sem responsável','Remover responsável')+'</select></div><button class="btn primary" data-act="lbulk">Aplicar 1ª contagem aos marcados</button><button class="btn primary" data-act="lbulk2">Aplicar 2ª contagem aos marcados</button><button class="btn" data-act="lclr">Limpar marcação</button></div>'+
     '<div id="loc-body">'+locBody(ops)+'</div></div></div>';
 }
 
@@ -1809,8 +1806,13 @@ async function aSave(){
     for(let i=0,n=0;i<a.rows.length;i+=500,n++)await S.db.doc('addr/'+addrId(n)).set({no:n,rows:a.rows.slice(i,i+500)});
     await S.db.doc('addr/meta').set({file:a.file,t:Date.now(),count:a.rows.length});
     S.aend=null;toast('Base de endereços salva: '+fmtN(a.rows.length)+' códigos');
-  }catch(e){console.error(e);a.busy=false;a.err='Não foi possível salvar ('+((e&&e.code)||'erro')+(e&&e.message?': '+String(e.message).slice(0,160):'')+') [v2]'}
+  }catch(e){console.error(e);a.busy=false;a.err='Não foi possível salvar ('+((e&&e.code)||'erro')+(e&&e.message?': '+String(e.message).slice(0,160):'')+') [v3]'}
   draw(true);
+}
+async function aDelete(){
+  if(!confirmOnce('adelbase')){toast('Toque de novo para excluir toda a base de endereços',4000);return}
+  try{for(const id of [...S.addrDocs.keys()])await S.db.doc('addr/'+id).delete();S.aend=null;toast('Base de endereços excluída')}
+  catch(e){console.error(e);toast('Não foi possível excluir a base ('+((e&&e.code)||'erro')+')',4000)}
 }
 async function addrSet(code,shelf,sec){
   const docs=[...S.addrDocs.entries()].filter(([k])=>k!=='meta').sort((x,y)=>x[0]<y[0]?-1:1);
@@ -1867,7 +1869,7 @@ function vEnd(){
   }
   const r=endRows(),has=stockBase().length;
   h+=vScan();
-  h+='<div class="card"><div class="hd"><h2>📍 Endereçamento</h2><span class="sub">'+esc(meta?meta.file+' · '+fmtDT(meta.t):'')+'</span></div><div class="bd stack"><div class="row"><label class="btn">Trocar base de endereços<input type="file" id="afile" accept=".xlsx,.xls,.csv,.txt" data-chg="afile" style="display:none"></label>'+(has?'<button class="btn primary" data-act="axl">⬇ Exportar XLSX</button>':'')+'</div></div></div>';
+  h+='<div class="card"><div class="hd"><h2>📍 Endereçamento</h2><span class="sub">'+esc(meta?meta.file+' · '+fmtDT(meta.t):'')+'</span></div><div class="bd stack"><div class="row"><label class="btn">Trocar base de endereços<input type="file" id="afile" accept=".xlsx,.xls,.csv,.txt" data-chg="afile" style="display:none"></label>'+(has?'<button class="btn primary" data-act="axl">⬇ Exportar XLSX</button>':'')+'<button class="btn danger" data-act="adelbase">Excluir base de endereços</button></div></div></div>';
   h+='<div class="kpis">'+kpi('Códigos endereçados',fmtN(S.addr.size),'na base de endereços')+(has?kpi('Estoque do ERP',fmtN(stockBase().length),stockSrc())+kpi('Com endereço',fmtN(r.com.length),'estoque já endereçado','g')+kpi('Sem endereço',fmtN(r.sem.length),'com estoque, para endereçar','r')+kpi('Endereços sem ERP',fmtN(r.orf.length),'códigos fora do arquivo do ERP','a'):'')+'</div>';
   if(!has){h+='<div class="note info">Para cruzar com o estoque, envie o arquivo do ERP na aba <b>Importar</b> (não precisa publicar) ou publique um inventário.</div>';return h}
   const gs=[...new Set(stockBase().map(x=>x.g))].sort((x,y)=>x.localeCompare(y,'pt',{numeric:true}));
@@ -2374,7 +2376,7 @@ async function adSetGroups(pairs){
 
 /* ============ importação do ERP ============ */
 const normH=s=>String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
-const FIELDS=[['code','Código do material'],['desc','Descrição'],['un','Unidade'],['qty','Saldo do ERP'],['cost','Custo unitário'],['shelf','Prateleira / endereço'],['sec','Seção'],['wh','Armazém (opcional)'],['grp','Grupo (opcional)'],['gdesc','Descrição do grupo (opcional)']];
+const FIELDS=[['code','Código do material'],['desc','Descrição'],['un','Unidade'],['qty','Saldo do ERP'],['cost','Custo unitário'],['shelf','Prateleira / endereço'],['sec','Seção'],['wh','Cód. armazém (opcional)'],['grp','Grupo (opcional)'],['gdesc','Descrição do grupo (opcional)']];
 const ALIAS={
   code:['codigo','cod','codigomaterial','codigodomaterial','codmaterial','material','codproduto','codigoproduto','sku','item'],
   desc:['descricao','descricaodomaterial','descmaterial','descricaoitem','descricaoproduto','nome','produto','denominacao','textobreve'],
@@ -2384,7 +2386,7 @@ const ALIAS={
   shelf:['prateleira','estante','rua','endereco','localizacao','local','area','corredor'],
   grp:['grupo','grupodemercadorias','grupomercadorias','grupomercadoria','grupodemercadoria','grmercadoria','grpmerc','grupomaterial','grupodemateriais','grupodoproduto','grupoproduto','grupodeproduto','familia','categoria','classe','tipo'],
   gdesc:['descricaogrupo','descricaodogrupo','denominacaogrupo','denominacaodogrupo','nomegrupo','nomedogrupo','descgrupo','descrgrupo','denomgrupo'],
-  wh:['armazem','almoxarifado','deposito','centro','filial','planta'],
+  wh:['codigoarmazem','codarmazem','codigodoarmazem','codigoalmoxarifado','armazem','almoxarifado','deposito','centro','planta'],
   sec:['secao','sessao','nivel','posicao','vao','gaveta','box','coluna','bin','andar']
 };
 function autoMap(headers){
@@ -2423,7 +2425,7 @@ function parseItems(imp){
     if(qty<=0&&!imp.zero){zero++;continue}
     const cost=m.cost!=null&&m.cost!==''?toNum(cell(row,m.cost)):NaN;
     const code0=code;const ad=imp.useAddr!==false?S.addr.get(code):null;
-    const shelf=(ad&&ad.shelf)||String(cell(row,m.shelf)).trim()||'Sem endereço';
+    const shelf=(ad&&ad.shelf)||(m.shelf==='wh'?String(cell(row,m.wh)).trim():String(cell(row,m.shelf)).trim())||'Sem endereço';
     const gc=String(cell(row,m.grp)).trim(),gd=String(cell(row,m.gdesc)).trim();
     const grp=((gc&&gd&&gc!==gd?gc+' — '+gd:(gd||gc))||'').slice(0,80);
     out.push({code,desc:String(cell(row,m.desc)).trim().slice(0,120)||code,un:String(cell(row,m.un)).trim().slice(0,6),qty:Math.max(0,normQ(qty)),cost:isFinite(cost)?cost:0,shelf:shelf.slice(0,40),sec:(ad?ad.sec:String(cell(row,m.sec)).trim()).slice(0,30),hasAddr:!!ad,grp,wh:String(cell(row,m.wh)).trim().slice(0,30)});
@@ -2570,7 +2572,7 @@ function vInv(){
         (imp.names.length>1?'<div class="field"><label for="isheet">Aba</label><select id="isheet" data-chg="isheet">'+imp.names.map(n=>'<option'+(n===imp.sheet?' selected':'')+'>'+esc(n)+'</option>').join('')+'</select></div>':'')+
         '<div class="field"><label for="ihdr">Linha do cabeçalho</label><input type="number" id="ihdr" min="1" value="'+(imp.hdr+1)+'" style="width:90px" data-chg="ihdr"></div></div>';
       const hd=imp.sheets[imp.sheet][imp.hdr]||[];
-      h+='<div class="grid2" style="gap:12px">'+FIELDS.map(([f,l])=>'<div class="field"><label for="m-'+f+'">'+l+(f==='code'||f==='desc'||f==='qty'?' *':'')+'</label><select id="m-'+f+'" data-chg="imap" data-f="'+f+'"><option value="">'+(f==='shelf'?'(tudo em uma só prateleira)':'(não usar)')+'</option>'+hd.map((c,i)=>'<option value="'+i+'"'+(imp.map[f]===i?' selected':'')+'>'+esc(String(c).trim()||'Coluna '+(i+1))+'</option>').join('')+'</select></div>').join('')+'</div>';
+      h+='<div class="grid2" style="gap:12px">'+FIELDS.map(([f,l])=>'<div class="field"><label for="m-'+f+'">'+l+(f==='code'||f==='desc'||f==='qty'?' *':'')+'</label><select id="m-'+f+'" data-chg="imap" data-f="'+f+'"><option value="">'+(f==='shelf'?'(tudo em uma só prateleira)':'(não usar)')+'</option>'+(f==='shelf'?'<option value="wh"'+(imp.map.shelf==='wh'?' selected':'')+'>(usar o código do armazém)</option>':'')+hd.map((c,i)=>'<option value="'+i+'"'+(imp.map[f]===i?' selected':'')+'>'+esc(String(c).trim()||'Coluna '+(i+1))+'</option>').join('')+'</select></div>').join('')+'</div>';
       h+='<label style="display:flex;gap:10px;align-items:center"><input type="checkbox" data-chg="izero" '+(imp.zero?'checked':'')+'> Incluir itens com saldo zero ou negativo</label>';
     }
     h+='<div class="field" style="max-width:420px"><label for="iname">Nome do inventário</label><input type="text" id="iname" value="'+esc(imp.name)+'" data-inp="iname"></div>';
@@ -2730,7 +2732,7 @@ const ACT={
     const v=($('#lto')||{}).value||'',m={};ids.forEach(id=>{m['i:'+id]=v});
     try{await writeDoc(S.db.doc('assign/current'),{inv:S.meta.inv,map:m});S.lsel.clear();toast(v?'Responsável definido para '+ids.length+' produto(s)':'Responsável removido de '+ids.length+' produto(s)');draw(true)}catch(e){toast('Não foi possível salvar a atribuição')}
   },
-  async asave(){await aSave()},
+  async asave(){await aSave()},adelbase(){aDelete()},
   acancel(){S.aend=null;draw(true)},
   axl:exportEnd,cltog(b){const k=b.dataset.k;if(S.cl.has(k))S.cl.delete(k);else S.cl.add(k);store.set('ci:cl',JSON.stringify([...S.cl]));draw(true)},adgtog(b){const g=b.dataset.g;if(S.adgopen.has(g))S.adgopen.delete(g);else S.adgopen.add(g);const el=$('#adg-body');if(el){el.innerHTML=adGroupsBody()}},adgall2(){adGroupsFiltered().forEach(x=>S.adgopen.add(x.g));$('#adg-body').innerHTML=adGroupsBody()},adgnone(){S.adgopen.clear();$('#adg-body').innerHTML=adGroupsBody()},adsave:adSave,adadd:adAdd,adedit(b){adEdit(b.dataset.code)},adrelease(){adRelease()},adstop(){adStop()},adrm(b){adRm(b.dataset.id)},adxl:exportAd,apxl:exportApurXlsx,appdf:exportApurPdf,apsave(){apSave()},apcancel(){S.apend=null;draw(true)},apclear(b){apClear(b.dataset.w)},bxl:exportBusca,
   bvis(){bItems().slice(0,300).forEach(i=>S.bsel.add(i.id));draw(true)},
@@ -2830,7 +2832,7 @@ const CHG={
   ef(t){S.q.ef=t.value;draw(true)},eg(t){S.q.eg=t.value;draw(true)},
   igsel(t){const g=t.dataset.g;S.imp.gsel=S.imp.gsel||new Set();if(t.checked)S.imp.gsel.add(g);else S.imp.gsel.delete(g);applyGsel(S.imp);igRefresh()},
   iuseaddr(t){S.imp.useAddr=t.checked;parseItems(S.imp);draw(true)},
-  imap(t){S.imp.map[t.dataset.f]=t.value===''?null:Number(t.value);parseItems(S.imp);draw(true)},
+  imap(t){S.imp.map[t.dataset.f]=t.value===''?null:(t.value==='wh'?'wh':Number(t.value));parseItems(S.imp);draw(true)},
   izero(t){S.imp.zero=t.checked;parseItems(S.imp);draw(true)},
   iconfirm(t){S.imp.confirm=t.checked;draw(true)}
 };
