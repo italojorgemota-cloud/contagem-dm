@@ -221,8 +221,11 @@ try{fs.settings({ignoreUndefinedProperties:true,experimentalAutoDetectLongPollin
 const FP=firebase.firestore.FieldPath;
 const ERR={'not-found':'invalid_argument','already-exists':'invalid_argument'};
 const mapErr=e=>({code:ERR[e&&e.code]||(e&&e.code)||'erro',message:(e&&e.message)||String(e)});
-const clean=d=>JSON.parse(JSON.stringify(d));
-const snap=s=>({id:s.id,exists:!!s.exists,data:()=>s.exists?s.data():undefined,metadata:s.metadata});
+/* O Firestore não aceita lista dentro de lista. Guardamos cada lista interna dentro de {__arr:[...]} e desfazemos ao ler. */
+const enc=v=>Array.isArray(v)?v.map(x=>Array.isArray(x)?{__arr:enc(x)}:enc(x)):(v&&typeof v==='object'?Object.fromEntries(Object.entries(v).map(([k,x])=>[k,enc(x)])):v);
+const dec=v=>Array.isArray(v)?v.map(dec):(v&&typeof v==='object'?((Object.keys(v).length===1&&Array.isArray(v.__arr))?v.__arr.map(dec):Object.fromEntries(Object.entries(v).map(([k,x])=>[k,dec(x)]))):v);
+const clean=d=>enc(JSON.parse(JSON.stringify(d)));
+const snap=s=>({id:s.id,exists:!!s.exists,data:()=>s.exists?dec(s.data()):undefined,metadata:s.metadata});
 const qsnap=q=>({docs:q.docs.map(snap),size:q.size});
 function flat(o,pre,out){for(const k of Object.keys(o)){const v=o[k],p=pre.concat(k);if(v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).length)flat(v,p,out);else out.push([p,v])}return out}
 const db={
@@ -259,7 +262,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 2</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -1806,7 +1809,7 @@ async function aSave(){
     for(let i=0,n=0;i<a.rows.length;i+=500,n++)await S.db.doc('addr/'+addrId(n)).set({no:n,rows:a.rows.slice(i,i+500)});
     await S.db.doc('addr/meta').set({file:a.file,t:Date.now(),count:a.rows.length});
     S.aend=null;toast('Base de endereços salva: '+fmtN(a.rows.length)+' códigos');
-  }catch(e){console.error(e);a.busy=false;a.err='Não foi possível salvar ('+((e&&e.code)||'erro')+')'}
+  }catch(e){console.error(e);a.busy=false;a.err='Não foi possível salvar ('+((e&&e.code)||'erro')+(e&&e.message?': '+String(e.message).slice(0,160):'')+') [v2]'}
   draw(true);
 }
 async function addrSet(code,shelf,sec){
