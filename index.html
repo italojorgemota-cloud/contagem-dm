@@ -262,7 +262,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 3</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 4</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -579,7 +579,7 @@ const addrId=n=>'c'+String(n).padStart(3,'0');
 function rebuildAddr(){
   const m=new Map();
   [...S.addrDocs.entries()].filter(([k])=>k!=='meta').sort((a,b)=>a[0]<b[0]?-1:1).forEach(([,d])=>(d.rows||[]).forEach(r=>{if(!m.has(r[0]))m.set(r[0],{shelf:r[1],sec:r[2]||''})}));
-  if(S.canEdit&&S.addrDocs.size)for(const d of S.anew.values())if(!m.has(d.code))m.set(d.code,{shelf:d.shelf,sec:'',by:d.op});
+  if(S.canEdit&&S.addrDocs.size)for(const d of S.anew.values())if(!d.nf&&!m.has(d.code))m.set(d.code,{shelf:d.shelf,sec:'',by:d.op});
   S.addr=m;
 }
 /* ---- atribuição da 3ª/4ª contagem ---- */
@@ -1089,7 +1089,8 @@ function makeRow(it){
   const el=document.createElement('div');el.className='it';el.dataset.id=it.id;
   el.innerHTML='<div style="min-width:0"><div class="tags"><span class="tag c"></span><span class="tag s"></span></div><div class="rd"></div><div class="desc"></div></div>'+
     '<div class="in"><input class="qty" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="next" placeholder="Qtd"><span class="un"></span></div>'+
-    '<div class="sent"><span class="q"></span><span class="chip warn pend"></span><button class="lnk" type="button">alterar</button></div>';
+    '<div class="sent"><span class="q"></span><span class="chip warn pend"></span><button class="lnk" type="button">alterar</button></div>'+
+    '<div class="nlr" style="grid-column:1/-1;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="lnk nlb" type="button">Produto não encontrado</button><span class="chip bad nlc" hidden>✗ Produto não localizado</span><button class="lnk nlu" type="button" hidden>desfazer</button></div>';
   $('.c',el).textContent=it.code;$('.s',el).textContent=S.opView.kind==='recount'?it.shelf+(it.sec?' / '+it.sec:''):(it.sec||it.shelf);
   if(it.moved)$('.s',el).textContent='📍 '+it.moved;
   $('.desc',el).textContent=it.desc;$('.un',el).textContent=it.un;
@@ -1103,7 +1104,9 @@ function makeRow(it){
     const m=S.local.map[it.id];el.classList.toggle('has',!!(m&&m.dr!=null));
   });
   inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const n=nextOpen(el);if(n)n.focus();else inp.blur()}});
-  $('.lnk',el).onclick=()=>{editing.add(it.id);paintRow(el,S.items.get(it.id)||it);inp.focus();inp.select()};
+  $('.nlb',el).onclick=()=>{const cur=S.items.get(it.id)||it;if(!confirmOnce('nl'+it.id)){toast('Toque de novo para confirmar: produto não encontrado',3500);return}answerFind(cur,'nao',null,'');paintRow(el,S.items.get(it.id)||cur);toast('Registrado: produto não localizado')};
+  $('.nlu',el).onclick=()=>{const cur=S.items.get(it.id)||it;answerFind(cur,'limpo',null,'');paintRow(el,S.items.get(it.id)||cur);toast('Marcação removida')};
+  $('.lnk:not(.nlb):not(.nlu)',el).onclick=()=>{editing.add(it.id);paintRow(el,S.items.get(it.id)||it);inp.focus();inp.select()};
   return el;
 }
 function nextOpen(el){let n=el.nextElementSibling;while(n){if(n.classList.contains('it')&&!n.classList.contains('sentst'))return $('input',n);n=n.nextElementSibling}return null}
@@ -1112,13 +1115,15 @@ function paintRow(el,it){
   const hasDraft=!!(m&&m.dr!=null),sent=!!(m&&m.q!=null&&!hasDraft&&!ed);
   el.classList.toggle('sentst',sent);el.classList.toggle('has',hasDraft);
   {const rl=(m&&m.rd)||roundLabel(it),rn=parseInt(rl,10)||1;const r=$('.rd',el);r.textContent=rn>=3?'🔁 '+rl+' (recontagem)':(rn===2?'2ª contagem':rl);r.dataset.n=rn;r.className='rd n'+Math.min(rn,4);r.hidden=rn<2;el.dataset.n=rn>=3?Math.min(rn,4):''}
+  {const lf=S.fl.list.find(e=>e.id===it.id),fl=lf?lf.st==='nao':!!(it.find&&it.find.st==='nao'),has=!!(m&&(m.q!=null||m.dr!=null))||it.cnt.length>0;
+   $('.nlc',el).hidden=!fl||has;$('.nlu',el).hidden=!fl||has;$('.nlb',el).hidden=fl||has}
   const inp=$('input',el);
   if(document.activeElement!==inp)inp.value=hasDraft?fmtIn(m.dr):(ed&&m&&m.q!=null?fmtIn(m.q):'');
   if(sent){
     $('.q',el).textContent='✓ '+fmtQ(m.q)+(it.un?' '+it.un:'');
     $('.pend',el).textContent=m.s===1?'enviado':'na fila de envio';
     $('.pend',el).className='chip pend '+(m.s===1?'ok':'warn');
-    $('.lnk',el).hidden=it.cnt.some(c=>c.dev!==S.dev);
+    $('.lnk:not(.nlb):not(.nlu)',el).hidden=it.cnt.some(c=>c.dev!==S.dev);
   }
 }
 let wl=null;
@@ -1890,13 +1895,16 @@ function exportEnd(){
 }
 
 /* ============ Busca (itens sem contagem) ============ */
+let _nfm=null,_nfs=null;
+function nfCodes(){if(_nfm!==S.anew){_nfm=S.anew;_nfs=new Set([...S.anew.values()].filter(d=>d.nf).map(d=>d.code))}return _nfs}
 function bStatus(it){
   const s=it.sreq,f=it.find;
+  if(nfCodes().has(it.code)&&!(f&&f.st==='achou'))return'nao';
   if(f&&f.st==='nao'&&(!s||f.t>=s.t))return'nao';
   if(s&&(!f||f.t<s.t))return'busca';
   return'sem';
 }
-const B_TXT={sem:'Sem pedido',busca:'🔎 Em busca',nao:'✗ Não encontrado'};
+const B_TXT={sem:'Sem pedido',busca:'🔎 Em busca',nao:'✗ Produto não localizado'};
 const B_CHIP={sem:'',busca:'warn',nao:'bad'};
 function bItems(){
   const q=(S.q.bq||'').trim().toLowerCase(),f=S.q.bs||'',g=S.q.bg||'';
@@ -1911,7 +1919,7 @@ function bBody(){
   const l=bItems();
   if(!l.length)return'<tr><td colspan="8" class="empty">Nenhum item sem contagem neste filtro.</td></tr>';
   const nm=k=>k==='*'?'todos':((knownOps().find(o=>o.key===k)||{}).name||k);
-  return l.slice(0,300).map(it=>{const b=bStatus(it);return'<tr><td><input type="checkbox" data-chg="bsel" data-id="'+esc(it.id)+'"'+(S.bsel.has(it.id)?' checked':'')+' aria-label="Selecionar '+esc(it.code)+'"></td><td class="mono">'+esc(it.code)+'</td><td class="wc">'+esc(it.desc)+'</td><td class="sub">'+esc(it.grp||'')+'</td><td>'+esc(locTxt(it))+'</td><td><span class="chip '+B_CHIP[b]+'">'+B_TXT[b]+'</span>'+(b==='busca'?'<div class="sub">para '+esc(nm(it.sreq.to))+'</div>':'')+(b==='nao'&&it.find?'<div class="sub">'+esc(it.find.op)+' · '+fmtDT(it.find.t)+'</div>':'')+'</td><td>'+(b==='nao'?'<button class="btn sm" data-act="bzero" data-id="'+esc(it.id)+'">Fechar como 0</button>':'')+'</td></tr>'}).join('')+(l.length>300?'<tr><td colspan="8" class="sub" style="text-align:center">Mostrando 300 de '+fmtN(l.length)+'.</td></tr>':'');
+  return l.slice(0,300).map(it=>{const b=bStatus(it);return'<tr><td><input type="checkbox" data-chg="bsel" data-id="'+esc(it.id)+'"'+(S.bsel.has(it.id)?' checked':'')+' aria-label="Selecionar '+esc(it.code)+'"></td><td class="mono">'+esc(it.code)+'</td><td class="wc">'+esc(it.desc)+'</td><td class="sub">'+esc(it.grp||'')+'</td><td>'+esc(locTxt(it))+'</td><td><span class="chip '+B_CHIP[b]+'">'+B_TXT[b]+'</span>'+(b==='busca'?'<div class="sub">para '+esc(nm(it.sreq.to))+'</div>':'')+(b==='nao'?(()=>{const a=[...S.anew.values()].find(d=>d.nf&&d.code===it.code),w=it.find&&it.find.st==='nao'&&(!a||it.find.t>=a.t)?it.find:a;return w?'<div class="sub">'+esc(w.op)+' · '+fmtDT(w.t)+(w===a?' · no endereçamento':'')+'</div>':''})():'')+'</td><td>'+(b==='nao'?'<button class="btn sm" data-act="bzero" data-id="'+esc(it.id)+'">Fechar como 0</button>':'')+'</td></tr>'}).join('')+(l.length>300?'<tr><td colspan="8" class="sub" style="text-align:center">Mostrando 300 de '+fmtN(l.length)+'.</td></tr>':'');
 }
 function vBusca(){
   if(!S.meta)return noInv();
@@ -1920,12 +1928,12 @@ function vBusca(){
   const ach=[...S.items.values()].filter(it=>it.find&&it.find.st==='achou'&&it.moved);
   const ops=knownOps().filter(o=>S.ops.has(o.key));
   const gs=[...new Set([...S.items.values()].map(it=>it.grp||'(Sem grupo)'))].sort((x,y)=>x.localeCompare(y,'pt',{numeric:true}));
-  let h='<div class="kpis">'+kpi('Sem contagem',fmtN(all.length),'itens que ninguém contou','r')+kpi('Em busca',fmtN(cnt('busca')),'aguardando resposta da equipe','a')+kpi('Não encontrados',fmtN(cnt('nao')),'a equipe não achou','r')+kpi('Achados em outro endereço',fmtN(ach.length),'com endereço informado','g')+'</div>';
+  let h='<div class="kpis">'+kpi('Sem contagem',fmtN(all.length),'itens que ninguém contou','r')+kpi('Em busca',fmtN(cnt('busca')),'aguardando resposta da equipe','a')+kpi('Não localizados',fmtN(cnt('nao')),'o coletor não encontrou o produto','r')+kpi('Achados em outro endereço',fmtN(ach.length),'com endereço informado','g')+'</div>';
   h+='<div class="card"><div class="hd"><h2>🔎 Itens sem contagem</h2><span class="sub">marque os itens e peça a busca à equipe</span></div><div class="bd stack">'+
     '<div class="row"><div class="field" style="flex:1;min-width:180px"><label for="bq">BUSCAR</label><input type="search" id="bq" data-inp="bq" placeholder="Código ou descrição" value="'+esc(S.q.bq||'')+'"></div>'+
     '<div class="field"><label for="bg">GRUPO</label><select id="bg" data-chg="bg"><option value="">Todos</option>'+gs.map(g=>'<option'+(S.q.bg===g?' selected':'')+'>'+esc(g)+'</option>').join('')+'</select></div>'+
     depSelect().replace('data-chg="dep"','data-chg="dep"')+
-    '<div class="field"><label for="bs">SITUAÇÃO</label><select id="bs" data-chg="bs"><option value="">Todas</option><option value="sem"'+(S.q.bs==='sem'?' selected':'')+'>Sem pedido</option><option value="busca"'+(S.q.bs==='busca'?' selected':'')+'>Em busca</option><option value="nao"'+(S.q.bs==='nao'?' selected':'')+'>Não encontrado</option></select></div></div>'+
+    '<div class="field"><label for="bs">SITUAÇÃO</label><select id="bs" data-chg="bs"><option value="">Todas</option><option value="sem"'+(S.q.bs==='sem'?' selected':'')+'>Sem pedido</option><option value="busca"'+(S.q.bs==='busca'?' selected':'')+'>Em busca</option><option value="nao"'+(S.q.bs==='nao'?' selected':'')+'>Produto não localizado</option></select></div></div>'+
     '<div class="row"><button class="btn sm" data-act="bvis">Marcar visíveis</button><button class="btn sm" data-act="bnone">Limpar marcação</button><span class="sub" id="bcount">'+S.bsel.size+' marcado(s)</span><span class="sp" style="flex:1"></span>'+
     '<div class="field"><label for="bto">ENVIAR PARA</label><select id="bto"><option value="*">Todos os operadores</option>'+ops.map(o=>'<option value="'+esc(o.key)+'">'+esc(o.name)+'</option>').join('')+'</select></div><button class="btn primary" data-act="breq">🔎 Pedir busca</button></div>'+
     '<div class="scroll"><table class="tbl"><thead><tr><th></th><th>Código</th><th>Descrição</th><th>Grupo</th><th>Endereço no inventário</th><th>Situação</th><th></th></tr></thead><tbody id="busca-body">'+bBody()+'</tbody></table></div></div></div>';
@@ -2145,7 +2153,7 @@ async function flushAd(){
   S.adflushing=true;updateSync();
   try{
     for(const e of un){
-      await withTimeout(S.db.doc('addrnew/'+e.id).set({code:e.code,desc:e.desc,grp:e.grp,shelf:e.shelf,op:e.op,ok:e.ok,t:e.t}),20000);
+      await withTimeout(S.db.doc('addrnew/'+e.id).set({code:e.code,desc:e.desc,grp:e.grp,shelf:e.shelf,nf:!!e.nf,op:e.op,ok:e.ok,t:e.t}),20000);
       e.s=1;adPersist();
     }
     S.adErr=null;S.lastSync=Date.now();
@@ -2170,7 +2178,7 @@ function adVisible(){
 function adMissing(){if(!adMeta())return[];const done=adDone();return adVisible().filter(r=>!done.has(r[0]))}
 const adEmptyTxt=()=>adVisible().length?'<b>Tudo endereçado!</b><br>Avise o gestor.':'<b>O gestor ainda não indicou grupos para você.</b><br>Esta lista atualiza sozinha.';
 const adId=code=>'a'+cyrb53(String(code));
-function adMine(){const s=new Set();for(const d of S.anew.values())if(d.ok===myKey())s.add(d.code);for(const e of adLocal())s.add(e.code);return s.size}
+function adMine(){const s=new Set();for(const d of S.anew.values())if(d.ok===myKey()&&!d.nf)s.add(d.code);for(const e of adLocal())if(!e.nf)s.add(e.code);return s.size}
 function adProg(){
   const el=$('#aprog');if(!el)return;
   const miss=adMissing().length,tot=adVisible().length,pend=adPending().length;
@@ -2195,11 +2203,11 @@ function adRender(force){
   if(!force&&host.dataset.sig===sig)return;
   host.dataset.sig=sig;
   if(!force&&act&&host.contains(act)){adSync(l,miss);return}
-  const dl=$('#adl');if(dl)dl.innerHTML=[...new Set([...S.anew.values()].map(d=>d.shelf))].sort().slice(0,300).map(x=>'<option value="'+esc(x)+'">').join('');
+  const dl=$('#adl');if(dl)dl.innerHTML=[...new Set([...S.anew.values()].filter(d=>!d.nf).map(d=>d.shelf))].sort().slice(0,300).map(x=>'<option value="'+esc(x)+'">').join('');
     host.innerHTML=l.length?l.slice(0,40).map(adCard).join('')+(l.length>40?'<div class="sub" style="text-align:center">Mostrando 40 de '+fmtN(l.length)+'. Use a busca para achar outros.</div>':''):'<div class="card"><div class="empty">'+(q?'Nada encontrado para essa busca.':adEmptyTxt())+'</div></div>';
 }
 const adInp=(code,v)=>'<div class="adrow row" style="gap:8px;align-items:center;width:100%"><div class="field" style="flex:1;min-width:150px"><input type="text" data-adin list="adl" autocomplete="off" autocapitalize="characters" placeholder="Ex.: A-12 / 03" value="'+esc(v||'')+'" aria-label="Endereço de '+esc(code)+'"></div></div>';
-function adCard(r){const pre=(S.adpre[r[0]]||'').split(' | ').filter(Boolean);return'<div class="card" data-ad="'+esc(r[0])+'"><div class="bd stack"><div><span class="tag c">'+esc(r[0])+'</span>'+(r[2]?' <span class="tag s">'+esc(r[2])+'</span>':'')+'</div><div class="desc"><b>'+esc(r[1])+'</b></div><div class="sub" style="margin-bottom:-6px">ENDEREÇO</div><div class="adins stack" style="gap:8px">'+(pre.length?pre.map(v=>adInp(r[0],v)).join(''):adInp(r[0],''))+'</div><div class="row"><button class="btn sm" data-act="adadd" type="button">+ Mesmo item em outro endereço</button><span class="sp" style="flex:1"></span><button class="btn primary" data-act="adsave" style="min-height:44px;min-width:110px">Salvar</button></div></div></div>'}
+function adCard(r){const pre=(S.adpre[r[0]]||'').split(' | ').filter(Boolean);return'<div class="card" data-ad="'+esc(r[0])+'"><div class="bd stack"><div><span class="tag c">'+esc(r[0])+'</span>'+(r[2]?' <span class="tag s">'+esc(r[2])+'</span>':'')+'</div><div class="desc"><b>'+esc(r[1])+'</b></div><div class="sub" style="margin-bottom:-6px">ENDEREÇO</div><div class="adins stack" style="gap:8px">'+(pre.length?pre.map(v=>adInp(r[0],v)).join(''):adInp(r[0],''))+'</div><div class="row"><button class="btn sm" data-act="adadd" type="button">+ Mesmo item em outro endereço</button><button class="btn sm danger" data-act="adnf" type="button">Produto não encontrado</button><span class="sp" style="flex:1"></span><button class="btn primary" data-act="adsave" style="min-height:44px;min-width:110px">Salvar</button></div></div></div>'}
 function adSync(l,miss){
   const host=$('#alist');if(!host)return;
   const missSet=new Set(miss.map(r=>r[0]));
@@ -2217,6 +2225,17 @@ function adSync(l,miss){
   if(!n&&!empty)host.innerHTML='<div class="card"><div class="empty">'+((S.q.aq||'').trim()?'Nada encontrado para essa busca.':adEmptyTxt())+'</div></div>';
   else if(n&&empty&&empty.closest('.card')&&!empty.closest('[data-ad]'))empty.closest('.card').remove();
 }
+function adNf(b){
+  const card=b.closest('[data-ad]');if(!card)return;
+  const code=card.dataset.ad;
+  if(!confirmOnce('adnf'+code)){toast('Toque de novo para confirmar: produto não encontrado',3500);return}
+  const r=adRows().find(x=>x[0]===code);
+  adLocal().unshift({id:adId(code),code,desc:r?r[1]:'',grp:r?r[2]:'',shelf:'PRODUTO NÃO LOCALIZADO',nf:1,op:S.name,ok:myKey(),t:Date.now(),s:0});
+  adPersist();card.remove();flushAd();updateSync();pushPresence();
+  const host=$('#alist');
+  if(host&&host.querySelectorAll('[data-ad]').length<8)adRender(true);else adProg();
+  toast('Registrado: produto não encontrado');
+}
 function adAdd(b){
   const card=b.closest('[data-ad]');if(!card)return;
   const box=card.querySelector('.adins');box.insertAdjacentHTML('beforeend',adInp(card.dataset.ad,''));
@@ -2224,13 +2243,13 @@ function adAdd(b){
 }
 function adMineList(){
   const m=new Map();
-  for(const d of S.anew.values())if(d.ok===myKey())m.set(d.code,{code:d.code,desc:d.desc,shelf:d.shelf,t:d.t});
-  for(const e of adLocal())if(e.ok===myKey())m.set(e.code,{code:e.code,desc:e.desc,shelf:e.shelf,t:e.t});
+  for(const d of S.anew.values())if(d.ok===myKey())m.set(d.code,{code:d.code,desc:d.desc,shelf:d.shelf,nf:!!d.nf,t:d.t});
+  for(const e of adLocal())if(e.ok===myKey())m.set(e.code,{code:e.code,desc:e.desc,shelf:e.shelf,nf:!!e.nf,t:e.t});
   return [...m.values()].sort((a,b)=>b.t-a.t).slice(0,5);
 }
 async function adEdit(code){
   const e=adMineList().find(x=>x.code===code);if(!e)return;
-  S.adpre[code]=e.shelf;
+  S.adpre[code]=e.nf?'':e.shelf;
   S.al.list=adLocal().filter(x=>x.code!==code);adPersist();
   try{await S.db.doc('addrnew/'+adId(code)).delete()}catch(err){toast('Sem conexão: tente corrigir quando voltar a internet',3500);return}
   S.q.aq=code;const q=$('#aq');if(q)q.value=code;
@@ -2252,13 +2271,13 @@ function adSave(b){
 /* ---- visão do gestor ---- */
 function adStats(){
   const rows=adRows(),codes=new Set(rows.map(r=>r[0])),es=[...S.anew.values()].sort((a,b)=>b.t-a.t),by=new Map(),d0=new Date();d0.setHours(0,0,0,0);
-  let done=0;
+  let done=0,nf=0;
   for(const e of es){
-    if(codes.has(e.code))done++;
+    if(codes.has(e.code)){if(e.nf)nf++;else done++}
     let o=by.get(e.ok);if(!o){o={name:e.op,n:0,first:e.t,last:e.t,today:0};by.set(e.ok,o)}
     o.n++;if(e.t<o.first)o.first=e.t;if(e.t>o.last)o.last=e.t;if(e.t>=d0.getTime())o.today++;
   }
-  return{total:rows.length,done,es,by:[...by.values()].sort((a,b)=>b.n-a.n)};
+  return{total:rows.length,done,nf,es,by:[...by.values()].sort((a,b)=>b.n-a.n)};
 }
 function vScan(){
   const m=adMeta();
@@ -2266,10 +2285,10 @@ function vScan(){
     const sem=stockBase().length?endRows().sem.filter(x=>!adDone().has(x.c)).length:0;
     return'<div class="card"><div class="hd"><h2>🏷️ Varredura de endereçamento</h2></div><div class="bd stack"><div class="sub">Libere para os coletores a lista de produtos sem endereço. Eles percorrem o almoxarifado e informam onde cada item está; você acompanha o ritmo de cada um aqui.</div><div class="row"><button class="btn primary" data-act="adrelease" '+(sem?'':'disabled')+'>Liberar para os coletores'+(sem?' ('+fmtN(sem)+' produtos)':'')+'</button></div>'+(stockBase().length?'':'<div class="note info">Envie o arquivo do ERP na aba <b>Importar</b> (não precisa publicar) para montar a lista de produtos sem endereço.</div>')+'</div></div>';
   }
-  const st=adStats(),rest=Math.max(0,st.total-st.done),pct=st.total?st.done/st.total*100:0;
+  const st=adStats(),rest=Math.max(0,st.total-st.done-st.nf),pct=st.total?st.done/st.total*100:0;
   if(!clOpen('scan'))return'<div class="card"><div class="hd">'+clBtn('scan')+'<h2>🏷️ Varredura de endereçamento</h2><span class="chip ok">liberada</span><span class="sub">'+fmtN(st.done)+' de '+fmtN(st.total)+' endereçados · '+fmtP(pct)+'</span></div></div>';
   let h='<div class="card"><div class="hd">'+clBtn('scan')+'<h2>🏷️ Varredura de endereçamento</h2><span class="chip ok">liberada</span><span class="sub">'+esc(m.by||'')+' · '+fmtDT(m.t)+'</span></div><div class="bd stack">'+
-    '<div class="kpis">'+kpi('Liberados',fmtN(st.total),'produtos na lista dos coletores')+kpi('Endereçados',fmtN(st.done),fmtP(pct)+' concluído','g')+kpi('Faltam',fmtN(rest),'sem endereço','a')+kpi('Equipe',fmtN(st.by.length),'coletores que já endereçaram')+'</div>'+
+    '<div class="kpis">'+kpi('Liberados',fmtN(st.total),'produtos na lista dos coletores')+kpi('Endereçados',fmtN(st.done),fmtP(pct)+' concluído','g')+kpi('Faltam',fmtN(rest),'sem endereço','a')+kpi('Não localizados',fmtN(st.nf),'coletor não encontrou o produto','r')+kpi('Equipe',fmtN(st.by.length),'coletores que já endereçaram')+'</div>'+
     '<div class="prog" aria-hidden="true"><b style="width:'+Math.min(100,pct)+'%"></b></div>'+
     '<div class="row"><button class="btn" data-act="adrelease">↻ Atualizar lista</button><button class="btn primary" data-act="adxl" '+(st.es.length?'':'disabled')+'>⬇ Exportar endereços coletados</button><button class="btn danger sm" data-act="adstop">Encerrar varredura</button></div>';
   h+=adGroupsCard();
@@ -2734,7 +2753,7 @@ const ACT={
   },
   async asave(){await aSave()},adelbase(){aDelete()},
   acancel(){S.aend=null;draw(true)},
-  axl:exportEnd,cltog(b){const k=b.dataset.k;if(S.cl.has(k))S.cl.delete(k);else S.cl.add(k);store.set('ci:cl',JSON.stringify([...S.cl]));draw(true)},adgtog(b){const g=b.dataset.g;if(S.adgopen.has(g))S.adgopen.delete(g);else S.adgopen.add(g);const el=$('#adg-body');if(el){el.innerHTML=adGroupsBody()}},adgall2(){adGroupsFiltered().forEach(x=>S.adgopen.add(x.g));$('#adg-body').innerHTML=adGroupsBody()},adgnone(){S.adgopen.clear();$('#adg-body').innerHTML=adGroupsBody()},adsave:adSave,adadd:adAdd,adedit(b){adEdit(b.dataset.code)},adrelease(){adRelease()},adstop(){adStop()},adrm(b){adRm(b.dataset.id)},adxl:exportAd,apxl:exportApurXlsx,appdf:exportApurPdf,apsave(){apSave()},apcancel(){S.apend=null;draw(true)},apclear(b){apClear(b.dataset.w)},bxl:exportBusca,
+  axl:exportEnd,cltog(b){const k=b.dataset.k;if(S.cl.has(k))S.cl.delete(k);else S.cl.add(k);store.set('ci:cl',JSON.stringify([...S.cl]));draw(true)},adgtog(b){const g=b.dataset.g;if(S.adgopen.has(g))S.adgopen.delete(g);else S.adgopen.add(g);const el=$('#adg-body');if(el){el.innerHTML=adGroupsBody()}},adgall2(){adGroupsFiltered().forEach(x=>S.adgopen.add(x.g));$('#adg-body').innerHTML=adGroupsBody()},adgnone(){S.adgopen.clear();$('#adg-body').innerHTML=adGroupsBody()},adsave:adSave,adnf:adNf,adadd:adAdd,adedit(b){adEdit(b.dataset.code)},adrelease(){adRelease()},adstop(){adStop()},adrm(b){adRm(b.dataset.id)},adxl:exportAd,apxl:exportApurXlsx,appdf:exportApurPdf,apsave(){apSave()},apcancel(){S.apend=null;draw(true)},apclear(b){apClear(b.dataset.w)},bxl:exportBusca,
   bvis(){bItems().slice(0,300).forEach(i=>S.bsel.add(i.id));draw(true)},
   bnone(){S.bsel.clear();draw(true)},
   async breq(){
