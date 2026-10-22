@@ -262,7 +262,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 4</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 11</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -770,7 +770,7 @@ function subscribe(){
   subs.push(db.collection('extras').onSnapshot(q=>{S.extras=new Map(q.docs.map(d=>[d.id,d.data()]));scheduleRebuild()},err));
   subs.push(db.collection('users').onSnapshot(q=>{S.users=new Map(q.docs.map(d=>[d.id,d.data()]));S.ops=new Map([...S.users].filter(([,u])=>u.role==='op').map(([k,u])=>[k,{key:k,name:u.name}]));S.usersLoaded=true;validateSession();scheduleRebuild();draw()},err));
   subs.push(db.collection('addrtask').onSnapshot(q=>{S.atask=new Map(q.docs.map(d=>[d.id,d.data()]));scheduleRebuild()},err));
-  subs.push(db.collection('addrnew').onSnapshot(q=>{S.anew=new Map(q.docs.map(d=>[d.id,d.data()]));if(S.canEdit)rebuildAddr();scheduleRebuild()},err));
+  subs.push(db.collection('addrnew').onSnapshot(q=>{S.anew=new Map(q.docs.map(d=>[d.id,d.data()]));if(S.canEdit)rebuildAddr();try{adListRefresh()}catch(e){}scheduleRebuild()},err));
   if(S.canEdit)subs.push(db.collection('apur').onSnapshot(q=>{S.apur=new Map(q.docs.map(d=>[d.id,d.data()]));scheduleRebuild();if(S.tab==='apuracao')draw()},err));
   if(S.canEdit)subs.push(db.collection('addr').onSnapshot(q=>{S.addrDocs=new Map(q.docs.map(d=>[d.id,d.data()]));rebuildAddr();scheduleRebuild()},err));
   if(S.canEdit)subs.push(db.collection('ops').onSnapshot(q=>{S.hb=new Map(q.docs.map(d=>[d.id,d.data()]));if(S.isAdmin)peersChanged()},err));
@@ -862,10 +862,13 @@ function drawApp(){
     if(mainMode!=='op'){$('#main').innerHTML='<div id="sync" class="sync"></div><div id="opc" class="stack" style="max-width:640px;margin:0 auto;width:100%"></div>';mainMode='op';opMode='';lastListKey=''}
     drawOpContent();updateSync();updateSendBar();pushPresence();
   }else{
+    const keep=(mainMode==='html'&&drawApp._tab===S.tab)?{y:window.scrollY,x:window.scrollX,s:$$('#main .scroll, #main .glist').map(e=>[e.scrollTop,e.scrollLeft])}:null;
     mainMode='html';
     let body='';
     try{body=managerBody()}catch(e){console.error(e);body='<div class="note bad">Erro ao desenhar esta aba: '+esc(e.message)+'</div>'}
     $('#main').innerHTML='<div class="stack">'+body+'</div>';
+    if(keep){$$('#main .scroll, #main .glist').forEach((e,i)=>{const p=keep.s[i];if(p){e.scrollTop=p[0];e.scrollLeft=p[1]}});window.scrollTo(keep.x,keep.y)}
+    drawApp._tab=S.tab;
   }
 }
 function updateSendBar(){
@@ -1218,10 +1221,11 @@ function vDashboard(){
     kpi('Divergências',fmtN(div),fmtP(pct(div,st.counted))+' dos contados','r')+
     kpi('Acurácia',fmtP(st.acc1),'1ª contagem que bateu com o ERP'+(st.accFinal!=null?' · final '+fmtP(st.accFinal):''),'g')+
     kpi('Valor divergente',fmtR(st.valDiv),'estimado pelas diferenças','a')+'</div>';
-  const tl=(cls,n,l,x)=>'<div class="rtile '+cls+'"><b>'+n+'</b><span>'+l+'</span>'+(x?'<span class="sub">'+x+'</span>':'')+'</div>';
-  h+='<div class="card"><div class="hd"><h2>🔁 Fila de contagens</h2><span class="sub">itens aguardando cada rodada</span></div><div class="bd"><div class="row" style="gap:10px">'+
+  const tl=(cls,n,l,x)=>'<div class="rtile '+cls+'"><b>'+n+'</b><span>'+l+'</span>'+'<span class="sub">'+(x||'&nbsp;')+'</span></div>';
+  h+='<div class="card"><div class="hd"><h2>🔁 Fila de contagens</h2><span class="sub">itens aguardando cada rodada</span></div><div class="bd"><div class="row" style="gap:10px;align-items:stretch">'+
     tl('n2',st.pend,'Aguardam 1ª contagem')+tl('n2',st.rec2,'Aguardam 2ª contagem')+tl('n3',st.rec3,'Aguardam 3ª contagem',st.rec3?'(1ª ≠ 2ª)':'')+tl('n4',st.rec4,'Aguardam 4ª contagem')+tl('sem',st.sem,'Sem consenso','decisão do supervisor')+
     (st.unasg?tl('n3',st.unasg,'Sem responsável','3ª/4ª a atribuir'):'')+'</div></div></div>';
+  h+=nfDashCard();
   if([...S.items.values()].some(it=>it.grp)){
     const gm=new Map();
     for(const it of S.items.values()){const g=it.grp||'(Sem grupo)';let o=gm.get(g);if(!o){o={n:g,tot:0,cont:0,closed:0,pend:0,busca:0};gm.set(g,o)}o.tot++;if(it.state==='pend'){o.pend++;if(it.sreq&&(!it.find||it.find.t<it.sreq.t))o.busca++}else o.cont++;if(it.state==='closed')o.closed++}
@@ -1309,11 +1313,40 @@ function divRows(){
     ((k==='sem'||k==='rec3'||k==='rec4')?'<div class="row" style="margin-top:6px;flex-wrap:nowrap;gap:6px"><input type="text" inputmode="decimal" style="width:84px;min-height:30px;padding:3px 8px" id="fin-'+esc(it.id)+'" placeholder="Qtd final" aria-label="Quantidade final de '+esc(it.code)+'"><button class="btn sm" data-act="setfinal" data-id="'+esc(it.id)+'">Definir</button></div>':'')+'</td>'+
     '<td>'+((k==='res'||k==='dec')?'<button class="btn sm" data-act="reopen" data-id="'+esc(it.id)+'" title="Descarta as contagens atuais deste item e recomeça da 1ª">Zerar e recontar</button>':'')+'</td></tr>'}).join('')+(list.length>300?'<tr><td colspan="9" class="sub" style="text-align:center">Mostrando 300 de '+list.length+'. A planilha traz todos.</td></tr>':'');
 }
+/* ---- produtos não localizados (marcados pelos coletores na contagem ou no endereçamento) ---- */
+function nfRows(){
+  const out=[];
+  for(const it of S.items.values()){
+    if(it.state!=='pend'||it.cnt.length||bStatus(it)!=='nao')continue;
+    const f=it.find;
+    out.push({code:it.code,desc:it.desc,grp:it.grp||'',loc:locTxt(it),op:f.op,t:f.t,it});
+  }
+  return out.sort((x,y)=>y.t-x.t);
+}
+function nfDashCard(){
+  const l=nfRows();
+  return'<div class="card"><div class="hd"><h2>🚫 Produtos não localizados</h2><span class="sub">informados pelos coletores na contagem</span><span class="sp" style="flex:1"></span><button class="btn sm" data-act="gonf">Ver em Divergências</button></div><div class="bd stack">'+
+    '<div class="row" style="gap:10px;align-items:stretch"><div class="rtile '+(l.length?'n4':'n2')+'"><b>'+fmtN(l.length)+'</b><span>Não localizados</span><span class="sub">&nbsp;</span></div></div>'+
+    (l.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th>Local</th><th>Coletor</th><th>Quando</th></tr></thead><tbody>'+l.slice(0,5).map(x=>'<tr><td class="mono">'+esc(x.code)+'</td><td class="wc">'+esc(x.desc)+'</td><td>'+esc(x.loc)+'</td><td>'+esc(x.op)+'</td><td>'+fmtDT(x.t)+'</td></tr>').join('')+'</tbody></table></div>'+(l.length>5?'<div class="sub">Mostrando os 5 mais recentes de '+fmtN(l.length)+'. A lista completa está na aba Divergências.</div>':''):'<div class="sub">Nenhum produto foi marcado como não localizado na contagem.</div>')+
+    '</div></div>';
+}
+function nfDivCard(){
+  const l=nfRows();
+  return'<div class="card"><div class="hd"><h2>🚫 Produtos não localizados</h2><span class="sub">'+fmtN(l.length)+' item(ns) que o coletor não encontrou no local indicado</span><span class="sp" style="flex:1"></span><button class="btn sm" data-act="nfxl"'+(l.length?'':' disabled')+'>⬇ Exportar .xlsx</button></div><div class="bd">'+
+    (l.length?'<div class="scroll" style="max-height:360px;overflow:auto"><table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th>Grupo</th><th>Local</th><th>Coletor</th><th>Quando</th><th></th></tr></thead><tbody>'+l.map(x=>'<tr><td class="mono">'+esc(x.code)+'</td><td class="wc">'+esc(x.desc)+'</td><td class="sub">'+esc(x.grp)+'</td><td>'+esc(x.loc)+'</td><td>'+esc(x.op)+'</td><td>'+fmtDT(x.t)+'</td><td style="white-space:nowrap"><button class="btn sm" data-act="bzero" data-id="'+esc(x.it.id)+'">Fechar como 0</button> <button class="btn sm" data-act="nfclear" data-id="'+esc(x.it.id)+'" data-fk="1" data-ak="" title="Tira a marcação e devolve o item para a contagem">Devolver</button></td></tr>').join('')+'</tbody></table></div>':'<div class="sub">Nenhum produto foi marcado como não localizado na contagem.</div>')+'</div></div>';
+}
+function exportNf(){
+  if(typeof XLSX==='undefined'){toast('Biblioteca de planilhas não carregou');return}
+  const l=nfRows();if(!l.length){toast('Nada para exportar');return}
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,mkSheet(l.map(x=>({c:x.code,d:x.desc,g:x.grp,l:x.loc,o:x.op,t:new Date(x.t).toLocaleString('pt-BR')})),[{h:'Código',k:'c',w:16},{h:'Descrição',k:'d',w:46},{h:'Grupo',k:'g',w:30},{h:'Local',k:'l',w:22},{h:'Coletor',k:'o',w:22},{h:'Quando',k:'t',w:18}]),'Não localizados');
+  saveXlsx(wb,'Nao_localizados_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
 function vDiv(){
   if(!S.meta)return noInv();
   const all=divItems(),f=S.filter;
   const n=k=>all.filter(it=>dvKey(it)===k).length;
-  return assignBar()+'<div class="kpis">'+kpi('Divergências entre contagens',fmtN(all.length),'itens cujas contagens não bateram','r')+kpi('Aguardando 3ª',fmtN(n('rec3')),'1ª ≠ 2ª','a')+kpi('Aguardando 4ª',fmtN(n('rec4')),'3 contagens sem igualdade','a')+kpi('Sem consenso',fmtN(n('sem')),'você decide a quantidade','r')+kpi('Resolvidas',fmtN(n('res')+n('dec')),'duas contagens iguais ou decisão sua','g')+'</div>'+
+  return assignBar()+'<div class="kpis">'+kpi('Divergências entre contagens',fmtN(all.length),'itens cujas contagens não bateram','r')+kpi('Aguardando 3ª',fmtN(n('rec3')),'1ª ≠ 2ª','a')+kpi('Aguardando 4ª',fmtN(n('rec4')),'3 contagens sem igualdade','a')+kpi('Sem consenso',fmtN(n('sem')),'você decide a quantidade','r')+kpi('Resolvidas',fmtN(n('res')+n('dec')),'duas contagens iguais ou decisão sua','g')+'</div>'+nfDivCard()+
   '<div class="card"><div class="bd stack"><div class="sub">Aqui a divergência é só entre as contagens físicas (1ª a 4ª). O saldo do ERP não é usado.</div><div class="row"><div class="field" style="flex:1;min-width:200px"><label for="qdiv">BUSCAR</label><input type="search" id="qdiv" data-inp="qdiv" placeholder="Código ou descrição" value="'+esc(S.q.div)+'"></div>'+depSelect()+'<button class="btn" data-act="csv-div">⬇ Exportar CSV</button><button class="btn" data-act="xl-div">⬇ Planilha .xlsx</button></div>'+
     '<div class="filters">'+[['todas','Todas'],['rec3','Aguarda 3ª'],['rec4','Aguarda 4ª'],['sem','Sem consenso'],['res','Resolvidas'],['dec','Decisão do supervisor'],['reab','Recontagem pedida']].map(([k,l])=>'<button class="btn sm" data-act="filter" data-v="'+k+'" aria-pressed="'+(f===k)+'">'+l+'</button>').join('')+'</div>'+
     '<div class="scroll"><table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th>Local</th><th>1ª</th><th>2ª</th><th>3ª</th><th>4ª</th><th>Status</th><th></th></tr></thead><tbody id="div-body">'+divRows()+'</tbody></table></div></div></div>';
@@ -1881,8 +1914,42 @@ function vEnd(){
   h+='<div class="card"><div class="bd stack"><div class="row"><div class="field"><label for="ef">MOSTRAR</label><select id="ef" data-chg="ef"><option value="sem"'+((S.q.ef||'sem')==='sem'?' selected':'')+'>Sem endereço (para endereçar)</option><option value="com"'+(S.q.ef==='com'?' selected':'')+'>Com endereço</option><option value="orf"'+(S.q.ef==='orf'?' selected':'')+'>Endereços sem produto no ERP</option><option value="todos"'+(S.q.ef==='todos'?' selected':'')+'>Todos do ERP</option></select></div>'+
     '<div class="field"><label for="eg">GRUPO</label><select id="eg" data-chg="eg"><option value="">Todos</option>'+gs.map(g=>'<option'+(S.q.eg===g?' selected':'')+'>'+esc(g)+'</option>').join('')+'</select></div>'+
     '<div class="field" style="flex:1;min-width:200px"><label for="eq">BUSCAR</label><input type="search" id="eq" data-inp="eq" placeholder="Código, descrição ou endereço" value="'+esc(S.q.eq||'')+'"></div></div>'+
+    '<div class="row" style="align-items:center"><button class="btn sm" data-act="axlv">⬇ Exportar esta lista (XLSX)</button><button class="btn sm" data-act="apdfv">⬇ Exportar esta lista (PDF)</button><span class="sub">exporta todos os itens do filtro atual, não só os 300 da tela</span></div>'+
     '<div class="scroll"><table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th>Grupo</th><th class="r">Qtd. ERP</th><th>Endereço</th></tr></thead><tbody id="end-body">'+endBody()+'</tbody></table></div></div></div>';
   return h;
+}
+const END_F={sem:'Sem endereço',com:'Com endereço',orf:'Endereços sem produto no ERP',todos:'Todos do ERP'};
+function endViewInfo(){
+  const f=S.q.ef||'sem',l=endFiltered();
+  const parts=[END_F[f]||''];if(S.q.eg)parts.push('Grupo: '+S.q.eg);if((S.q.eq||'').trim())parts.push('Busca: '+S.q.eq.trim());
+  return{l,txt:parts.join(' · '),file:'Enderecamento_'+(f==='sem'?'sem_endereco':f==='com'?'com_endereco':f)+'_'+new Date().toISOString().slice(0,10)};
+}
+function exportEndViewXlsx(){
+  if(typeof XLSX==='undefined'){toast('Biblioteca de planilhas não carregou');return}
+  const v=endViewInfo();if(!v.l.length){toast('Nada para exportar neste filtro');return}
+  const cols=[{h:'Código',k:'c',w:16},{h:'Descrição',k:'d',w:46},{h:'Grupo',k:'g',w:30},{h:'UN',k:'u',w:6},{h:'Qtd. ERP',k:'q',w:12,z:'#,##0.000'},{h:'Endereço',k:'end',w:26}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,mkSheet(v.l,cols),'Lista');
+  saveXlsx(wb,v.file+'.xlsx');
+}
+function exportEndViewPdf(){
+  const J=window.jspdf&&window.jspdf.jsPDF;
+  if(!J){toast('Biblioteca de PDF não carregou. Verifique a conexão e recarregue.',4000);return}
+  if(!S.dl){toast('Download indisponível nesta visualização');return}
+  const v=endViewInfo();if(!v.l.length){toast('Nada para exportar neste filtro');return}
+  const doc=new J({orientation:'landscape',unit:'mm',format:'a4'});
+  doc.setProperties({title:'Endereçamento — '+v.txt,author:'Italo Santos',creator:IP_TXT});
+  if(typeof doc.autoTable!=='function'){toast('Biblioteca de tabela do PDF não carregou.',4000);return}
+  doc.setFontSize(14);doc.text('Endereçamento — '+v.txt,10,12);
+  doc.setFontSize(8);doc.text('Gerado em '+new Date().toLocaleString('pt-BR')+' · '+fmtN(v.l.length)+' item(ns) · '+IP_TXT,10,17);
+  const body=v.l.map(x=>[x.c,x.d||'',x.g||'',x.u||'',x.q==null?'':fmtQ(x.q),x.end||'']);
+  doc.autoTable({
+    head:[['Código','Descrição','Grupo','UN','Qtd. ERP','Endereço']],body,startY:20,margin:{left:8,right:8,bottom:12},theme:'grid',
+    styles:{fontSize:7,cellPadding:1.2,overflow:'linebreak',lineWidth:.1,lineColor:[200,205,200]},headStyles:{fillColor:[47,127,21],textColor:255,fontSize:7,halign:'center'},
+    columnStyles:{0:{cellWidth:24},1:{cellWidth:86},2:{cellWidth:62},3:{cellWidth:10},4:{cellWidth:22,halign:'right'},5:{cellWidth:'auto'}},
+    didDrawPage:d=>{doc.setFontSize(7);doc.text(IP_TXT,8,doc.internal.pageSize.getHeight()-5);doc.text('Página '+doc.internal.getNumberOfPages(),doc.internal.pageSize.getWidth()-8,doc.internal.pageSize.getHeight()-5,{align:'right'})}
+  });
+  S.dl.save({filename:v.file+'.pdf',data:doc.output('blob')}).then(()=>toast('Arquivo salvo')).catch(e=>{if(!e||e.code!=='declined')toast('Não foi possível salvar o arquivo')});
 }
 function exportEnd(){
   if(typeof XLSX==='undefined'){toast('Biblioteca de planilhas não carregou');return}
@@ -1899,7 +1966,6 @@ let _nfm=null,_nfs=null;
 function nfCodes(){if(_nfm!==S.anew){_nfm=S.anew;_nfs=new Set([...S.anew.values()].filter(d=>d.nf).map(d=>d.code))}return _nfs}
 function bStatus(it){
   const s=it.sreq,f=it.find;
-  if(nfCodes().has(it.code)&&!(f&&f.st==='achou'))return'nao';
   if(f&&f.st==='nao'&&(!s||f.t>=s.t))return'nao';
   if(s&&(!f||f.t<s.t))return'busca';
   return'sem';
@@ -1919,7 +1985,7 @@ function bBody(){
   const l=bItems();
   if(!l.length)return'<tr><td colspan="8" class="empty">Nenhum item sem contagem neste filtro.</td></tr>';
   const nm=k=>k==='*'?'todos':((knownOps().find(o=>o.key===k)||{}).name||k);
-  return l.slice(0,300).map(it=>{const b=bStatus(it);return'<tr><td><input type="checkbox" data-chg="bsel" data-id="'+esc(it.id)+'"'+(S.bsel.has(it.id)?' checked':'')+' aria-label="Selecionar '+esc(it.code)+'"></td><td class="mono">'+esc(it.code)+'</td><td class="wc">'+esc(it.desc)+'</td><td class="sub">'+esc(it.grp||'')+'</td><td>'+esc(locTxt(it))+'</td><td><span class="chip '+B_CHIP[b]+'">'+B_TXT[b]+'</span>'+(b==='busca'?'<div class="sub">para '+esc(nm(it.sreq.to))+'</div>':'')+(b==='nao'?(()=>{const a=[...S.anew.values()].find(d=>d.nf&&d.code===it.code),w=it.find&&it.find.st==='nao'&&(!a||it.find.t>=a.t)?it.find:a;return w?'<div class="sub">'+esc(w.op)+' · '+fmtDT(w.t)+(w===a?' · no endereçamento':'')+'</div>':''})():'')+'</td><td>'+(b==='nao'?'<button class="btn sm" data-act="bzero" data-id="'+esc(it.id)+'">Fechar como 0</button>':'')+'</td></tr>'}).join('')+(l.length>300?'<tr><td colspan="8" class="sub" style="text-align:center">Mostrando 300 de '+fmtN(l.length)+'.</td></tr>':'');
+  return l.slice(0,300).map(it=>{const b=bStatus(it);return'<tr><td><input type="checkbox" data-chg="bsel" data-id="'+esc(it.id)+'"'+(S.bsel.has(it.id)?' checked':'')+' aria-label="Selecionar '+esc(it.code)+'"></td><td class="mono">'+esc(it.code)+'</td><td class="wc">'+esc(it.desc)+'</td><td class="sub">'+esc(it.grp||'')+'</td><td>'+esc(locTxt(it))+'</td><td><span class="chip '+B_CHIP[b]+'">'+B_TXT[b]+'</span>'+(b==='busca'?'<div class="sub">para '+esc(nm(it.sreq.to))+'</div>':'')+(b==='nao'&&it.find?'<div class="sub">'+esc(it.find.op)+' · '+fmtDT(it.find.t)+'</div>':'')+'</td><td>'+(b==='nao'?'<button class="btn sm" data-act="bzero" data-id="'+esc(it.id)+'">Fechar como 0</button>':'')+'</td></tr>'}).join('')+(l.length>300?'<tr><td colspan="8" class="sub" style="text-align:center">Mostrando 300 de '+fmtN(l.length)+'.</td></tr>':'');
 }
 function vBusca(){
   if(!S.meta)return noInv();
@@ -2166,7 +2232,8 @@ function adRows(){
   [...S.atask.entries()].filter(([k])=>/^t\d+$/.test(k)).sort((a,b)=>a[0]<b[0]?-1:1).forEach(([,d])=>(d.rows||[]).forEach(r=>out.push(r)));
   return out;
 }
-function adDone(){const s=new Set();for(const d of S.anew.values())s.add(d.code);for(const e of adLocal())s.add(e.code);return s}
+/* só conta como feito o que está no banco ou ainda na fila de envio; cópias locais já enviadas não valem (senão o item não volta ao ser desfeito pelo gestor) */
+function adDone(){const s=new Set();for(const d of S.anew.values())s.add(d.code);for(const e of adLocal())if(e.s===0)s.add(e.code);return s}
 const adAsg=()=>{const d=S.atask.get('assign');return(d&&d.map)||{}};
 const adGrp=r=>r[2]||NOGRP;
 /* linhas liberadas que o usuário atual pode ver: o gestor vê todas; o coletor só os grupos atribuídos a ele (ou a "todos") */
@@ -2178,7 +2245,7 @@ function adVisible(){
 function adMissing(){if(!adMeta())return[];const done=adDone();return adVisible().filter(r=>!done.has(r[0]))}
 const adEmptyTxt=()=>adVisible().length?'<b>Tudo endereçado!</b><br>Avise o gestor.':'<b>O gestor ainda não indicou grupos para você.</b><br>Esta lista atualiza sozinha.';
 const adId=code=>'a'+cyrb53(String(code));
-function adMine(){const s=new Set();for(const d of S.anew.values())if(d.ok===myKey()&&!d.nf)s.add(d.code);for(const e of adLocal())if(!e.nf)s.add(e.code);return s.size}
+function adMine(){const s=new Set();for(const d of S.anew.values())if(d.ok===myKey()&&!d.nf)s.add(d.code);for(const e of adLocal())if(e.s===0&&!e.nf)s.add(e.code);return s.size}
 function adProg(){
   const el=$('#aprog');if(!el)return;
   const miss=adMissing().length,tot=adVisible().length,pend=adPending().length;
@@ -2244,7 +2311,7 @@ function adAdd(b){
 function adMineList(){
   const m=new Map();
   for(const d of S.anew.values())if(d.ok===myKey())m.set(d.code,{code:d.code,desc:d.desc,shelf:d.shelf,nf:!!d.nf,t:d.t});
-  for(const e of adLocal())if(e.ok===myKey())m.set(e.code,{code:e.code,desc:e.desc,shelf:e.shelf,nf:!!e.nf,t:e.t});
+  for(const e of adLocal())if(e.ok===myKey()&&e.s===0)m.set(e.code,{code:e.code,desc:e.desc,shelf:e.shelf,nf:!!e.nf,t:e.t});
   return [...m.values()].sort((a,b)=>b.t-a.t).slice(0,5);
 }
 async function adEdit(code){
@@ -2274,10 +2341,53 @@ function adStats(){
   let done=0,nf=0;
   for(const e of es){
     if(codes.has(e.code)){if(e.nf)nf++;else done++}
-    let o=by.get(e.ok);if(!o){o={name:e.op,n:0,first:e.t,last:e.t,today:0};by.set(e.ok,o)}
-    o.n++;if(e.t<o.first)o.first=e.t;if(e.t>o.last)o.last=e.t;if(e.t>=d0.getTime())o.today++;
+    let o=by.get(e.ok);if(!o){o={key:e.ok,nf:0,name:e.op,n:0,first:e.t,last:e.t,today:0};by.set(e.ok,o)}
+    if(e.nf)o.nf=(o.nf||0)+1;else o.n++;if(e.t<o.first)o.first=e.t;if(e.t>o.last)o.last=e.t;if(e.t>=d0.getTime())o.today++;
   }
   return{total:rows.length,done,nf,es,by:[...by.values()].sort((a,b)=>b.n-a.n)};
+}
+S.q.adlc='';S.q.adlq='';S.q.adls='';S.adlmax=100;
+function adListFiltered(es){
+  const c=S.q.adlc||'',q=(S.q.adlq||'').trim().toLowerCase(),f=S.q.adls||'';
+  return es.filter(e=>(!c||e.ok===c)&&(!f||(f==='nf'?!!e.nf:!e.nf))&&(!q||(e.code+' '+(e.desc||'')+' '+e.shelf).toLowerCase().includes(q)));
+}
+function adListBody(){
+  const all=adStats().es,l=adListFiltered(all),max=S.adlmax||100;
+  const rows=l.slice(0,max).map(e=>'<tr><td>'+fmtDT(e.t)+'</td><td>'+esc(e.op)+'</td><td class="mono">'+esc(e.code)+'</td><td class="wc">'+esc(e.desc||'')+'</td><td>'+(e.nf?'<span class="chip bad">✗ Produto não localizado</span>':'<b>'+esc(e.shelf)+'</b>')+'</td><td><button class="btn sm" data-act="adrm" data-id="'+esc(adId(e.code))+'" title="Remove o endereço e devolve o item para a lista">Desfazer</button></td></tr>').join('');
+  return{html:rows||'<tr><td colspan="6" class="empty">Nenhum endereço neste filtro.</td></tr>'+'',count:'Mostrando '+fmtN(Math.min(max,l.length))+' de '+fmtN(l.length)+(l.length!==all.length?' (total '+fmtN(all.length)+')':'')+' · atualiza sozinho',more:l.length>max};
+}
+function adListRefresh(){
+  const b=$('#adl-body');if(!b)return;
+  const r=adListBody();b.innerHTML=r.html;
+  const c=$('#adl-count');if(c)c.textContent=r.count;
+  const m=$('#adl-more');if(m)m.hidden=!r.more;
+}
+function adListCard(st){
+  const r=adListBody();
+  return'<h3 style="margin:6px 0 0">Endereços informados <span class="sub" style="font-weight:400">lista completa, em tempo real</span></h3>'+
+    '<div class="row"><div class="field"><label for="adlc">COLETOR</label><select id="adlc" data-chg="adlc"><option value="">Todos</option>'+st.by.map(o=>{const k=o.key;return'<option value="'+esc(k)+'"'+((S.q.adlc||'')===k?' selected':'')+'>'+esc(o.name)+' ('+fmtN(o.n+(o.nf||0))+')</option>'}).join('')+'</select></div>'+
+    '<div class="field"><label for="adls">MOSTRAR</label><select id="adls" data-chg="adls"><option value="">Todos</option><option value="nf"'+(S.q.adls==='nf'?' selected':'')+'>Só não localizados</option><option value="ok"'+(S.q.adls==='ok'?' selected':'')+'>Só com endereço</option></select></div>'+
+    '<div class="field" style="flex:1;min-width:200px"><label for="adlq">BUSCAR</label><input type="search" id="adlq" data-inp="adlq" autocomplete="off" placeholder="Código, descrição ou endereço" value="'+esc(S.q.adlq||'')+'"></div></div>'+
+    '<div class="sub" id="adl-count">'+r.count+'</div>'+
+    '<div class="scroll" style="max-height:520px;overflow:auto"><table class="tbl"><thead><tr><th>Hora</th><th>Coletor</th><th>Código</th><th>Descrição</th><th>Endereço</th><th></th></tr></thead><tbody id="adl-body">'+r.html+'</tbody></table></div>'+
+    '<div class="row"><button class="btn sm" id="adl-more" data-act="adlmore"'+(r.more?'':' hidden')+'>Mostrar mais 200</button></div>';
+}
+function adAssignCounts(){
+  const asg=adAsg(),done=adDone(),m=new Map();
+  for(const r of adRows()){
+    const w=asg[adGrp(r)];if(!w)continue;
+    let o=m.get(w);if(!o){o={n:0,d:0};m.set(w,o)}
+    o.n++;if(done.has(r[0]))o.d++;
+  }
+  return m;
+}
+function adCollTable(st){
+  const ac=adAssignCounts(),by=new Map(st.by.map(o=>[o.key,o])),keys=new Set([...by.keys(),...ac.keys()]);
+  if(!keys.size)return'';
+  const nm=k=>k==='*'?'Todos os coletores (grupos compartilhados)':((by.get(k)||{}).name||(knownOps().find(o=>o.key===k)||{}).name||k);
+  const rows=[...keys].map(k=>({k,name:nm(k),o:by.get(k),a:ac.get(k)||{n:0,d:0}})).sort((x,y)=>y.a.n-x.a.n||(y.o?y.o.n:0)-(x.o?x.o.n:0));
+  const tot=rows.reduce((s,r)=>s+r.a.n,0);
+  return'<div class="scroll"><table class="tbl"><thead><tr><th>Coletor</th><th style="text-align:center">Itens atribuídos</th><th style="text-align:center">Endereçados</th><th style="text-align:center">Hoje</th><th>Primeiro</th><th>Último</th><th style="text-align:center">Ritmo (itens/h)</th></tr></thead><tbody>'+rows.map(r=>{const o=r.o,hrs=o?(o.last-o.first)/3600000:0,rt=o&&o.n>=2&&hrs>0?o.n/hrs:null,pend=Math.max(0,r.a.n-r.a.d);return'<tr><td><b>'+esc(r.name)+'</b></td><td class="num" style="text-align:center"><b>'+fmtN(r.a.n)+'</b>'+(r.a.n?'<div class="sub">faltam '+fmtN(pend)+'</div>':'')+'</td><td class="num" style="text-align:center">'+fmtN(o?o.n:0)+'</td><td class="num" style="text-align:center">'+fmtN(o?o.today:0)+'</td><td>'+(o?fmtDT(o.first):'<span class="sub">—</span>')+'</td><td>'+(o?fmtDT(o.last):'<span class="sub">—</span>')+'</td><td class="num" style="text-align:center">'+(rt==null?'<span class="sub">—</span>':fmtN(rt,1))+'</td></tr>'}).join('')+'</tbody></table></div><div class="sub">Itens atribuídos = produtos dos grupos escolhidos para cada coletor (total '+fmtN(tot)+'). "Faltam" desconta o que já foi endereçado ou marcado como não localizado. Ritmo = endereços ÷ horas entre o primeiro e o último lançamento.</div>';
 }
 function vScan(){
   const m=adMeta();
@@ -2292,22 +2402,28 @@ function vScan(){
     '<div class="prog" aria-hidden="true"><b style="width:'+Math.min(100,pct)+'%"></b></div>'+
     '<div class="row"><button class="btn" data-act="adrelease">↻ Atualizar lista</button><button class="btn primary" data-act="adxl" '+(st.es.length?'':'disabled')+'>⬇ Exportar endereços coletados</button><button class="btn danger sm" data-act="adstop">Encerrar varredura</button></div>';
   h+=adGroupsCard();
+  h+=adCollTable(st);
   if(st.by.length){
-    h+='<div class="scroll"><table class="tbl"><thead><tr><th>Coletor</th><th style="text-align:center">Endereçados</th><th style="text-align:center">Hoje</th><th>Primeiro</th><th>Último</th><th style="text-align:center">Ritmo (itens/h)</th></tr></thead><tbody>'+st.by.map(o=>{const hrs=(o.last-o.first)/3600000,rt=o.n>=2&&hrs>0?o.n/hrs:null;return'<tr><td><b>'+esc(o.name)+'</b></td><td class="num" style="text-align:center">'+fmtN(o.n)+'</td><td class="num" style="text-align:center">'+fmtN(o.today)+'</td><td>'+fmtDT(o.first)+'</td><td>'+fmtDT(o.last)+'</td><td class="num" style="text-align:center">'+(rt==null?'<span class="sub">—</span>':fmtN(rt,1))+'</td></tr>'}).join('')+'</tbody></table></div><div class="sub">Ritmo = endereços ÷ horas entre o primeiro e o último lançamento do coletor.</div>';
-    h+='<h3 style="margin:6px 0 0">Últimos endereços informados</h3><div class="scroll"><table class="tbl"><thead><tr><th>Hora</th><th>Coletor</th><th>Código</th><th>Descrição</th><th>Endereço</th><th></th></tr></thead><tbody>'+st.es.slice(0,15).map(e=>'<tr><td>'+fmtDT(e.t)+'</td><td>'+esc(e.op)+'</td><td class="mono">'+esc(e.code)+'</td><td class="wc">'+esc(e.desc||'')+'</td><td><b>'+esc(e.shelf)+'</b></td><td><button class="btn sm" data-act="adrm" data-id="'+esc(adId(e.code))+'" title="Remove o endereço e devolve o item para a lista">Desfazer</button></td></tr>').join('')+'</tbody></table></div>';
+    h+=adListCard(st);
   }else h+='<div class="note info">Ainda ninguém informou endereços. Os coletores veem a aba <b>Endereçar</b> no celular.</div>';
   if(!S.addrDocs.size)h+='<div class="note">Sem base de endereços carregada, os endereços coletados aparecem só aqui e na exportação. Carregue a base abaixo para que eles passem a valer em Locais.</div>';
   return h+'</div></div>';
 }
 async function adRelease(){
   if(!stockBase().length){toast('Envie o arquivo do ERP na aba Importar primeiro',3500);return}
-  const done=adDone(),rows=endRows().sem.filter(x=>!done.has(x.c));
+  const done=adDone(),running=!!adMeta(),prev=running?adRows():[],have=new Set(prev.map(r=>r[0]));
+  /* varredura em andamento: mantém a lista atual (inclusive o que já foi endereçado) e só acrescenta produtos novos */
+  const add=endRows().sem.filter(x=>!done.has(x.c)&&!have.has(x.c)).map(x=>[String(x.c).slice(0,30),String(x.d||'').slice(0,70),String(x.g||'').slice(0,40),String(x.u||'').slice(0,8)]);
+  const rows=prev.concat(add);
   if(!rows.length){toast('Nenhum produto sem endereço para liberar');return}
+  if(running&&!add.length){toast('Lista já está atualizada: nenhum produto novo. O andamento da varredura foi mantido.',4000);return}
   try{
-    for(const id of [...S.atask.keys()])if(/^t\d+$/.test(id))await S.db.doc('addrtask/'+id).delete();
-    for(let i=0,n=0;i<rows.length;i+=300,n++)await S.db.doc('addrtask/t'+String(n).padStart(3,'0')).set({no:n,rows:rows.slice(i,i+300).map(x=>[String(x.c).slice(0,30),String(x.d||'').slice(0,70),String(x.g||'').slice(0,40),String(x.u||'').slice(0,8)])});
-    await S.db.doc('addrtask/meta').set({on:true,t:Date.now(),count:rows.length,by:S.name});
-    toast('Lista liberada: '+fmtN(rows.length)+' produtos');
+    const ids=new Set();
+    for(let i=0,n=0;i<rows.length;i+=300,n++){const id='t'+String(n).padStart(3,'0');ids.add(id);await S.db.doc('addrtask/'+id).set({no:n,rows:rows.slice(i,i+300)})}
+    for(const id of [...S.atask.keys()])if(/^t\d+$/.test(id)&&!ids.has(id))await S.db.doc('addrtask/'+id).delete();
+    const cur=S.atask.get('meta')||{};
+    await S.db.doc('addrtask/meta').set({on:true,t:Date.now(),count:rows.length,by:S.name,since:(running&&cur.since)||(running&&cur.t)||Date.now()});
+    toast(running?('Lista atualizada: +'+fmtN(add.length)+' produto(s) novo(s); o andamento foi mantido'):('Lista liberada: '+fmtN(rows.length)+' produtos'));
   }catch(e){console.error(e);toast('Não foi possível liberar a lista',3500)}
 }
 async function adStop(){
@@ -2350,6 +2466,10 @@ function vLive(){
 }
 
 /* ---- grupos por coletor (gestor) ---- */
+function adStatusCell(x){
+  const pct=x.n?Math.min(100,x.d/x.n*100):0,fin=x.n>0&&x.d>=x.n;
+  return'<div class="prog" style="height:12px" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+Math.round(pct)+'" aria-label="Progresso do grupo"><b style="width:'+pct+'%;'+(fin?'background:var(--ok)':'')+'"></b></div><div class="sub" style="margin-top:3px">'+(fin?'<b style="color:var(--ok)">✓ Finalizado</b>':fmtN(pct,0)+'% · '+fmtN(x.d)+' de '+fmtN(x.n))+'</div>';
+}
 function adGroups(){
   const rows=adRows(),done=adDone(),by=new Map();
   for(const r of rows){const g=adGrp(r);let o=by.get(g);if(!o){o={g,n:0,d:0,rows:[]};by.set(g,o)}o.n++;o.rows.push(r);if(done.has(r[0]))o.d++}
@@ -2376,7 +2496,7 @@ function adProdRows(x,em){
 }
 function adGroupsBody(){
   const a=adAsg(),l=adGroupsFiltered(),em=adEntryMap();
-  return l.length?l.map(x=>{const op=S.adgopen.has(x.g);return'<tr><td class="wc"><button class="btn sm" data-act="adgtog" data-g="'+esc(x.g)+'" aria-expanded="'+op+'" aria-label="Ver produtos do grupo" style="min-height:26px;padding:2px 8px;margin-right:6px">'+(op?'▾':'▸')+'</button><b>'+esc(x.g)+'</b></td><td class="num" style="text-align:center">'+fmtN(x.n)+'</td><td class="num" style="text-align:center">'+fmtN(x.n-x.d)+'</td><td><select data-chg="adg" data-g="'+esc(x.g)+'" aria-label="Responsável pelo grupo '+esc(x.g)+'">'+adOpts(a[x.g]||'')+'</select></td></tr>'+(op?adProdRows(x,em):'')}).join(''):'<tr><td colspan="4" class="empty">Nenhum grupo encontrado.</td></tr>';
+  return l.length?l.map(x=>{const op=S.adgopen.has(x.g);return'<tr><td class="wc"><button class="btn sm" data-act="adgtog" data-g="'+esc(x.g)+'" aria-expanded="'+op+'" aria-label="Ver produtos do grupo" style="min-height:26px;padding:2px 8px;margin-right:6px">'+(op?'▾':'▸')+'</button><b>'+esc(x.g)+'</b></td><td class="num" style="text-align:center">'+fmtN(x.n)+'</td><td class="num" style="text-align:center">'+fmtN(x.n-x.d)+'</td><td><select data-chg="adg" data-g="'+esc(x.g)+'" aria-label="Responsável pelo grupo '+esc(x.g)+'">'+adOpts(a[x.g]||'')+'</select></td><td>'+adStatusCell(x)+'</td></tr>'+(op?adProdRows(x,em):'')}).join(''):'<tr><td colspan="5" class="empty">Nenhum grupo encontrado.</td></tr>';
 }
 function adGroupsCard(){
   const a=adAsg(),gs=adGroups(),sem=gs.filter(x=>!a[x.g]&&x.n-x.d>0).length;
@@ -2385,7 +2505,7 @@ function adGroupsCard(){
     (sem?'<div class="note">'+sem+' '+(sem===1?'grupo ainda sem responsável':'grupos ainda sem responsável')+': nenhum coletor os vê.</div>':'')+
     '<div class="row"><div class="field" style="flex:1;min-width:200px"><label for="adgq">FILTRAR GRUPOS</label><input type="search" id="adgq" data-inp="adgq" autocomplete="off" placeholder="Digite parte do nome do grupo" value="'+esc(S.q.adgq||'')+'"></div>'+
     '<div class="field"><label for="adgall">ATRIBUIR OS GRUPOS LISTADOS A</label><select id="adgall" data-chg="adgall"><option value="">Escolha…</option><option value="-">— ninguém —</option><option value="*">Todos os coletores</option>'+knownOps().filter(o=>S.ops.has(o.key)).map(o=>'<option value="'+esc(o.key)+'">'+esc(o.name)+'</option>').join('')+'</select></div></div>'+
-    '<div class="row"><div class="field"><label for="adps">PRODUTOS DENTRO DO GRUPO</label><select id="adps" data-chg="adps"><option value="">Todos</option><option value="ok"'+(S.q.adps==='ok'?' selected':'')+'>Só endereçados</option><option value="pend"'+(S.q.adps==='pend'?' selected':'')+'>Só sem endereço</option></select></div><button class="btn sm" data-act="adgall2">Abrir todos os grupos</button><button class="btn sm" data-act="adgnone">Fechar todos</button></div><div class="sub">Toque na seta ▸ de um grupo para ver os produtos e o endereço informado pelos coletores.</div>'+'<div class="scroll" style="max-height:360px;overflow:auto"><table class="tbl"><thead><tr><th>Grupo</th><th style="text-align:center">Produtos</th><th style="text-align:center">Faltam</th><th>Responsável</th></tr></thead><tbody id="adg-body">'+adGroupsBody()+'</tbody></table></div></div></div>';
+    '<div class="row"><div class="field"><label for="adps">PRODUTOS DENTRO DO GRUPO</label><select id="adps" data-chg="adps"><option value="">Todos</option><option value="ok"'+(S.q.adps==='ok'?' selected':'')+'>Só endereçados</option><option value="pend"'+(S.q.adps==='pend'?' selected':'')+'>Só sem endereço</option></select></div><button class="btn sm" data-act="adgall2">Abrir todos os grupos</button><button class="btn sm" data-act="adgnone">Fechar todos</button></div><div class="sub">Toque na seta ▸ de um grupo para ver os produtos e o endereço informado pelos coletores.</div>'+'<div class="scroll" style="max-height:360px;overflow:auto"><table class="tbl"><thead><tr><th>Grupo</th><th style="text-align:center">Produtos</th><th style="text-align:center">Faltam</th><th>Responsável</th><th style="min-width:170px">Status</th></tr></thead><tbody id="adg-body">'+adGroupsBody()+'</tbody></table></div></div></div>';
 }
 async function adSetGroups(pairs){
   const map=Object.assign({},adAsg());
@@ -2664,6 +2784,17 @@ const ACT={
     const g=($('#s2g')||{}).value,map={};for(const it of S.items.values())if(it.state==='rec2'&&!it.asg&&(!g||(it.grp||'(Sem grupo)')===g))map[it.id]='*';
     const n=await setThird(map);if(n)toast(n+' liberado(s) para qualquer operador elegível',3500);
   },
+  gonf(){S.tab='divergencias';S.filter='todas';mainMode='';draw(true);window.scrollTo(0,0)},
+  nfxl:exportNf,
+  async nfclear(b){
+    const id=b.dataset.id,ak=b.dataset.ak,fk=b.dataset.fk==='1',key='nfc'+id+ak;
+    if(!confirmOnce(key)){toast('Toque de novo para devolver o item');return}
+    try{
+      if(fk&&id){const it=S.items.get(id);if(it)answerFind(it,'limpo',null,'')}
+      if(ak)await S.db.doc('addrnew/'+ak).delete();
+      toast('Marcação removida; o item voltou para a fila');
+    }catch(e){toast('Não foi possível remover a marcação')}
+  },
   goto3(){S.tab='divergencias';S.filter='todas';mainMode='';draw(true);window.scrollTo(0,0)},
   xsave(){
     const g=id=>(document.getElementById(id)||{}).value||'';
@@ -2753,7 +2884,7 @@ const ACT={
   },
   async asave(){await aSave()},adelbase(){aDelete()},
   acancel(){S.aend=null;draw(true)},
-  axl:exportEnd,cltog(b){const k=b.dataset.k;if(S.cl.has(k))S.cl.delete(k);else S.cl.add(k);store.set('ci:cl',JSON.stringify([...S.cl]));draw(true)},adgtog(b){const g=b.dataset.g;if(S.adgopen.has(g))S.adgopen.delete(g);else S.adgopen.add(g);const el=$('#adg-body');if(el){el.innerHTML=adGroupsBody()}},adgall2(){adGroupsFiltered().forEach(x=>S.adgopen.add(x.g));$('#adg-body').innerHTML=adGroupsBody()},adgnone(){S.adgopen.clear();$('#adg-body').innerHTML=adGroupsBody()},adsave:adSave,adnf:adNf,adadd:adAdd,adedit(b){adEdit(b.dataset.code)},adrelease(){adRelease()},adstop(){adStop()},adrm(b){adRm(b.dataset.id)},adxl:exportAd,apxl:exportApurXlsx,appdf:exportApurPdf,apsave(){apSave()},apcancel(){S.apend=null;draw(true)},apclear(b){apClear(b.dataset.w)},bxl:exportBusca,
+  axl:exportEnd,cltog(b){const k=b.dataset.k;if(S.cl.has(k))S.cl.delete(k);else S.cl.add(k);store.set('ci:cl',JSON.stringify([...S.cl]));draw(true)},adgtog(b){const g=b.dataset.g;if(S.adgopen.has(g))S.adgopen.delete(g);else S.adgopen.add(g);const el=$('#adg-body');if(el){el.innerHTML=adGroupsBody()}},adgall2(){adGroupsFiltered().forEach(x=>S.adgopen.add(x.g));$('#adg-body').innerHTML=adGroupsBody()},adgnone(){S.adgopen.clear();$('#adg-body').innerHTML=adGroupsBody()},adsave:adSave,axlv:exportEndViewXlsx,apdfv:exportEndViewPdf,adlmore(){S.adlmax=(S.adlmax||100)+200;adListRefresh()},adnf:adNf,adadd:adAdd,adedit(b){adEdit(b.dataset.code)},adrelease(){adRelease()},adstop(){adStop()},adrm(b){adRm(b.dataset.id)},adxl:exportAd,apxl:exportApurXlsx,appdf:exportApurPdf,apsave(){apSave()},apcancel(){S.apend=null;draw(true)},apclear(b){apClear(b.dataset.w)},bxl:exportBusca,
   bvis(){bItems().slice(0,300).forEach(i=>S.bsel.add(i.id));draw(true)},
   bnone(){S.bsel.clear();draw(true)},
   async breq(){
@@ -2840,7 +2971,7 @@ const CHG={
   aphdr(t){S.apend.hdr=Math.max(1,Math.floor(Number(t.value)||1))-1;apRemap(S.apend);draw(true)},
   apmap(t){S.apend.map[t.dataset.f]=t.value===''?null:Number(t.value);apParse(S.apend);draw(true)},
   apf(t){S.q.apf=t.value;draw(true)},apg(t){S.q.apg=t.value;draw(true)},
-  adps(t){S.q.adps=t.value;draw(true)},
+  adps(t){S.q.adps=t.value;draw(true)},adlc(t){S.q.adlc=t.value;S.adlmax=100;adListRefresh()},adls(t){S.q.adls=t.value;S.adlmax=100;adListRefresh()},
   adg(t){adSetGroups([[t.dataset.g,t.value]])},
   adgall(t){const v=t.value;if(!v)return;adSetGroups(adGroupsFiltered().map(x=>[x.g,v]));t.value=''},
   asheet(t){aSetSheet(S.aend,t.value);draw(true)},
@@ -2865,6 +2996,7 @@ root.addEventListener('input',e=>{
   else if(k==='igq'&&S.imp){S.imp.gq=t.value;const l=$('#ig-list');if(l)l.innerHTML=igList(S.imp)}
   else if(k==='lq'){S.q.lq=t.value;$('#loc-body').innerHTML=locBody(knownOps())}
   else if(k==='apq'){S.q.apq=t.value;$('#apur-body').innerHTML=apBody(apRows())}
+  else if(k==='adlq'){S.q.adlq=t.value;S.adlmax=100;adListRefresh()}
   else if(k==='adgq'){S.q.adgq=t.value;const b=$('#adg-body');if(b)b.innerHTML=adGroupsBody()}
   else if(k==='aq'){S.q.aq=t.value;adRender(true)}
   else if(k==='eq'){S.q.eq=t.value;$('#end-body').innerHTML=endBody()}
