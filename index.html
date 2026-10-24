@@ -153,7 +153,7 @@ input[type=text],input[type=number],input[type=search],select{border:1px solid v
 .sync.off{background:var(--warn-soft);border-color:transparent}.sync.bad{background:var(--bad-soft);border-color:transparent}
 .sync .grow{flex:1;min-width:0}
 .sync .dot{width:9px;height:9px;border-radius:50%;background:var(--line);flex:none}.sync .dot.on{background:var(--live);box-shadow:0 0 0 3px var(--live-soft)}
-.bnav{position:fixed;left:0;right:0;bottom:0;z-index:26;background:var(--surface);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom,0px)}
+.bnav.many .nv{font-size:9.5px;letter-spacing:-.2px}.bnav{position:fixed;left:0;right:0;bottom:0;z-index:26;background:var(--surface);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom,0px)}
 .nv{flex:1;appearance:none;border:0;background:none;padding:8px 2px 7px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;position:relative}
 .nv .ic{font-size:19px;line-height:1}
 .nv[aria-selected="true"]{color:var(--brand2);background:var(--live-soft)}
@@ -262,7 +262,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 11</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 12</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -648,6 +648,7 @@ let lastPres='';
 let lastHb='',lastHbT=0;
 function actLabel(){
   const v=S.opView;
+  if(v.page==='consulta')return 'Consultando endereços';
   if(v.page==='enderecar')return 'Endereçando produtos';
   if(v.page==='procurar')return 'Procurando itens';
   if(v.page==='novo')return 'Cadastrando item';
@@ -856,7 +857,7 @@ function drawApp(){
   if(!S.isAdmin&&S.name){
     const rc=S.meta?recountItems().filter(canRecount).length+secondItems().filter(canRecount).length:0,pg=S.opView.page;
     bn.hidden=false;
-    bn.innerHTML=[['locais','📍','Locais',0],['contagem','📱','Contagem',rc],['procurar','🔎','Procurar',searchItems().length],['novo','➕','Novo item',0],['hist','🕒','Histórico',0]].concat(adMeta()?[['enderecar','🏷️','Endereçar',adMissing().length]]:[]).map(([k,ic,l,b])=>'<button class="nv" data-act="opage" data-v="'+k+'" aria-selected="'+(pg===k)+'"><span class="ic">'+ic+'</span>'+l+(b?'<span class="badge">'+b+'</span>':'')+'</button>').join('');
+    bn.innerHTML=[['locais','📍','Locais',0],['contagem','📱','Contagem',rc],['procurar','🔎','Procurar',searchItems().length],['novo','➕','Novo item',0],['hist','🕒','Histórico',0]].concat(qMeta()?[['consulta','📍','Endereços',0]]:[]).concat(adMeta()?[['enderecar','🏷️','Endereçar',adMissing().length]]:[]).map(([k,ic,l,b])=>'<button class="nv" data-act="opage" data-v="'+k+'" aria-selected="'+(pg===k)+'"><span class="ic">'+ic+'</span>'+l+(b?'<span class="badge">'+b+'</span>':'')+'</button>').join('');bn.classList.toggle('many',bn.children.length>6);
   }else bn.hidden=true;
   if(cv){
     if(mainMode!=='op'){$('#main').innerHTML='<div id="sync" class="sync"></div><div id="opc" class="stack" style="max-width:640px;margin:0 auto;width:100%"></div>';mainMode='op';opMode='';lastListKey=''}
@@ -947,13 +948,14 @@ let rows=new Map(),heads=new Map(),lastListKey='';
 function frameReset(){mainMode='';lastListKey='';opMode=''}
 function opNav(active){
   if(!S.isAdmin)return'';
-  return'<div class="filters">'+[['locais','📍 Locais'],['contagem','📱 Contagem'],['procurar','🔎 Procurar'+(searchItems().length?' ('+searchItems().length+')':'')],['novo','➕ Item fora do ERP'],['hist','🕒 Meu histórico']].map(([k,l])=>'<button class="btn sm" data-act="opage" data-v="'+k+'" aria-pressed="'+(active===k)+'">'+l+'</button>').join('')+'</div>';
+  return'<div class="filters">'+[['consulta','📍 Endereços'],['locais','📍 Locais'],['contagem','📱 Contagem'],['procurar','🔎 Procurar'+(searchItems().length?' ('+searchItems().length+')':'')],['novo','➕ Item fora do ERP'],['hist','🕒 Meu histórico']].map(([k,l])=>'<button class="btn sm" data-act="opage" data-v="'+k+'" aria-pressed="'+(active===k)+'">'+l+'</button>').join('')+'</div>';
 }
 function drawOpContent(){
   const host=$('#opc');if(!host)return;
   if(!S.name)return;
   const v=S.opView;
   const ro=S.canWrite===false?'<div class="note bad">Seu acesso é somente leitura: as contagens não serão aceitas. Peça ao supervisor para liberar acesso de colaborador.</div>':'';
+  if(v.page==='consulta')return drawConsultaPage(host,ro);
   if(v.page==='enderecar')return drawAddrPage(host,ro);
   if(!S.meta){opMode='msg';host.innerHTML=opNav(v.page)+ro+'<div class="card"><div class="empty">Nenhum inventário aberto no momento.<br>Aguarde o supervisor publicar a lista.</div></div>';return}
   if(S.meta.status==='encerrado'){opMode='msg';host.innerHTML=opNav(v.page)+'<div class="card"><div class="empty"><b>Inventário encerrado.</b><br>Obrigado pela contagem.</div></div>';return}
@@ -1909,6 +1911,7 @@ function vEnd(){
   h+=vScan();
   h+='<div class="card"><div class="hd"><h2>📍 Endereçamento</h2><span class="sub">'+esc(meta?meta.file+' · '+fmtDT(meta.t):'')+'</span></div><div class="bd stack"><div class="row"><label class="btn">Trocar base de endereços<input type="file" id="afile" accept=".xlsx,.xls,.csv,.txt" data-chg="afile" style="display:none"></label>'+(has?'<button class="btn primary" data-act="axl">⬇ Exportar XLSX</button>':'')+'<button class="btn danger" data-act="adelbase">Excluir base de endereços</button></div></div></div>';
   h+='<div class="kpis">'+kpi('Códigos endereçados',fmtN(S.addr.size),'na base de endereços')+(has?kpi('Estoque do ERP',fmtN(stockBase().length),stockSrc())+kpi('Com endereço',fmtN(r.com.length),'estoque já endereçado','g')+kpi('Sem endereço',fmtN(r.sem.length),'com estoque, para endereçar','r')+kpi('Endereços sem ERP',fmtN(r.orf.length),'códigos fora do arquivo do ERP','a'):'')+'</div>';
+  h+=qCardGestor();
   if(!has){h+='<div class="note info">Para cruzar com o estoque, envie o arquivo do ERP na aba <b>Importar</b> (não precisa publicar) ou publique um inventário.</div>';return h}
   const gs=[...new Set(stockBase().map(x=>x.g))].sort((x,y)=>x.localeCompare(y,'pt',{numeric:true}));
   h+='<div class="card"><div class="bd stack"><div class="row"><div class="field"><label for="ef">MOSTRAR</label><select id="ef" data-chg="ef"><option value="sem"'+((S.q.ef||'sem')==='sem'?' selected':'')+'>Sem endereço (para endereçar)</option><option value="com"'+(S.q.ef==='com'?' selected':'')+'>Com endereço</option><option value="orf"'+(S.q.ef==='orf'?' selected':'')+'>Endereços sem produto no ERP</option><option value="todos"'+(S.q.ef==='todos'?' selected':'')+'>Todos do ERP</option></select></div>'+
@@ -2513,6 +2516,99 @@ async function adSetGroups(pairs){
   try{await S.db.doc('addrtask/assign').set({map,t:Date.now()});toast('Grupos atualizados')}catch(e){console.error(e);toast('Não foi possível salvar a atribuição',3500)}
 }
 
+/* ============ Consulta de endereços (coletores pesquisam o produto pelo nome e veem onde está) ============ */
+const qMeta=()=>{const m=S.atask.get('qmeta');return m&&m.on?m:null};
+const qn=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const qc=s=>qn(s).replace(/[^a-z0-9]/g,'');
+function qBuild(){
+  const seen=new Set(),out=[];
+  for(const x of stockBase()){seen.add(x.c);const a=S.addr.get(x.c);out.push([String(x.c).slice(0,30),String(x.d||'').slice(0,90),String(x.g||'').slice(0,40),a?addrTxt(a).slice(0,100):''])}
+  for(const [c,a] of S.addr)if(!seen.has(c))out.push([String(c).slice(0,30),'','',addrTxt(a).slice(0,100)]);
+  return out;
+}
+let _qi=null;
+function qIndex(){
+  const local=S.canEdit&&S.addr.size&&stockBase().length;
+  const sig=[S.atask,S.anew,local?S.addr:null,local?S.items.size:0,local&&S.imp?S.imp.all:null];
+  if(_qi&&_qi.sig.every((v,i)=>v===sig[i]))return _qi.list;
+  let rows=[];
+  if(local)rows=qBuild();
+  else[...S.atask.entries()].filter(([k])=>/^q\d+$/.test(k)).sort((a,b)=>a[0]<b[0]?-1:1).forEach(([,d])=>(d.rows||[]).forEach(r=>rows.push(r)));
+  const m=new Map();
+  for(const r of rows)m.set(String(r[0]),{c:String(r[0]),d:r[1]||'',g:r[2]||'',end:r[3]||''});
+  if(!local)for(const d of S.anew.values()){
+    if(d.nf)continue;
+    const e=m.get(String(d.code));
+    if(e){if(!e.end)e.end=d.shelf||''}else m.set(String(d.code),{c:String(d.code),d:d.desc||'',g:d.grp||'',end:d.shelf||''});
+  }
+  const list=[...m.values()].map(e=>Object.assign(e,{n:qn(e.d),k:qc(e.d),nc:qn(e.c)}));
+  _qi={sig,list};return list;
+}
+function qSearch(text){
+  const toks=qn(text).split(/\s+/).filter(Boolean);
+  if(!toks.length||toks.join('').length<2)return null;
+  const res=[];
+  for(const e of qIndex()){
+    let sc=0,ok=true;
+    for(const t of toks){
+      const tc=t.replace(/[^a-z0-9]/g,'');
+      if(e.n.includes(t)||(tc&&e.k.includes(tc))||e.nc.includes(t)){if((' '+e.n).includes(' '+t)||e.nc===t)sc++}else{ok=false;break}
+    }
+    if(ok)res.push([sc,e]);
+  }
+  res.sort((a,b)=>b[0]-a[0]||a[1].d.localeCompare(b[1].d,'pt',{numeric:true}));
+  return res.map(x=>x[1]);
+}
+function qCard1(e){
+  const ends=String(e.end||'').split(' | ').map(x=>x.trim()).filter(Boolean);
+  return'<div class="card"><div class="bd stack" style="gap:8px"><div><span class="tag c">'+esc(e.c)+'</span>'+(e.g?' <span class="sub">'+esc(e.g)+'</span>':'')+'</div><div class="desc"><b>'+esc(e.d||'(sem descrição)')+'</b></div>'+
+    (ends.length?'<div class="row" style="gap:8px">'+ends.map(x=>'<span class="chip ok" style="font-size:16px;padding:6px 14px">📍 '+esc(x)+'</span>').join('')+'</div>':'<div><span class="chip warn">sem endereço cadastrado</span></div>')+'</div></div>';
+}
+function qRender(){
+  const host=$('#cres');if(!host)return;
+  const q=S.q.cq||'',l=qSearch(q);
+  const info=$('#cinfo');if(info){const m=qMeta();info.textContent=qIndex().length?fmtN(qIndex().length)+' produtos'+(m&&m.t?' · atualizado '+fmtDT(m.t):''):''}
+  if(l===null){host.innerHTML='<div class="card"><div class="empty">Digite pelo menos 2 letras do nome do produto.<br><span class="sub">Exemplo: "anel", "oring" ou "anel oring".</span></div></div>';return}
+  if(!l.length){host.innerHTML='<div class="card"><div class="empty">Nenhum produto encontrado para "'+esc(q)+'".<br><span class="sub">Tente outra parte do nome ou o código.</span></div></div>';return}
+  host.innerHTML='<div class="sub">'+fmtN(l.length)+' resultado(s)'+(l.length>40?' · mostrando os 40 primeiros, digite mais letras para refinar':'')+'</div>'+l.slice(0,40).map(qCard1).join('');
+}
+function drawConsultaPage(host,ro){
+  if(opMode!=='consulta'||!$('#cres')){
+    opMode='consulta';lastListKey='';
+    const m=qMeta();
+    host.innerHTML=opNav('consulta')+(ro||'')+'<div><h1 class="hero">📍 Endereçamento</h1><div class="sub">Digite o nome, ou parte do nome, do produto para ver onde ele está guardado. <span id="cinfo"></span></div></div>'+
+      (m||S.canEdit?'<div class="field"><label for="cq">PRODUTO</label><input type="search" id="cq" data-inp="cq" class="search" autocomplete="off" autocapitalize="none" enterkeyhint="search" placeholder="Ex.: anel oring" value="'+esc(S.q.cq||'')+'"></div><div id="cres" class="stack"></div>':'<div class="card"><div class="empty">A consulta de endereços ainda não foi liberada pelo gestor.<br>Esta tela atualiza sozinha.</div></div>');
+  }
+  qRender();
+}
+async function qRelease(){
+  if(!S.addr.size||!stockBase().length){toast('Carregue a base de endereços e o arquivo do ERP (aba Importar) ou publique um inventário',4500);return}
+  const rows=qBuild();
+  try{
+    const ids=new Set();
+    for(let i=0,n=0;i<rows.length;i+=500,n++){const id='q'+String(n).padStart(3,'0');ids.add(id);await S.db.doc('addrtask/'+id).set({no:n,rows:rows.slice(i,i+500)})}
+    for(const id of [...S.atask.keys()])if(/^q\d+$/.test(id)&&!ids.has(id))await S.db.doc('addrtask/'+id).delete();
+    await S.db.doc('addrtask/qmeta').set({on:true,t:Date.now(),count:rows.length,by:S.name});
+    toast('Consulta liberada para os coletores: '+fmtN(rows.length)+' produtos');
+  }catch(e){console.error(e);toast('Não foi possível liberar a consulta ('+((e&&e.code)||'erro')+')',4000)}
+}
+async function qOff(){
+  if(!confirmOnce('qoff')){toast('Toque de novo para desligar a consulta dos coletores',3500);return}
+  try{
+    for(const id of [...S.atask.keys()])if(/^q\d+$/.test(id))await S.db.doc('addrtask/'+id).delete();
+    await S.db.doc('addrtask/qmeta').set({on:false,t:Date.now(),count:0,by:S.name});
+    toast('Consulta desligada');
+  }catch(e){toast('Não foi possível desligar')}
+}
+function qCardGestor(){
+  const m=qMeta(),can=S.addr.size&&stockBase().length;
+  const rows=can?qBuild():[],com=rows.filter(r=>r[3]).length;
+  return'<div class="card"><div class="hd"><h2>🔎 Consulta de endereços para os coletores</h2>'+(m?'<span class="chip ok">liberada</span><span class="sub">'+fmtN(m.count||0)+' produtos · atualizada '+fmtDT(m.t)+' · '+esc(m.by||'')+'</span>':'<span class="chip">desligada</span>')+'</div><div class="bd stack">'+
+    '<div class="sub">Libera a aba <b>Endereços</b> no celular dos coletores. Eles digitam o nome (ou parte do nome) do produto e veem em que endereço ele está. Depois de trocar a base de endereços, toque em Atualizar para a consulta refletir a mudança (endereços novos coletados na varredura entram sozinhos).</div>'+
+    (can?'<div class="sub">Pronto para publicar: '+fmtN(rows.length)+' produtos, '+fmtN(com)+' com endereço.</div>':'<div class="note">Para liberar, carregue a base de endereços e o estoque (arquivo do ERP em Importar ou um inventário publicado).</div>')+
+    '<div class="row"><button class="btn primary" data-act="qrelease" '+(can?'':'disabled')+'>'+(m?'↻ Atualizar consulta':'Liberar consulta para os coletores')+'</button>'+(m?'<button class="btn danger sm" data-act="qoff">Desligar consulta</button>':'')+'</div></div></div>';
+}
+
 /* ============ importação do ERP ============ */
 const normH=s=>String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
 const FIELDS=[['code','Código do material'],['desc','Descrição'],['un','Unidade'],['qty','Saldo do ERP'],['cost','Custo unitário'],['shelf','Prateleira / endereço'],['sec','Seção'],['wh','Cód. armazém (opcional)'],['grp','Grupo (opcional)'],['gdesc','Descrição do grupo (opcional)']];
@@ -2884,7 +2980,7 @@ const ACT={
   },
   async asave(){await aSave()},adelbase(){aDelete()},
   acancel(){S.aend=null;draw(true)},
-  axl:exportEnd,cltog(b){const k=b.dataset.k;if(S.cl.has(k))S.cl.delete(k);else S.cl.add(k);store.set('ci:cl',JSON.stringify([...S.cl]));draw(true)},adgtog(b){const g=b.dataset.g;if(S.adgopen.has(g))S.adgopen.delete(g);else S.adgopen.add(g);const el=$('#adg-body');if(el){el.innerHTML=adGroupsBody()}},adgall2(){adGroupsFiltered().forEach(x=>S.adgopen.add(x.g));$('#adg-body').innerHTML=adGroupsBody()},adgnone(){S.adgopen.clear();$('#adg-body').innerHTML=adGroupsBody()},adsave:adSave,axlv:exportEndViewXlsx,apdfv:exportEndViewPdf,adlmore(){S.adlmax=(S.adlmax||100)+200;adListRefresh()},adnf:adNf,adadd:adAdd,adedit(b){adEdit(b.dataset.code)},adrelease(){adRelease()},adstop(){adStop()},adrm(b){adRm(b.dataset.id)},adxl:exportAd,apxl:exportApurXlsx,appdf:exportApurPdf,apsave(){apSave()},apcancel(){S.apend=null;draw(true)},apclear(b){apClear(b.dataset.w)},bxl:exportBusca,
+  axl:exportEnd,cltog(b){const k=b.dataset.k;if(S.cl.has(k))S.cl.delete(k);else S.cl.add(k);store.set('ci:cl',JSON.stringify([...S.cl]));draw(true)},adgtog(b){const g=b.dataset.g;if(S.adgopen.has(g))S.adgopen.delete(g);else S.adgopen.add(g);const el=$('#adg-body');if(el){el.innerHTML=adGroupsBody()}},adgall2(){adGroupsFiltered().forEach(x=>S.adgopen.add(x.g));$('#adg-body').innerHTML=adGroupsBody()},adgnone(){S.adgopen.clear();$('#adg-body').innerHTML=adGroupsBody()},adsave:adSave,qrelease(){qRelease()},qoff(){qOff()},axlv:exportEndViewXlsx,apdfv:exportEndViewPdf,adlmore(){S.adlmax=(S.adlmax||100)+200;adListRefresh()},adnf:adNf,adadd:adAdd,adedit(b){adEdit(b.dataset.code)},adrelease(){adRelease()},adstop(){adStop()},adrm(b){adRm(b.dataset.id)},adxl:exportAd,apxl:exportApurXlsx,appdf:exportApurPdf,apsave(){apSave()},apcancel(){S.apend=null;draw(true)},apclear(b){apClear(b.dataset.w)},bxl:exportBusca,
   bvis(){bItems().slice(0,300).forEach(i=>S.bsel.add(i.id));draw(true)},
   bnone(){S.bsel.clear();draw(true)},
   async breq(){
@@ -2999,6 +3095,7 @@ root.addEventListener('input',e=>{
   else if(k==='adlq'){S.q.adlq=t.value;S.adlmax=100;adListRefresh()}
   else if(k==='adgq'){S.q.adgq=t.value;const b=$('#adg-body');if(b)b.innerHTML=adGroupsBody()}
   else if(k==='aq'){S.q.aq=t.value;adRender(true)}
+  else if(k==='cq'){S.q.cq=t.value;qRender()}
   else if(k==='eq'){S.q.eq=t.value;$('#end-body').innerHTML=endBody()}
   else if(k==='bq'){S.q.bq=t.value;$('#busca-body').innerHTML=bBody()}
   else if(k==='qctrl'){S.q.ctrl=t.value;$('#ctrl-body').innerHTML=ctrlTableRows(ctrlItems().map(ctrlRow))}
