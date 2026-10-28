@@ -263,7 +263,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 20</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 23</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -467,12 +467,12 @@ function rebuild(){
       if(!items.has(id))continue;
       const le=d.dev===S.dev?S.local.map[id]:null;
       if(le&&le.q!=null)continue;
-      push(id,{q:e.q,t:e.t,op:d.op,ok:slug(d.op),dev:d.dev,a:e.a,p:e.p,k:e.k});
+      push(id,{q:e.q,t:e.t,op:d.op,ok:slug(d.op),dev:d.dev,a:e.a,p:e.p,k:e.k,ks:e.ks});
     }
   }
   for(const [id,e] of Object.entries(S.local.map)){
     if(!items.has(id)||e.q==null)continue;
-    push(id,{q:e.q,t:e.t,op:e.op||S.name,ok:slug(e.op||S.name),dev:S.dev,pend:e.s===0,a:e.a,p:e.p,k:e.k});
+    push(id,{q:e.q,t:e.t,op:e.op||S.name,ok:slug(e.op||S.name),dev:S.dev,pend:e.s===0,a:e.a,p:e.p,k:e.k,ks:e.ks});
   }
   for(const it of items.values()){
     const h=blMerge((hist.get(it.id)||[]).sort((a,b)=>a.t-b.t)).sort((a,b)=>(a.t0||a.t)-(b.t0||b.t)),r0=rt[it.id]||0;
@@ -636,7 +636,7 @@ async function flush(){
     const byCh={};un.forEach(([id,e])=>{(byCh[e.ch]=byCh[e.ch]||[]).push([id,e])});
     for(const ch of Object.keys(byCh)){
       const ref=S.db.doc('counts/'+inv+'_'+ch+'_'+S.dev);
-      const items={};byCh[ch].forEach(([id,e])=>{items[id]=(()=>{const o={q:e.q,t:e.t};if(e.a)o.a=e.a;if(e.p)o.p=e.p;if(e.k)o.k=e.k;return o})()});
+      const items={};byCh[ch].forEach(([id,e])=>{items[id]=(()=>{const o={q:e.q,t:e.t};if(e.a)o.a=e.a;if(e.p)o.p=e.p;if(e.k)o.k=e.k;if(e.ks)o.ks=e.ks;return o})()});
       const body={inv,ch:Number(ch),op:S.name,dev:S.dev,items};
       try{await withTimeout(ref.update(body),20000)}
       catch(e){if(e&&e.code==='invalid_argument')await withTimeout(ref.set(body),20000);else throw e}
@@ -743,7 +743,7 @@ async function hashPw(pw,salt){
 const lock={n:0,until:0};
 function loadSession(){return;try{const s=JSON.parse(store.get('ci:sess')||'null');if(s&&s.key&&s.role){S.session=s;S.isAdmin=s.role==='gestor';S.name=s.name}}catch(e){}setDev()}
 function applySession(s){
-  if(S.name&&S.session&&S.db)S.db.doc('ops/'+myKey()).set({role:'op',name:S.name,t:0}).catch(()=>{});lastHb='';
+  if(S.name&&S.session&&S.db)S.db.doc('ops/'+myKey()).set({role:'op',name:S.name,t:0,bl:blInfo()}).catch(()=>{});lastHb='';
   S.session=s;S.isAdmin=!!s&&s.role==='gestor';S.name=s?s.name:'';setDev();rebuild();
   S.tab='dashboard';S.opView={page:'locais',kind:'shelf',shelf:null};S.q.op='';
   store.set('ci:sess',s?JSON.stringify(s):'');
@@ -811,7 +811,7 @@ function subscribe(){
   subs.push(db.collection('addrnew').onSnapshot(q=>{S.anew=new Map(q.docs.map(d=>[d.id,d.data()]));if(S.canEdit)rebuildAddr();try{adListRefresh()}catch(e){}scheduleRebuild()},err));
   if(S.canEdit)subs.push(db.collection('apur').onSnapshot(q=>{S.apur=new Map(q.docs.map(d=>[d.id,d.data()]));scheduleRebuild();if(S.tab==='apuracao')draw()},err));
   if(S.canEdit)subs.push(db.collection('addr').onSnapshot(q=>{S.addrDocs=new Map(q.docs.map(d=>[d.id,d.data()]));rebuildAddr();scheduleRebuild()},err));
-  if(S.canEdit)subs.push(db.collection('ops').onSnapshot(q=>{S.hb=new Map(q.docs.map(d=>[d.id,d.data()]));if(S.isAdmin){peersChanged();relRefresh()}},err));
+  if(S.canEdit)subs.push(db.collection('ops').onSnapshot(q=>{S.hb=new Map(q.docs.map(d=>[d.id,d.data()]));if(S.isAdmin){peersChanged();relRefresh();try{blNotify()}catch(e){}}},err));
   if(S.canEdit)subs.push(db.collection('erp').onSnapshot(q=>{S.erp=new Map(q.docs.map(d=>[d.id,d.data()]));scheduleRebuild()},err));
 }
 async function init(){
@@ -2738,7 +2738,7 @@ function blMerge(l){
     if(!c.k){nk++;if(nk>2){out.push(c);continue}r=nk}   /* contagens antigas (sem prateleira): 1ª e 2ª entram como partes */
     else r=roundOfShelf(c.k);
     let x=g[r];
-    const part={q:c.q,t:c.t,op:c.op,a:c.a,p:c.p,k:c.k,dev:c.dev};
+    const part={q:c.q,t:c.t,op:c.op,a:c.a,p:c.p,k:c.k,ks:c.ks,dev:c.dev};
     if(!x){x=g[r]={q:0,t:c.t,t0:c.t,op:'',ok:c.ok,oks:[],dev:c.dev,pend:false,a:'',p:'',rnd:r,parts:[],k:c.k};out.push(x)}
     x.parts.push(part);x.q=normQ((Number(x.q)||0)+(Number(c.q)||0));
     if(c.t>x.t)x.t=c.t;if(c.t<x.t0)x.t0=c.t;
@@ -2796,7 +2796,7 @@ function blAdd(mode){
   const t=Date.now();
   if(it.x){addCatItem(it);rebuild();const r=S.items.get(it.id);if(!r){toast('Não foi possível registrar o produto');return}it=r}
   l.unshift({id:it.id,q:normQ(q),mv,ad,t,p:(blShelf()||{}).name||''});
-  S.local.map[it.id]={q:blTotal(it.id,roundOfShelf(sk)),t,s:0,ch:it.ch,op:S.name,r:0,rd:roundLabel(it),a:blAddrs(it.id,roundOfShelf(sk)),p:(blShelf()||{}).name||'',k:sk};
+  S.local.map[it.id]={q:blTotal(it.id,roundOfShelf(sk)),t,s:0,ch:it.ch,op:S.name,r:0,rd:roundLabel(it),a:blAddrs(it.id,roundOfShelf(sk)),p:(blShelf()||{}).name||'',k:sk,ks:blKs(it.id,roundOfShelf(sk))};
   if(mv){S.fl.list=S.fl.list.filter(x=>x.id!==it.id);S.fl.list.unshift({id:it.id,st:'achou',q:normQ(q),addr:ad,op:S.name,ok:myKey(),t,s:0});persistF()}
   blSave();persistLocal();$('#blres').innerHTML='';$('#blcode').value='';
   rebuild();paintBlind();updateSync();flush();if(mv)flushF();pushPresence(true);toast('Enviado ao gestor: '+it.code);
@@ -2811,7 +2811,7 @@ function blSetQty(id,val,el){
   if(it.state==='closed'){toast('Este item já foi concluído; fale com o gestor');if(el)el.value=fmtIn(e.q);return}
   const t=Date.now(),old=S.local.map[id]||{};
   e.q=normQ(q);e.t=t;
-  S.local.map[id]={q:blTotal(id,roundOfShelf(sk)),t,s:0,ch:it.ch,op:S.name,r:0,rd:old.rd||roundLabel(it),a:blAddrs(id,roundOfShelf(sk)),p:e.p||'',k:sk};
+  S.local.map[id]={q:blTotal(id,roundOfShelf(sk)),t,s:0,ch:it.ch,op:S.name,r:0,rd:old.rd||roundLabel(it),a:blAddrs(id,roundOfShelf(sk)),p:e.p||'',k:sk,ks:blKs(id,roundOfShelf(sk))};
   if(e.mv){const f=S.fl.list.find(x=>x.id===id);if(f){f.q=e.q}}
   blSave();persistLocal();rebuild();paintBlind();updateSync();flush();pushPresence(true);toast('Quantidade atualizada e enviada');
 }
@@ -2833,18 +2833,6 @@ function relBody(ops,r2){
     const tot=st.reduce((a,x)=>a+x.n,0),cl=st.filter(x=>x.c).length;
     return'<div class="gr"><div class="gh"><span class="nm">📍 '+esc(s.name)+'</span>'+(tm.length?'<span class="chip '+(cl===tm.length?'ok':'warn')+'">'+(cl===tm.length?'fechada':cl+'/'+tm.length+' fechadas')+' · '+tot+' contados</span>':'<span class="chip warn">sem equipe</span>')+'<button class="lnk" data-act="relrm" data-sk="'+esc(s.key)+'">remover</button></div>'+
       '<div class="row" style="gap:6px 16px;flex-wrap:wrap">'+ops.map(o=>{const x=st.find(y=>y.k===o.key);const f1=r2&&(((S.hb.get(o.key)||{}).bl||{})[base]||{}).n,blk=r2&&r1Block(s.key,o.key);return'<label style="display:flex;gap:6px;align-items:center;min-height:32px'+(blk?';opacity:.55':'')+'"><input type="checkbox" data-chg="relteam" data-sk="'+esc(s.key)+'" data-k="'+esc(o.key)+'"'+(tm.includes(o.key)?' checked':'')+(blk?' disabled':'')+'> '+esc(o.name)+(x?' <span class="sub">· '+x.n+(x.c?' · fechou':'')+'</span>':'')+(blk?' <span class="chip warn" title="Quem conta a 1ª desta prateleira não pode fazer a 2ª">'+(f1?'fez a 1ª ('+f1+')':'equipe da 1ª')+' · bloqueado</span>':'')+'</label>'}).join('')+'</div></div>'}).join('');
-}
-function relClosedRows(){
-  const a=(S.assign&&S.meta&&S.assign.inv===S.meta.inv&&S.assign.map)||{},out=[];
-  for(const sh of manualShelves()){
-    for(const [k,h] of S.hb){const x=((h||{}).bl||{})[sh.key];if(x&&x.c)out.push({sh,k,n:x.n,ro:Number(a['ro:'+sh.key+':'+k])||0})}
-  }
-  return out.sort((x,y)=>x.sh.name.localeCompare(y.sh.name,'pt',{numeric:true})||(x.sh.r2?1:0)-(y.sh.r2?1:0)||nameOfKey(x.k).localeCompare(nameOfKey(y.k),'pt'));
-}
-function relClosedBody(){
-  const l=relClosedRows();
-  if(!l.length)return'<div class="empty">Nenhum coletor fechou prateleira até agora.</div>';
-  return'<div class="scroll"><table class="tbl"><thead><tr><th>Prateleira</th><th>Coletor</th><th class="r">Produtos</th><th></th></tr></thead><tbody>'+l.map(r=>'<tr><td><b>'+esc(r.sh.name)+'</b>'+(r.sh.r2?' <span class="chip warn">2ª contagem</span>':' <span class="chip">1ª contagem</span>')+'</td><td>'+esc(nameOfKey(r.k))+'</td><td class="r num">'+fmtN(r.n)+'</td><td><button class="btn sm" data-act="relreopen" data-sk="'+esc(r.sh.key)+'" data-k="'+esc(r.k)+'">↺ Reabrir para alterar</button>'+(r.ro?' <span class="sub">pedido enviado, aguardando o celular</span>':'')+'</td></tr>').join('')+'</tbody></table></div>';
 }
 async function relReopen(sk,k){
   if(!confirmOnce('rro'+sk+k)){toast('Toque de novo para reabrir a prateleira de '+nameOfKey(k),4000);return}
@@ -3557,6 +3545,138 @@ async function qrOpen(){
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-qrscan]');if(b){e.preventDefault();qrOpen()}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#qrov'))qrStop()});
 
+/* ===== Indicadores: produtos contados em 2+ locais ===== */
+function mlData(){
+  const rows=[];
+  for(const it of S.items.values())for(const c of it.cnt){
+    if(!c.parts)continue;
+    if(c.parts.length<2&&!c.parts.some(p=>/ \+ /.test(p.a||'')))continue;   /* uma pessoa em 2 prateleiras vem como 'A + B' no endereço */
+    rows.push({it,rnd:c.rnd===2?2:1,q:c.q,parts:c.parts.map(p=>({q:p.q,a:p.a||'',sh:p.k?manualName(p.k):'',op:p.op||''}))});
+  }
+  rows.sort((a,b)=>String(a.it.code).localeCompare(String(b.it.code),'pt',{numeric:true})||a.rnd-b.rnd);
+  return rows;
+}
+function mlCard(){
+  const R=mlData();
+  return'<div class="card"><div class="hd"><h2>🔀 Produtos contados em 2+ locais</h2><span class="sub">'+R.length+' '+(R.length===1?'registro':'registros')+'</span><button class="btn sm" data-act="mlxl">⬇ Exportar (XLSX)</button></div><div class="scroll"><table class="tbl"><thead><tr><th>Código / Produto</th><th>UN</th><th>Contagem</th><th class="r">Total</th><th>Locais (endereço · quantidade · quem contou)</th></tr></thead><tbody>'+
+    (R.length?R.map(r=>'<tr><td class="wc"><span class="mono sub">'+esc(r.it.code)+'</span><br><b>'+esc(r.it.desc)+'</b></td><td>'+esc(r.it.un||'')+'</td><td>'+r.rnd+'ª</td><td class="r num"><b>'+fmtQ(r.q)+'</b></td><td class="wc">'+r.parts.map(p=>'<div><b>'+esc(p.a||p.sh||'—')+'</b> · '+fmtQ(p.q)+' '+esc(r.it.un||'')+(p.op?' <span class="sub">('+esc(p.op)+')</span>':'')+'</div>').join('')+'</td></tr>').join(''):'<tr><td colspan="5" class="sub">Nenhum produto foi contado em mais de um local até agora.</td></tr>')+
+    '</tbody></table></div></div>';
+}
+function mlExport(){
+  if(typeof XLSX==='undefined'){toast('Biblioteca de planilhas não carregou');return}
+  const R=mlData();if(!R.length){toast('Nada para exportar');return}
+  const rows=[];R.forEach(r=>r.parts.forEach((p,i)=>rows.push({c:r.it.code,d:r.it.desc,u:r.it.un||'',r:r.rnd+'ª',t:i===0?r.q:'',a:p.a||p.sh,q:p.q,op:p.op})));
+  const cols=[{h:'Código',k:'c',w:14},{h:'Descrição',k:'d',w:44},{h:'UN',k:'u',w:6},{h:'Contagem',k:'r',w:10},{h:'Total',k:'t',w:10},{h:'Endereço',k:'a',w:20},{h:'Quantidade no local',k:'q',w:18},{h:'Contado por',k:'op',w:20}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,mkSheet(rows,cols),'Contados em 2+ locais');
+  saveXlsx(wb,'Contados_em_varios_locais_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
+/* ===== Relatório da equipe por prateleira + aviso de fechamento ===== */
+function blKs(id,r){const b=blAll(),o={};for(const k of Object.keys(b)){if(k[0]==='~'||k[0]==='!'||roundOfShelf(k)!==r)continue;const e=(b[k]||[]).find(x=>x.id===id);if(e)o[k]=[normQ(e.q),e.ad||'']}return o}
+function relGroups(){
+  const out=[];
+  for(const sh of manualShelves()){
+    const tm=teamOf(sh.key).filter(k=>k!=='*'),mem=[...tm],st={};
+    for(const [k,h] of S.hb){const x=((h||{}).bl||{})[sh.key];if(x&&(x.n>0||x.c)){st[k]=x;if(!mem.includes(k))mem.push(k)}}
+    const closed=mem.filter(k=>st[k]&&st[k].c);
+    if(!closed.length)continue;
+    const a=(S.assign&&S.meta&&S.assign.inv===S.meta.inv&&S.assign.map)||{};
+    out.push({sh,mem,closed,wait:mem.filter(k=>!(st[k]&&st[k].c)),st,done:mem.length>0&&mem.every(k=>st[k]&&st[k].c),ro:k=>Number(a['ro:'+sh.key+':'+k])||0});
+  }
+  return out.sort((x,y)=>x.sh.name.localeCompare(y.sh.name,'pt',{numeric:true})||(x.sh.r2?1:0)-(y.sh.r2?1:0));
+}
+function relProducts(sh){
+  const rnd=sh.r2?2:1,rows=[];
+  for(const it of S.items.values())for(const c of it.cnt){
+    if(!c.parts||(c.rnd===2?2:1)!==rnd)continue;
+    for(const p of c.parts){
+      let q=null,a=p.a||'';
+      if(p.ks&&p.ks[sh.key]){q=p.ks[sh.key][0];a=p.ks[sh.key][1]||a}
+      else if(!p.ks&&(p.k===sh.key||(!p.k&&p.p&&p.p===sh.name)))q=p.q;
+      if(q==null)continue;
+      rows.push({code:it.code,desc:it.desc,un:it.un||'',q:normQ(q),a,op:p.op||''});
+    }
+  }
+  return rows.sort((a,b)=>String(a.code).localeCompare(String(b.code),'pt',{numeric:true}));
+}
+function relClosedBody(){
+  const G=relGroups();
+  if(!G.length)return'<div class="empty">Nenhuma equipe fechou prateleira até agora.</div>';
+  S.relx=S.relx||new Set();
+  return'<div class="scroll"><table class="tbl"><thead><tr><th>Prateleira</th><th>Equipe</th><th class="r">Produtos</th><th>Relatório da equipe</th></tr></thead><tbody>'+G.map(g=>{
+    const P=relProducts(g.sh),open=S.relx.has(g.sh.key);
+    const eq=g.mem.map(k=>'<div>'+(g.st[k]&&g.st[k].c?'✅ ':'⏳ ')+esc(nameOfKey(k))+(g.st[k]?' <span class="sub">· '+g.st[k].n+'</span>':'')+(g.st[k]&&g.st[k].c?' <button class="lnk" data-act="relreopen" data-sk="'+esc(g.sh.key)+'" data-k="'+esc(k)+'">↺ reabrir</button>'+(g.ro(k)?' <span class="sub">(pedido enviado)</span>':''):'')+'</div>').join('');
+    return'<tr><td><b>'+esc(g.sh.name)+'</b>'+(g.sh.r2?' <span class="chip warn">2ª contagem</span>':' <span class="chip">1ª contagem</span>')+'<div>'+(g.done?'<span class="chip ok">equipe fechou</span>':'<span class="chip warn">'+g.closed.length+' de '+g.mem.length+' fechou</span>')+'</div></td><td class="wc">'+eq+'</td><td class="r num">'+fmtN(new Set(P.map(x=>x.code)).size)+'</td><td>'+
+      (g.done?'<button class="btn sm" data-act="relx" data-sk="'+esc(g.sh.key)+'">'+(open?'▲ Ocultar':'▼ Ver')+'</button> <button class="btn sm" data-act="relxl" data-sk="'+esc(g.sh.key)+'">⬇ XLSX</button> <button class="btn sm" data-act="relpdf" data-sk="'+esc(g.sh.key)+'">⬇ PDF</button>':'<span class="sub">Disponível quando todos fecharem (falta '+esc(g.wait.map(nameOfKey).join(', '))+')</span>')+'</td></tr>'+
+      (g.done&&open?'<tr><td colspan="4"><div class="scroll"><table class="tbl"><thead><tr><th>Código / Produto</th><th>UN</th><th class="r">Qtd</th><th>Endereço</th><th>Contado por</th></tr></thead><tbody>'+(P.length?P.map(x=>'<tr><td class="wc"><span class="mono sub">'+esc(x.code)+'</span><br>'+esc(x.desc)+'</td><td>'+esc(x.un)+'</td><td class="r num">'+fmtQ(x.q)+'</td><td>'+esc(x.a)+'</td><td>'+esc(x.op)+'</td></tr>').join(''):'<tr><td colspan="5" class="sub">Sem produtos com esta prateleira registrada (contagens feitas antes desta versão não trazem o detalhe por prateleira).</td></tr>')+'</tbody></table></div></td></tr>':'');
+  }).join('')+'</tbody></table></div>';
+}
+function relReportInfo(sk){
+  const g=relGroups().find(x=>x.sh.key===sk);if(!g)return null;
+  return{g,P:relProducts(g.sh),names:g.mem.map(nameOfKey),title:'Relatório de contagem — prateleira '+g.sh.name+' — '+(g.sh.r2?'2ª':'1ª')+' contagem'};
+}
+function relReportXlsx(sk){
+  if(typeof XLSX==='undefined'){toast('Biblioteca de planilhas não carregou');return}
+  const R=relReportInfo(sk);if(!R)return;
+  const aoa=[[R.title],['Equipe: '+R.names.join(', ')],['Gerado em: '+new Date().toLocaleString('pt-BR')],[],['Código','Descrição','UN','Quantidade','Endereço','Contado por']];
+  R.P.forEach(x=>aoa.push([x.code,x.desc,x.un,x.q,x.a,x.op]));
+  aoa.push([],['Total de produtos: '+new Set(R.P.map(x=>x.code)).size],[],['Assinaturas da equipe:']);
+  R.names.forEach(n=>aoa.push([],['______________________________  '+n]));
+  const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:16},{wch:50},{wch:7},{wch:12},{wch:24},{wch:22}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Relatório');
+  saveXlsx(wb,'Relatorio_equipe_'+R.g.sh.name.replace(/[^\w-]+/g,'_')+(R.g.sh.r2?'_2a':'_1a')+'_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+function relReportPdf(sk){
+  const J=window.jspdf&&window.jspdf.jsPDF;
+  if(!J){toast('Biblioteca de PDF não carregou. Verifique a conexão e recarregue.',4000);return}
+  if(!S.dl){toast('Download indisponível nesta visualização');return}
+  const R=relReportInfo(sk);if(!R)return;
+  const doc=new J({orientation:'portrait',unit:'mm',format:'a4'});
+  if(typeof doc.autoTable!=='function'){toast('Biblioteca de tabela do PDF não carregou.',4000);return}
+  doc.setProperties({title:R.title,author:'Italo Santos',creator:IP_TXT});
+  doc.setFontSize(14);doc.text(R.title,10,12);
+  doc.setFontSize(9);doc.text('Equipe: '+R.names.join(', '),10,18,{maxWidth:190});
+  doc.setFontSize(8);doc.text('Gerado em '+new Date().toLocaleString('pt-BR')+' · '+new Set(R.P.map(x=>x.code)).size+' produto(s)',10,24);
+  doc.autoTable({head:[['Código','Descrição','UN','Qtd','Endereço','Contado por']],body:R.P.map(x=>[x.code,x.desc,x.un,fmtQ(x.q),x.a,x.op]),startY:28,margin:{left:10,right:10,bottom:14},theme:'grid',
+    styles:{fontSize:8,cellPadding:1.3,overflow:'linebreak',lineWidth:.1,lineColor:[200,205,200]},headStyles:{fillColor:[47,127,21],textColor:255,fontSize:8},
+    columnStyles:{0:{cellWidth:24},1:{cellWidth:'auto'},2:{cellWidth:10},3:{cellWidth:18,halign:'right'},4:{cellWidth:30},5:{cellWidth:28}},
+    didDrawPage:()=>{doc.setFontSize(7);doc.text(IP_TXT,10,doc.internal.pageSize.getHeight()-5);doc.text('Página '+doc.internal.getNumberOfPages(),doc.internal.pageSize.getWidth()-10,doc.internal.pageSize.getHeight()-5,{align:'right'})}});
+  let y=(doc.lastAutoTable&&doc.lastAutoTable.finalY||28)+16;const H=doc.internal.pageSize.getHeight();
+  doc.setFontSize(9);
+  if(y+10>H-14){doc.addPage();y=20}
+  doc.text('Assinaturas da equipe:',10,y);y+=14;
+  R.names.forEach(n=>{if(y+12>H-14){doc.addPage();y=20}doc.line(10,y,100,y);doc.text(n,10,y+5);doc.line(110,y,190,y);doc.text('Data',110,y+5);y+=16});
+  S.dl.save({filename:'Relatorio_equipe_'+R.g.sh.name.replace(/[^\w-]+/g,'_')+(R.g.sh.r2?'_2a':'_1a')+'_'+new Date().toISOString().slice(0,10)+'.pdf',data:doc.output('blob')}).then(()=>toast('Arquivo salvo')).catch(e=>{if(!e||e.code!=='declined')toast('Não foi possível salvar o arquivo')});
+}
+/* aviso na tela do gestor quando a equipe fecha a prateleira */
+let _ntSeen=null;
+function ntBeep(){try{const C=window.AudioContext||window.webkitAudioContext,a=new C(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=880;g.gain.value=.15;o.start();o.stop(a.currentTime+.25);setTimeout(()=>a.close(),500)}catch(e){}try{navigator.vibrate&&navigator.vibrate(200)}catch(e){}}
+function ntShow(id,html){
+  let box=document.getElementById('blnotes');
+  if(!box){box=document.createElement('div');box.id='blnotes';box.style.cssText='position:fixed;right:12px;bottom:12px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:min(420px,calc(100vw - 24px))';document.body.appendChild(box)}
+  const old=document.getElementById('nt-'+id);if(old)old.remove();
+  const d=document.createElement('div');d.id='nt-'+id;d.style.cssText='background:#fff;border:2px solid #2f7f15;border-radius:10px;padding:10px 12px;box-shadow:0 6px 20px rgba(0,0,0,.25);font-size:14px;color:#1b2b1b';
+  d.innerHTML='<div>'+html+'</div><div style="display:flex;gap:8px;margin-top:8px"><button class="btn sm primary" data-act="ntgo">Ver prateleiras</button><button class="btn sm" data-act="ntx">Dispensar</button></div>';
+  box.appendChild(d);
+}
+function blNotify(){
+  if(!S.isAdmin||!S.meta)return;
+  let G;try{G=relGroups()}catch(e){return}
+  const cur=new Map();G.forEach(g=>g.closed.forEach(k=>cur.set(g.sh.key+'|'+k,g)));
+  if(_ntSeen===null){_ntSeen=new Set(cur.keys());return}
+  const fresh=[...cur.keys()].filter(x=>!_ntSeen.has(x));
+  _ntSeen=new Set(cur.keys());
+  const done=new Set();
+  for(const key of fresh){
+    const g=cur.get(key);if(done.has(g.sh.key))continue;done.add(g.sh.key);
+    const who=g.closed.filter(k=>fresh.includes(g.sh.key+'|'+k)).map(nameOfKey).join(', '),rd=g.sh.r2?'2ª':'1ª';
+    if(g.done)ntShow(g.sh.key,'✅ <b>Equipe fechou a prateleira '+esc(g.sh.name)+'</b> ('+rd+' contagem): '+esc(g.mem.map(nameOfKey).join(', '))+'.<br>'+(g.sh.r2?'O relatório da equipe já está pronto.':'Já pode direcionar a 2ª equipe. O relatório da equipe já está pronto.'));
+    else ntShow(g.sh.key,'🔔 <b>'+esc(who)+'</b> fechou a prateleira <b>'+esc(g.sh.name)+'</b> ('+rd+' contagem) — '+g.closed.length+' de '+g.mem.length+'. Aguardando '+esc(g.wait.map(nameOfKey).join(', '))+'.');
+    ntBeep();
+  }
+  if(fresh.length)toast('🔔 Prateleira fechada pela equipe',5000);
+}
+
 
 /* ============ Indicadores de desempenho da equipe ============ */
 const IND_COL=['#2e7d32','#1976d2','#f57c00','#7b1fa2','#00838f','#c2185b','#5d4037','#455a64'];
@@ -3629,6 +3749,7 @@ function vIndic(){
   /* prateleiras */
   h+='<div class="card"><div class="hd"><h2>📍 Por prateleira</h2></div><div class="scroll"><table class="tbl"><thead><tr><th>Prateleira</th><th>Equipe</th><th class="r">Itens</th><th class="r">Contados 2x+</th><th class="r">Com diferença</th><th class="r">Maior diferença</th><th class="r">Duração</th></tr></thead><tbody>'+
     (D.shm.length?D.shm.map(s=>'<tr><td><b>'+esc(s.name)+'</b></td><td class="wc">'+esc([...s.ops].join(', '))+'</td><td class="r num">'+s.items.size+'</td><td class="r num">'+s.multi+'</td><td class="r num">'+(s.dv?'<span class="chip bad">'+s.dv+'</span>':'0')+'</td><td class="r num">'+(s.dv?fmtP(s.mx):'–')+'</td><td class="r num">'+fmtDur(s.span)+'</td></tr>').join(''):'<tr><td colspan="7" class="empty">Sem contagens.</td></tr>')+'</tbody></table></div></div>';
+  h+=mlCard();
   /* diferenças */
   h+='<div class="card"><div class="hd"><h2>⚠️ Maiores diferenças entre contagens</h2><span class="sub">'+D.diff.length+' '+(D.diff.length===1?'item':'itens')+'</span></div><div class="scroll"><table class="tbl"><thead><tr><th>Item</th><th>Prateleira</th><th>Contagens (quem contou)</th><th class="r">Diferença</th></tr></thead><tbody>'+
     (D.diff.length?D.diff.slice(0,60).map(d=>'<tr><td class="wc"><span class="mono sub">'+esc(d.it.code)+'</span><br><b>'+esc(d.it.desc)+'</b></td><td>'+esc(d.sh)+'</td><td>'+d.it.cnt.map((c,i)=>'<div><b>'+(i+1)+'ª</b> '+esc(c.op)+': <b>'+fmtQ(c.q)+'</b> '+esc(d.it.un)+'</div>').join('')+(d.it.state==='closed'?'<div class="sub">final: '+fmtQ(d.it.final)+'</div>':'')+'</td><td class="r num"><b>'+fmtQ(d.sp)+'</b><div class="sub">'+fmtP(d.pct)+'</div></td></tr>').join(''):'<tr><td colspan="4" class="empty">Nenhuma diferença entre contagens. 🎉</td></tr>')+'</tbody></table></div>'+(D.diff.length>60?'<div class="bd sub">Mostrando 60 de '+D.diff.length+'. Baixe a planilha para ver todos.</div>':'')+'</div>';
@@ -3995,6 +4116,7 @@ const ACT={
   apdsave(b){apdSave(b.dataset.id)},
   apdreq(b){apdReq(b.dataset.id)},
   cadxl(){cadExport()},
+  mlxl(){mlExport()},
   lsumxl(){lsExport()},
   lsumpdf(){lsPdf()},
   lsumpdf2(){lsPdf2()},
@@ -4013,6 +4135,11 @@ const ACT={
   relrm(b){relRm(b.dataset.sk)},
   bladd(b){blAdd(b.dataset.mode)},
   blcancel(){const r=$('#blres');if(r)r.innerHTML='';const c=$('#blcode');if(c){c.value='';c.focus()}},
+  relx(b){S.relx=S.relx||new Set();const k=b.dataset.sk;if(S.relx.has(k))S.relx.delete(k);else S.relx.add(k);const h=$('#rel-closed');if(h)h.innerHTML=relClosedBody()},
+  relxl(b){relReportXlsx(b.dataset.sk)},
+  relpdf(b){relReportPdf(b.dataset.sk)},
+  ntx(b){const n=b.closest('[id^=nt-]');if(n)n.remove()},
+  ntgo(b){const n=b.closest('[id^=nt-]');if(n)n.remove();S.tab='locais';mainMode='';draw(true);window.scrollTo(0,0)},
   openshelf(b){S.opView={page:'contagem',kind:'shelf',shelf:b.dataset.sk};S.q.op='';draw(true);window.scrollTo(0,0)},
   openrecount(){S.rf='';S.rg='';S.opView={page:'contagem',kind:'recount',shelf:null};S.q.op='';draw(true);window.scrollTo(0,0)},
   send(){editing.clear();sendDrafts()},
