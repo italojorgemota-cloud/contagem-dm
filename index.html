@@ -263,7 +263,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 14</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 15</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -2654,10 +2654,8 @@ function blFindStock(code){
   return hit;
 }
 function addrsFor(it){
-  const z=x=>String(x).trim().toLowerCase().replace(/^0+(?=.)/,'');
-  let e=null;try{e=qIndex().find(r=>z(r.c)===z(it.code))}catch(x){}
-  const out=e?String(e.end||'').split(' | ').map(x=>x.trim()).filter(Boolean):[];
-  return out;
+  const e=abIndex().get(zc(it.code));
+  return e?String(e).split(' | ').map(x=>x.trim()).filter(Boolean):[];
 }
 const addrOnShelf=(a,shelf)=>{const n=x=>String(x).toLowerCase().replace(/\s+/g,'');const A=n(a),B=n(shelf);return A===B||(A.startsWith(B)&&!/[a-z0-9]/.test(A.charAt(B.length)))};
 function drawBlind(host,ro){
@@ -2720,9 +2718,9 @@ function blSearch(){
   res.innerHTML='<div class="stack" style="gap:10px" data-bres="'+esc(it.id)+'" data-ads="'+esc(ads.join(' | '))+'"><div class="desc"><span class="tag c">'+esc(it.code)+'</span> <b>'+esc(it.desc)+'</b></div>'+
     '<div class="sub">Unidade de medida: <b>'+esc(it.un||'—')+'</b></div>'+
     (ads.length?'<div class="note info">📍 Endereço cadastrado: <b style="font-size:17px">'+ads.map(esc).join(' | ')+'</b><br>Este produto está mesmo nesse endereço?'+'</div>':
-      '<div class="note warn">📍 <b>Sem endereço cadastrado</b> para este produto. Informe onde ele está.</div>')+
+      '<div class="note warn">📍 <b>Sem endereço cadastrado</b> para este produto. '+(S.canEdit||abHas()?'':'(A base de endereços ainda não chegou ao seu aparelho; avise o gestor.) ')+'Digite o endereço completo onde ele está (ex.: P6-A-B1).</div>')+
     '<div class="field"><label for="blqty">QUANTIDADE ('+esc(it.un||'un')+')</label><input type="text" id="blqty" inputmode="decimal" autocomplete="off" placeholder="0"></div>'+
-    '<div id="blother" '+(ads.length?'hidden':'')+' class="field"><label for="bladdr">ENDEREÇO ONDE ESTÁ</label><input type="text" id="bladdr" autocomplete="off" placeholder="Ex.: P14-D2" value="'+(ads.length?'':esc(sh?sh.name:''))+'"></div>'+
+    '<div id="blother" '+(ads.length?'hidden':'')+' class="field"><label for="bladdr">ENDEREÇO ONDE ESTÁ</label><input type="text" id="bladdr" autocomplete="off" placeholder="Endereço completo, ex.: P6-A-B1" value=""></div>'+
     '<div class="row">'+(ads.length?'<button class="btn primary" data-act="bladd" data-mode="ok">✓ Sim, está em '+esc(ads[0])+(ads.length>1?' (…)':'')+'</button><button class="btn" data-act="blother">Não, está em outro endereço</button>':'<button class="btn primary" data-act="bladd" data-mode="new">Adicionar</button>')+'<button class="btn" data-act="blcancel">Cancelar</button></div></div>';
   const q=$('#blqty');if(q)q.focus();
 }
@@ -3203,6 +3201,206 @@ function lastAddr(it){
   for(let i=it.cnt.length-1;i>=0;i--){const a=String(it.cnt[i].a||'').trim();if(a)return a}
   return it.shelf+(it.sec?' / '+it.sec:'');
 }
+
+/* ---- base de endereços para a contagem (independente da "Consulta de endereços") ---- */
+function qSigOf(rows){let h=5381;const t=rows.map(r=>r.join('\t')).join('\n');for(let i=0;i<t.length;i++)h=((h<<5)+h+t.charCodeAt(i))|0;return rows.length+':'+h}
+const abRows=()=>[...S.addr].map(([c,a])=>[String(c).slice(0,30),addrTxt(a).slice(0,100)]);
+let _ab=null;
+function abIndex(){
+  const local=S.canEdit&&S.addr.size,sig=[local?S.addr:null,S.atask];
+  if(_ab&&_ab.sig.every((v,i)=>v===sig[i]))return _ab.m;
+  const m=new Map();
+  if(local){for(const [c,a] of S.addr)m.set(zc(c),addrTxt(a))}
+  else[...S.atask.entries()].filter(([k])=>/^a\d+$/.test(k)).forEach(([,d])=>(d.rows||[]).forEach(r=>m.set(zc(r[0]),r[1]||'')));
+  _ab={sig,m};return m;
+}
+const abHas=()=>abIndex().size>0;
+let _abBusy=false,_abKey=null;
+async function abSync(){
+  try{
+    if(_abBusy||!S.meta||!S.isAdmin||!S.canEdit||!S.db)return;
+    const raw=S.atask.get('ameta'),key=[S.addr,raw&&raw.sig];
+    if(_abKey&&_abKey.every((v,i)=>v===key[i]))return;
+    _abKey=key;
+    const rows=abRows(),sig=rows.length?qSigOf(rows):'';
+    if((raw&&raw.sig||'')===sig)return;
+    if(!raw&&!rows.length)return;
+    _abBusy=true;
+    const ids=new Set();
+    for(let i=0,n=0;i<rows.length;i+=500,n++){const id='a'+String(n).padStart(3,'0');ids.add(id);await S.db.doc('addrtask/'+id).set({no:n,rows:rows.slice(i,i+500)})}
+    for(const id of [...S.atask.keys()])if(/^a\d+$/.test(id)&&!ids.has(id))await S.db.doc('addrtask/'+id).delete();
+    await S.db.doc('addrtask/ameta').set({t:Date.now(),count:rows.length,by:S.name,sig});
+  }catch(e){console.error(e)}finally{_abBusy=false}
+}
+setInterval(abSync,5000);
+
+/* ============ calculadora inteligente (só no usuário do coletor) ============ */
+const CALC={open:false,tab:'calc',expr:'',res:null,rows:[{n:'Caixa',q:'',p:''}],av:'',dv:'',dp:'',mv:'',mf:'kg',mt:'g',tgt:null};
+const CALC_UN={
+  'Massa':{kg:1000,g:1,mg:.001,t:1e6},
+  'Comprimento':{km:1000,m:1,cm:.01,mm:.001},
+  'Volume':{L:1,mL:.001,'m³':1000},
+  'Quantidade':{'unidade':1,'dúzia':12,'meia dúzia':6,'centena':100,'milheiro':1000}
+};
+const calcFm=n=>(n==null||!isFinite(n))?'':String(Math.round(n*1e6)/1e6).replace('.',',');
+const calcNum=v=>{const s=String(v==null?'':v).trim().replace(/\./g,'').replace(',','.');if(s==='')return NaN;return Number(s)};
+function calcEval(e){
+  const t=String(e).replace(/,/g,'.').match(/\d+(?:\.\d+)?|\.\d+|[+\-×÷]/g);if(!t)return null;
+  const a=[];let neg=false;
+  for(let i=0;i<t.length;i++){const x=t[i];
+    if(/^[+\-×÷]$/.test(x)){
+      if(x==='-'&&(a.length===0||typeof a[a.length-1]==='string')){neg=!neg;continue}
+      if(a.length===0||typeof a[a.length-1]==='string')continue;
+      a.push(x);
+    }else{a.push(neg?-Number(x):Number(x));neg=false}
+  }
+  while(a.length&&typeof a[a.length-1]==='string')a.pop();
+  if(!a.length)return null;
+  const b=[a[0]];
+  for(let i=1;i<a.length;i+=2){const op=a[i],v=a[i+1];
+    if(op==='×')b[b.length-1]*=v;else if(op==='÷'){if(v===0)return NaN;b[b.length-1]/=v}else{b.push(op);b.push(v)}}
+  let r=b[0];for(let i=1;i<b.length;i+=2)r=b[i]==='+'?r+b[i+1]:r-b[i+1];
+  return Math.round(r*1e9)/1e9;
+}
+function calcKey(k){
+  const C=CALC;
+  if(k==='C'){C.expr='';C.res=null}
+  else if(k==='⌫'){C.expr=C.expr.slice(0,-1);C.res=null}
+  else if(k==='='){const r=calcEval(C.expr);C.res=r==null?null:r;if(r!=null&&isFinite(r))C.expr=calcFm(r)}
+  else if(k==='%'){const m=C.expr.match(/(\d+(?:,\d+)?)$/);if(m){C.expr=C.expr.slice(0,-m[1].length)+calcFm(Number(m[1].replace(',','.'))/100);C.res=null}}
+  else if(/^[+\-×÷]$/.test(k)){
+    if(C.expr===''&&k!=='-')return;
+    if(/[+\-×÷]$/.test(C.expr)){if(k==='-'&&/[×÷]$/.test(C.expr))C.expr+=k;else C.expr=C.expr.slice(0,-1)+k}
+    else C.expr+=k;
+    C.res=null}
+  else if(k===','){if(C.res!=null){C.expr='';C.res=null}const m=C.expr.match(/[\d,]*$/)[0];if(m.includes(','))return;C.expr+=(m===''?'0':'')+','}
+  else{if(C.res!=null){C.expr='';C.res=null}C.expr+=k}
+  calcPaint();
+}
+function calcValue(){
+  const C=CALC;
+  if(C.tab==='calc'){const r=C.res!=null?C.res:calcEval(C.expr);return(r==null||!isFinite(r))?null:r}
+  if(C.tab==='emb'){return calcEmbTotal()}
+  if(C.tab==='med'){return calcMed()}
+  return null;
+}
+function calcEmbTotal(){
+  let t=0,any=false;
+  for(const r of CALC.rows){const q=calcNum(r.q),p=calcNum(r.p);if(isFinite(q)&&isFinite(p)){t+=q*p;any=true}}
+  const av=calcNum(CALC.av);if(isFinite(av)){t+=av;any=true}
+  return any?Math.round(t*1e6)/1e6:null;
+}
+function calcMed(){
+  const v=calcNum(CALC.mv);if(!isFinite(v))return null;
+  const g=Object.values(CALC_UN).find(o=>CALC.mf in o&&CALC.mt in o);if(!g)return null;
+  return Math.round(v*g[CALC.mf]/g[CALC.mt]*1e9)/1e9;
+}
+function calcTabs(){return[['calc','🧮 Calculadora'],['emb','📦 Caixas e pacotes'],['med','📏 Medidas']].map(([k,l])=>'<button class="clt" data-ck="'+k+'" aria-selected="'+(CALC.tab===k)+'">'+l+'</button>').join('')}
+function calcBody(){
+  const C=CALC;
+  if(C.tab==='calc'){
+    const keys=['C','⌫','%','÷','7','8','9','×','4','5','6','-','1','2','3','+','0',',','=',''];
+    return'<div class="cdisp"><div class="cex" id="cex">'+esc(C.expr||'0')+'</div></div><div class="ckeys">'+keys.map(k=>k?'<button class="ck'+(/[÷×\-+]/.test(k)?' op':'')+(k==='='?' eq':'')+(k==='C'||k==='⌫'?' fn':'')+'" data-key="'+k+'">'+k+'</button>':'<span></span>').join('')+'</div>';
+  }
+  if(C.tab==='emb'){
+    const dq=calcNum(C.dv),dp=calcNum(C.dp);
+    const div=(isFinite(dq)&&isFinite(dp)&&dp>0)?'<b>'+calcFm(Math.floor(dq/dp))+'</b> embalagem(ns) fechada(s) e <b>'+calcFm(Math.round((dq%dp)*1e6)/1e6)+'</b> sobrando':'';
+    return'<div class="csub">Conte por embalagem: quantas caixas (ou pacotes) × quantas unidades vêm em cada uma.</div>'+
+      C.rows.map((r,i)=>'<div class="crow"><select data-cr="n" data-i="'+i+'" aria-label="Tipo de embalagem">'+['Caixa','Pacote','Fardo','Saco','Pallet','Rolo','Outro'].map(o=>'<option'+(r.n===o?' selected':'')+'>'+o+'</option>').join('')+'</select><input inputmode="decimal" placeholder="Qtd." data-cr="q" data-i="'+i+'" value="'+esc(r.q)+'" aria-label="Quantidade de embalagens"><span class="cx">×</span><input inputmode="decimal" placeholder="Unid. cada" data-cr="p" data-i="'+i+'" value="'+esc(r.p)+'" aria-label="Unidades por embalagem">'+(C.rows.length>1?'<button class="clr" data-crm="'+i+'" aria-label="Remover linha">✕</button>':'')+'</div>').join('')+
+      '<div class="crow"><button class="cadd" data-cadd="1">+ Outra embalagem</button></div>'+
+      '<div class="crow"><span class="cl">+ Avulsos (soltas)</span><input inputmode="decimal" placeholder="0" data-cr="av" value="'+esc(C.av)+'" aria-label="Unidades avulsas"></div>'+
+      '<div class="ctot" id="ctot"></div>'+
+      '<div class="cdiv"><div class="csub"><b>Quantas embalagens dá?</b> Tenho um total e quero saber quantas caixas fecham.</div><div class="crow"><input inputmode="decimal" placeholder="Total de unidades" data-cr="dv" value="'+esc(C.dv)+'"><span class="cx">÷</span><input inputmode="decimal" placeholder="Unid. por caixa" data-cr="dp" value="'+esc(C.dp)+'"></div><div class="cres" id="cdiv">'+div+'</div></div>';
+  }
+  const groups=Object.entries(CALC_UN),all=[].concat(...groups.map(([g,o])=>Object.keys(o)));
+  const opts=sel=>groups.map(([g,o])=>'<optgroup label="'+g+'">'+Object.keys(o).map(u=>'<option'+(u===sel?' selected':'')+'>'+u+'</option>').join('')+'</optgroup>').join('');
+  const same=Object.values(CALC_UN).some(o=>C.mf in o&&C.mt in o);
+  return'<div class="csub">Converta entre unidades de medida (kg, g, m, cm, L, mL, dúzia…).</div><div class="crow"><input inputmode="decimal" placeholder="Valor" data-cm="mv" value="'+esc(C.mv)+'" aria-label="Valor"><select data-cm="mf" aria-label="De">'+opts(C.mf)+'</select><span class="cx">→</span><select data-cm="mt" aria-label="Para">'+opts(C.mt)+'</select></div>'+(same?'':'<div class="note warn">Escolha duas unidades do mesmo tipo (massa com massa, comprimento com comprimento…).</div>')+'<div class="ctot" id="ctot"></div>';
+}
+function calcTotPaint(){
+  const C=CALC,t=$('#ctot'),v=calcValue();
+  if(C.tab==='emb'){const dv=$('#cdiv');const q=calcNum(C.dv),p=calcNum(C.dp);if(dv)dv.innerHTML=(isFinite(q)&&isFinite(p)&&p>0)?'<b>'+calcFm(Math.floor(q/p))+'</b> embalagem(ns) fechada(s) e <b>'+calcFm(Math.round((q%p)*1e6)/1e6)+'</b> sobrando':''}
+  if(t){
+    if(C.tab==='emb'){const det=C.rows.map(r=>{const q=calcNum(r.q),p=calcNum(r.p);return isFinite(q)&&isFinite(p)?calcFm(q)+' '+r.n.toLowerCase()+'(s) × '+calcFm(p)+' = '+calcFm(q*p):''}).filter(Boolean);const av=calcNum(C.av);if(isFinite(av)&&av)det.push('avulsos: '+calcFm(av));t.innerHTML=(det.length?'<div class="csub">'+det.map(esc).join('<br>')+'</div>':'')+'<div class="cbig">Total: <b>'+(v==null?'—':calcFm(v))+'</b> unidades</div>'}
+    else t.innerHTML='<div class="cbig">Resultado: <b>'+(v==null?'—':calcFm(v)+' '+esc(C.mt))+'</b></div>';
+  }
+  const u=$('#cuse');if(u)u.disabled=v==null||(C.tab==='med'&&false);
+}
+function calcPaint(){
+  const sh=$('#calcsheet');if(!sh)return;
+  const C=CALC;
+  const ex=$('#cex');if(ex&&C.tab==='calc'){ex.textContent=C.expr||'0';const r=C.res!=null?null:calcEval(C.expr);const pv=$('#cprev');if(pv)pv.textContent=(r!=null&&isFinite(r)&&/[+\-×÷]/.test(C.expr.replace(/^-/,'')))?'= '+calcFm(r):''}
+  calcTotPaint();
+}
+function calcRender(){
+  let sh=$('#calcsheet');
+  if(!CALC.open){if(sh)sh.remove();return}
+  if(!sh){sh=document.createElement('div');sh.id='calcsheet';sh.setAttribute('role','dialog');sh.setAttribute('aria-modal','true');sh.setAttribute('aria-label','Calculadora');document.body.appendChild(sh)}
+  sh.innerHTML='<div class="cbk" data-cclose="1"></div><div class="cpn"><div class="chd"><b>Calculadora</b><button class="clr" data-cclose="1" aria-label="Fechar">✕</button></div><div class="ctabs">'+calcTabs()+'</div><div id="cbody">'+calcBody()+'</div>'+(CALC.tab==='calc'?'<div class="cprev" id="cprev"></div>':'')+'<div class="cft"><button class="btn primary" id="cuse" data-cuse="1">✓ Usar na quantidade</button></div></div>';
+  calcPaint();
+}
+function calcUse(){
+  const v=calcValue();if(v==null||!isFinite(v)){toast('Sem valor para usar');return}
+  const txt=calcFm(v),t=CALC.tgt&&document.contains(CALC.tgt)?CALC.tgt:($('#blqty')||null);
+  CALC.open=false;calcRender();
+  if(t){
+    t.value=txt;t.dispatchEvent(new Event('input',{bubbles:true}));t.dispatchEvent(new Event('change',{bubbles:true}));t.focus();
+    toast('Quantidade '+txt+' colocada no campo');
+  }else{
+    try{navigator.clipboard.writeText(txt)}catch(e){}
+    toast('Valor '+txt+' copiado. Cole no campo de quantidade.',4000);
+  }
+}
+document.addEventListener('focusin',e=>{const t=e.target;if(t&&t.tagName==='INPUT'&&!t.closest('#calcsheet')&&(t.getAttribute('inputmode')==='decimal'||t.id==='blqty'||t.classList.contains('qty')))CALC.tgt=t},true);
+document.addEventListener('click',e=>{
+  const t=e.target.closest&&e.target.closest('[data-cfab],[data-cclose],[data-ck],[data-key],[data-cadd],[data-crm],[data-cuse]');if(!t)return;
+  if(t.dataset.cfab){CALC.open=true;calcRender();return}
+  if(t.dataset.cclose){CALC.open=false;calcRender();return}
+  if(t.dataset.ck){CALC.tab=t.dataset.ck;calcRender();return}
+  if(t.dataset.key!==undefined){calcKey(t.dataset.key);return}
+  if(t.dataset.cadd){CALC.rows.push({n:'Caixa',q:'',p:''});calcRender();return}
+  if(t.dataset.crm!==undefined){CALC.rows.splice(Number(t.dataset.crm),1);calcRender();return}
+  if(t.dataset.cuse){calcUse();return}
+});
+document.addEventListener('input',e=>{
+  const t=e.target;if(!t.closest||!t.closest('#calcsheet'))return;
+  if(t.dataset.cr){const k=t.dataset.cr,i=Number(t.dataset.i);if(k==='q'||k==='p')CALC.rows[i][k]=t.value;else if(k==='n')CALC.rows[i].n=t.value;else CALC[k]=t.value;calcTotPaint()}
+  else if(t.dataset.cm){CALC[t.dataset.cm]=t.value;if(t.tagName==='SELECT')calcRender();else calcTotPaint()}
+});
+document.addEventListener('change',e=>{const t=e.target;if(t&&t.closest&&t.closest('#calcsheet')&&t.tagName==='SELECT'){if(t.dataset.cr==='n')CALC.rows[Number(t.dataset.i)].n=t.value;else if(t.dataset.cm){CALC[t.dataset.cm]=t.value;calcRender()}}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&CALC.open){CALC.open=false;calcRender()}});
+(function(){
+  const st=document.createElement('style');st.textContent=
+  '#calcfab{position:fixed;right:14px;bottom:84px;z-index:50;width:54px;height:54px;border-radius:50%;border:1px solid var(--line);background:var(--ok);color:#fff;font-size:24px;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer}'+
+  '#calcsheet{position:fixed;inset:0;z-index:100;display:flex;align-items:flex-end;justify-content:center}'+
+  '#calcsheet .cbk{position:absolute;inset:0;background:rgba(0,0,0,.45)}'+
+  '#calcsheet .cpn{position:relative;width:100%;max-width:460px;max-height:92vh;overflow:auto;background:var(--surface);color:var(--ink);border-radius:18px 18px 0 0;padding:12px 14px 14px;border:1px solid var(--line)}'+
+  '#calcsheet .chd{display:flex;justify-content:space-between;align-items:center;font-size:16px;margin-bottom:8px}'+
+  '#calcsheet .clr{border:0;background:var(--surface2);color:var(--ink);border-radius:8px;min-width:36px;min-height:36px;font-size:15px;cursor:pointer}'+
+  '#calcsheet .ctabs{display:flex;gap:6px;margin-bottom:10px;overflow-x:auto}'+
+  '#calcsheet .clt{flex:1;white-space:nowrap;border:1px solid var(--line);background:var(--surface2);color:var(--ink);border-radius:10px;padding:9px 8px;font-weight:700;font-size:13px;cursor:pointer}'+
+  '#calcsheet .clt[aria-selected="true"]{background:var(--ok);color:#fff;border-color:var(--ok)}'+
+  '#calcsheet .cdisp{background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;text-align:right}'+
+  '#calcsheet .cex{font-size:30px;font-weight:800;word-break:break-all;min-height:38px}'+
+  '#calcsheet .cprev{text-align:right;color:var(--muted);font-size:15px;min-height:20px;margin-bottom:6px}'+
+  '#calcsheet .ckeys{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}'+
+  '#calcsheet .ck{min-height:54px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);font-size:22px;font-weight:700;cursor:pointer}'+
+  '#calcsheet .ck.op{background:var(--ok-soft);color:var(--ok)}#calcsheet .ck.fn{background:var(--surface2)}#calcsheet .ck.eq{background:var(--ok);color:#fff;grid-column:span 2}'+
+  '#calcsheet .crow{display:flex;gap:8px;align-items:center;margin:8px 0}'+
+  '#calcsheet .crow input,#calcsheet .crow select{min-height:44px;min-width:0;flex:1;border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:var(--surface);color:var(--ink);font-size:16px}'+
+  '#calcsheet .cx{font-weight:800;color:var(--muted)}#calcsheet .cl{flex:1;font-weight:700}'+
+  '#calcsheet .cadd{border:1px dashed var(--line);background:transparent;color:var(--ok);border-radius:10px;min-height:40px;width:100%;font-weight:700;cursor:pointer}'+
+  '#calcsheet .csub{color:var(--muted);font-size:13px;margin:6px 0}#calcsheet .cbig{font-size:20px;margin:10px 0;padding:10px;background:var(--ok-soft);border-radius:12px;text-align:center}'+
+  '#calcsheet .cdiv{border-top:1px solid var(--line);margin-top:10px;padding-top:6px}#calcsheet .cres{min-height:22px;font-size:15px}'+
+  '#calcsheet .cft{margin-top:12px}#calcsheet .cft .btn{width:100%;min-height:50px;font-size:16px}';
+  document.head.appendChild(st);
+  setInterval(()=>{
+    const show=!!(S&&S.session&&S.session.role!=='gestor'&&S.name&&S.meta);
+    let f=$('#calcfab');
+    if(show&&!f){f=document.createElement('button');f.id='calcfab';f.type='button';f.dataset.cfab='1';f.setAttribute('aria-label','Abrir calculadora');f.textContent='🧮';document.body.appendChild(f)}
+    else if(!show&&f){f.remove();if(CALC.open){CALC.open=false;calcRender()}}
+  },700);
+})();
 
 
 /* ============ Indicadores de desempenho da equipe ============ */
