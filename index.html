@@ -195,6 +195,7 @@ body.op .main{padding-bottom:210px;max-width:640px}
 (function(){
 'use strict';
 const CFG=window.FIREBASE_CONFIG||{};
+if(CFG.teste){try{const b=document.createElement('div');b.id='envbanner';b.textContent='AMBIENTE DE TESTE · dados fictícios · este não é o sistema oficial';b.style.cssText='background:#E6A100;color:#1b1400;text-align:center;font:700 12px system-ui,sans-serif;padding:5px 8px;position:relative;z-index:50';document.body.insertBefore(b,document.body.firstChild);window.addEventListener('load',()=>{if(!/^\[TESTE\]/.test(document.title))document.title='[TESTE] '+document.title})}catch(e){}}
 const root=()=>document.getElementById('app');
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const slug=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40)||'x';
@@ -262,7 +263,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 12</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 14</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -374,14 +375,14 @@ const S={
   aend:null,lsel:new Set(),roomPeers:[],hb:new Map(),rg:'',lopen:new Set(),isAdmin:false,canWrite:null,mode:'',tab:'dashboard',resets:null,me:{name:'',id:null},log:[],grp:null,q:{lq:'',bq:'',bs:'',bg:'',eq:'',ef:'',eg:'',gq:'',gp:'',ctrl:'',itens:'',div:'',aud:'',op:''},dep:'',itf:'todos',
   meta:null,chunks:new Map(),erp:new Map(),counts:new Map(),assign:null,finals:null,ops:new Map(),peers:[],
   name:'',dev:store.get('ci:dev')||'',users:new Map(),usersLoaded:false,session:null,canEdit:false,
-  local:{inv:null,map:{}},addr:new Map(),addrDocs:new Map(),search:null,finds:new Map(),gstat:null,fl:{inv:null,list:[]},bsel:new Set(),third:null,extras:new Map(),xl:{inv:null,list:[]},items:new Map(),shelves:new Map(),stats:null,
+  local:{inv:null,map:{}},addr:new Map(),addrDocs:new Map(),search:null,finds:new Map(),gstat:null,fl:{inv:null,list:[]},bsel:new Set(),third:null,extras:new Map(),xl:{inv:null,list:[]},cx:{inv:null,list:[]},items:new Map(),shelves:new Map(),stats:null,
   online:navigator.onLine!==false,flushing:false,lastSync:null,syncErr:null,
   opView:{page:'locais',kind:'shelf',shelf:null},filter:'todas',imp:null,busy:false
 };
 if(!S.dev){S.dev=Math.random().toString(36).slice(2,8);store.set('ci:dev',S.dev)}
 S.base=S.dev;
 /* cada usuário tem a sua própria fila e identidade de envio, mesmo no mesmo aparelho */
-function setDev(){S.dev=S.base+(S.session?'_'+String(S.session.key).replace(/[^a-z0-9]/gi,'').slice(0,24):'');S.local={inv:null,map:{}};S.xl={inv:null,list:[]};S.fl={inv:null,list:[]};lastPres=''}
+function setDev(){S.dev=S.base+(S.session?'_'+String(S.session.key).replace(/[^a-z0-9]/gi,'').slice(0,24):'');S.local={inv:null,map:{}};S.xl={inv:null,list:[]};S.cx={inv:null,list:[]};S.fl={inv:null,list:[]};lastPres=''}
 
 /* ============ regras de contagem ============ */
 const isErp=(it,q)=>hq(S.meta.salt,it.id,q)===it.h;
@@ -411,6 +412,7 @@ function rebuild(){
   if(!inv){S.items=items;S.shelves=shelves;S.stats=null;return}
   if(S.local.inv!==inv){S.local={inv,map:loadLocal(inv)}}
   if(S.xl.inv!==inv){S.xl={inv,list:loadX(inv)}}
+  if(S.cx.inv!==inv){S.cx={inv,list:loadC(inv)}}
   if(S.fl.inv!==inv){S.fl={inv,list:loadF(inv)}}
   const chunks=[...S.chunks.values()].filter(c=>c.inv===inv).sort((a,b)=>a.no-b.no);
   for(const c of chunks){
@@ -423,6 +425,19 @@ function rebuild(){
       items.set(o.id,o);sh.items.push(o);
     }
   }
+  {const cats=new Map();
+   for(const d of S.extras.values())if(d.kind==='cat'&&d.inv===inv)cats.set(d.id,d);
+   for(const e of S.cx.list)if(!cats.has(e.id))cats.set(e.id,e);
+   {const seenN=new Set();
+    for(const d of [...S.extras.values(),...S.xl.list]){
+     if(d.item!==1||String(d.id).indexOf(inv+'_')!==0||seenN.has(d.id))continue;seenN.add(d.id);
+     const id='n:'+String(d.id).slice(inv.length+1);if(items.has(id))continue;
+     const k=d.apd?'xapd':'xfora',nm=d.apd?'Aplicação direta':'Fora do estoque';
+     let sh=shelves.get(k);if(!sh){sh={key:k,name:nm,items:[],chunks:[]};shelves.set(k,sh)}
+     const o={id,ch:9999,sk:k,shelf:nm,sec:'',code:d.code||'(sem código)',desc:d.name,un:d.un||'',wh:'',grp:d.apd?'Aplicação direta':'',h:null,erp:null,cost:null,cnt:[],xo:true,apd:!!d.apd,ctrl:!!d.ctrl,cad:d.cad||'',rawCode:d.code||'',photos:d.photos||[]};items.set(id,o);sh.items.push(o)}}
+   for(const d of cats.values()){const id='x:'+zc(d.code);if(items.has(id))continue;
+     let sh=shelves.get('xfora');if(!sh){sh={key:'xfora',name:'Fora do estoque',items:[],chunks:[]};shelves.set('xfora',sh)}
+     const o={id,ch:9999,sk:'xfora',shelf:'Fora do estoque',sec:'',code:d.code,desc:d.desc,un:d.un||'',wh:'',grp:d.grp||'',h:null,erp:null,cost:null,cnt:[],xo:true};items.set(id,o);sh.items.push(o)}}
   const rt=(S.resets&&S.resets.inv===inv&&S.resets.items)||{};
   const hist=new Map(),push=(id,c)=>{let l=hist.get(id);if(!l){l=[];hist.set(id,l)}l.push(c)};
   for(const d of S.counts.values()){
@@ -431,16 +446,16 @@ function rebuild(){
       if(!items.has(id))continue;
       const le=d.dev===S.dev?S.local.map[id]:null;
       if(le&&le.q!=null)continue;
-      push(id,{q:e.q,t:e.t,op:d.op,ok:slug(d.op),dev:d.dev});
+      push(id,{q:e.q,t:e.t,op:d.op,ok:slug(d.op),dev:d.dev,a:e.a,p:e.p});
     }
   }
   for(const [id,e] of Object.entries(S.local.map)){
     if(!items.has(id)||e.q==null)continue;
-    push(id,{q:e.q,t:e.t,op:e.op||S.name,ok:slug(e.op||S.name),dev:S.dev,pend:e.s===0});
+    push(id,{q:e.q,t:e.t,op:e.op||S.name,ok:slug(e.op||S.name),dev:S.dev,pend:e.s===0,a:e.a,p:e.p});
   }
   for(const it of items.values()){
     const h=(hist.get(it.id)||[]).sort((a,b)=>a.t-b.t),r0=rt[it.id]||0;
-    it.hist=h;it.reopened=!!rt[it.id];it.r0=r0;it.cnt=h.filter(c=>c.t>r0);evalItem(it);
+    it.hist=h;it.reopened=!!rt[it.id];it.r0=r0;it.cnt=h.filter(c=>c.t>r0);evalItem(it);if(it.xo&&it.state==='closed')it.div=normQ(it.final)>0;
   }
   const fnd=new Map([...S.finds.values()].filter(d=>d.inv===inv).map(d=>[d.id,d]));
   const srq=(S.search&&S.search.inv===inv&&S.search.items)||{};
@@ -463,9 +478,9 @@ function computeStats(){
     shelves:new Map(),ops:new Map(),first:null,last:null,unasg:0,unasg2:0};
   const now=Date.now();
   for(const it of S.items.values()){
-    st.total++;
+    if(!it.xo)st.total++;
     let sh=st.shelves.get(it.sk);if(!sh){sh={key:it.sk,name:it.shelf,total:0,counted:0,closed:0,div:0,rec:0,valErp:0};st.shelves.set(it.sk,sh)}
-    sh.total++;
+    if(!it.xo)sh.total++;
     const cost=it.cost||0;
     if(it.erp!=null){st.valTotal+=it.erp*cost;sh.valErp+=it.erp*cost}
     if(it.state==='pend'){st.pend++;continue}
@@ -533,8 +548,8 @@ async function flushX(){
   S.xflushing=true;updateSync();
   try{
     for(const e of un){
-      await withTimeout(S.db.doc('extras/'+e.id).set({id:e.id,inv:S.meta.inv,name:e.name,un:e.un,qty:e.qty,loc:e.loc,op:e.op,ok:e.ok,dev:S.dev,t:e.t,st:'novo',note:''}),20000);
-      e.s=1;persistX();
+      await withTimeout(S.db.doc('extras/'+e.id).set({id:e.id,inv:S.meta.inv,name:e.name,un:e.un,qty:e.qty,loc:e.loc,code:e.code||'',item:e.item?1:0,apd:e.apd?1:0,photos:e.photos||[],op:e.op,ok:e.ok,dev:S.dev,t:e.t,st:'novo',note:''}),20000);
+      e.s=1;if(e.photos&&e.photos.length){e.nph=e.photos.length;e.photos=null}persistX();
     }
   }catch(err){}
   finally{
@@ -544,8 +559,8 @@ async function flushX(){
 }
 function addExtra(f){
   const t=Date.now(),id=S.meta.inv+'_x'+t.toString(36)+rndHex(2);
-  S.xl.list.unshift({id,name:f.name,un:f.un,qty:f.qty,loc:f.loc,op:S.name,ok:myKey(),t,s:0});
-  persistX();updateSync();flushX();
+  S.xl.list.unshift({id,name:f.name,un:f.un,qty:f.qty,loc:f.loc,code:f.code||'',item:f.item?1:0,apd:f.apd?1:0,photos:f.photos||null,op:S.name,ok:myKey(),t,s:0});
+  persistX();updateSync();flushX();return id;
 }
 /* ---- respostas da busca (achei / não encontrei), com fila offline ---- */
 const fkey=inv=>'ci:f:'+inv+':'+S.dev;
@@ -591,6 +606,7 @@ function thirdFor(it){
 const eligible=(it,k)=>!it.cnt.some(c=>c.ok===k);
 let retryT=null;
 async function flush(){
+  try{flushC()}catch(e){}
   if(S.flushing||!S.db||!S.meta||S.local.inv!==S.meta.inv)return;
   const un=pendingList();if(!un.length){S.syncErr=null;updateSync();return}
   S.flushing=true;updateSync();
@@ -599,7 +615,7 @@ async function flush(){
     const byCh={};un.forEach(([id,e])=>{(byCh[e.ch]=byCh[e.ch]||[]).push([id,e])});
     for(const ch of Object.keys(byCh)){
       const ref=S.db.doc('counts/'+inv+'_'+ch+'_'+S.dev);
-      const items={};byCh[ch].forEach(([id,e])=>{items[id]={q:e.q,t:e.t}});
+      const items={};byCh[ch].forEach(([id,e])=>{items[id]=(()=>{const o={q:e.q,t:e.t};if(e.a)o.a=e.a;if(e.p)o.p=e.p;return o})()});
       const body={inv,ch:Number(ch),op:S.name,dev:S.dev,items};
       try{await withTimeout(ref.update(body),20000)}
       catch(e){if(e&&e.code==='invalid_argument')await withTimeout(ref.set(body),20000);else throw e}
@@ -630,7 +646,7 @@ function setDraft(it,val,r){
 function sendDrafts(){
   const ds=draftList();if(!ds.length)return;
   const t0=Date.now();
-  ds.forEach(([id,e],i)=>{e.q=e.dr;e.t=(e.dt||t0)+i;e.s=0;delete e.dr;delete e.dt;});
+  ds.forEach(([id,e],i)=>{e.q=e.dr;{const ad=adm[id]!=null?adm[id]:defAddr(S.items.get(id));if(ad)e.a=ad;else delete e.a}e.t=(e.dt||t0)+i;e.s=0;delete e.dr;delete e.dt;});
   persistLocal();rebuild();draw();updateSync();flush();pushPresence();
   toast(ds.length+' contagem(ns) enviada(s)');
 }
@@ -640,7 +656,7 @@ function clearDrafts(){
 }
 window.addEventListener('online',()=>{S.online=true;updateSync();flush();flushX();flushF();flushAd()});
 window.addEventListener('offline',()=>{S.online=false;updateSync()});
-window.addEventListener('beforeunload',e=>{if(pendingList().length||draftList().length||xPending().length||fPending().length||adPending().length){e.preventDefault();e.returnValue=''}});
+window.addEventListener('beforeunload',e=>{if(pendingList().length||draftList().length||blCount()||xPending().length||fPending().length||adPending().length){e.preventDefault();e.returnValue=''}});
 
 /* ============ presença (quem está online) ============ */
 let lastPres='';
@@ -653,12 +669,12 @@ function actLabel(){
   if(v.page==='procurar')return 'Procurando itens';
   if(v.page==='novo')return 'Cadastrando item';
   if(v.page==='hist')return 'Vendo o histórico';
-  if(v.kind==='shelf'&&v.shelf)return (S.shelves.get(v.shelf)||{}).name||'';
+  if(v.kind==='shelf'&&v.shelf)return manualName(v.shelf)||'';
   if(v.kind==='recount')return S.rf==='2'?'2ª contagem':'Recontagens';
   return 'Tela inicial';
 }
 const adCount=()=>{try{return adMeta()?adMine():0}catch(e){return 0}};
-function hbPayload(){return{name:S.name,pending:pendingList().length,drafts:draftList().length,shelf:actLabel(),page:S.opView.page,ad:adCount()}}
+function hbPayload(){return{name:S.name,pending:pendingList().length,drafts:draftList().length,bl:blInfo(),shelf:actLabel(),page:S.opView.page,ad:adCount()}}
 function pushHeartbeat(force){
   if(!S.db||!S.name||!S.session)return;
   const p=hbPayload(),s=JSON.stringify(p),now=Date.now();
@@ -686,7 +702,7 @@ function pushPresence(force){
   if(!S.name||!S.session||(S.isAdmin&&S.tab!=='contagem'))return;
   pushHeartbeat(force);
   if(!S.room)return;
-  const p={role:'op',name:S.name,pending:pendingList().length,drafts:draftList().length,shelf:actLabel(),page:S.opView.page,ad:adCount()};
+  const p={role:'op',name:S.name,pending:pendingList().length,drafts:draftList().length,bl:blInfo(),shelf:actLabel(),page:S.opView.page,ad:adCount()};
   const s=JSON.stringify(p);if(s===lastPres&&!force)return;lastPres=s;
   S.room.presence(p).catch(()=>{});
 }
@@ -761,7 +777,7 @@ function subscribe(){
   },err));
   subs.push(db.collection('chunks').onSnapshot(q=>{S.chunks=new Map(q.docs.map(d=>[d.id,d.data()]));scheduleRebuild()},err));
   subs.push(db.collection('counts').onSnapshot(q=>{S.counts=new Map(q.docs.map(d=>[d.id,d.data()]));scheduleRebuild()},err));
-  subs.push(db.doc('assign/current').onSnapshot(s=>{S.assign=s.exists?s.data():null;scheduleRebuild()},err));
+  subs.push(db.doc('assign/current').onSnapshot(s=>{S.assign=s.exists?s.data():null;try{blApplyRo()}catch(e){}scheduleRebuild()},err));
   subs.push(db.doc('reset/current').onSnapshot(s=>{S.resets=s.exists?s.data():null;scheduleRebuild()},err));
   subs.push(db.doc('final/current').onSnapshot(s=>{S.finals=s.exists?s.data():null;scheduleRebuild()},err));
   subs.push(db.doc('search/current').onSnapshot(s=>{S.search=s.exists?s.data():null;scheduleRebuild()},err));
@@ -774,7 +790,7 @@ function subscribe(){
   subs.push(db.collection('addrnew').onSnapshot(q=>{S.anew=new Map(q.docs.map(d=>[d.id,d.data()]));if(S.canEdit)rebuildAddr();try{adListRefresh()}catch(e){}scheduleRebuild()},err));
   if(S.canEdit)subs.push(db.collection('apur').onSnapshot(q=>{S.apur=new Map(q.docs.map(d=>[d.id,d.data()]));scheduleRebuild();if(S.tab==='apuracao')draw()},err));
   if(S.canEdit)subs.push(db.collection('addr').onSnapshot(q=>{S.addrDocs=new Map(q.docs.map(d=>[d.id,d.data()]));rebuildAddr();scheduleRebuild()},err));
-  if(S.canEdit)subs.push(db.collection('ops').onSnapshot(q=>{S.hb=new Map(q.docs.map(d=>[d.id,d.data()]));if(S.isAdmin)peersChanged()},err));
+  if(S.canEdit)subs.push(db.collection('ops').onSnapshot(q=>{S.hb=new Map(q.docs.map(d=>[d.id,d.data()]));if(S.isAdmin){peersChanged();relRefresh()}},err));
   if(S.canEdit)subs.push(db.collection('erp').onSnapshot(q=>{S.erp=new Map(q.docs.map(d=>[d.id,d.data()]));scheduleRebuild()},err));
 }
 async function init(){
@@ -829,7 +845,7 @@ window.__ci={S,rebuild,draw,flush,evalItem,mergePeers};
 
 /* ============ moldura do app ============ */
 const ini=n=>String(n||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase()||'?';
-const MTABS=[['dashboard','📊','Dashboard'],['importar','📥','Importar'],['locais','📍','Locais'],['enderecos','📍','Endereçamento'],['itens','📦','Itens'],['divergencias','⚠️','Divergências'],['auditoria','🕒','Auditoria'],['usuarios','👤','Usuários'],['foraerp','🆕','Fora do ERP'],['relatorio','📑','Relatório'],['controladoria','🧾','Controladoria'],['apuracao','🧮','Apuração']];
+const MTABS=[['dashboard','📊','Dashboard'],['indicadores','📈','Indicadores'],['importar','📥','Importar'],['locais','📍','Locais'],['enderecos','📍','Endereçamento'],['itens','📦','Itens'],['divergencias','⚠️','Divergências'],['auditoria','🕒','Auditoria'],['usuarios','👤','Usuários'],['foraerp','🆕','Fora do ERP'],['relatorio','📑','Relatório'],['controladoria','🧾','Controladoria'],['apuracao','🧮','Apuração']];
 const LOGO='<svg viewBox="0 0 24 24" fill="none" stroke="#2F7F15" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M12 2.5 20 7v10l-8 4.5L4 17V7z"/><path d="M12 12 4 7M12 12l8-5M12 12v9.5"/><path d="m9 15.5 2 1.8 4-4" stroke="#34C21F"/></svg>';
 let mainMode='',opMode='';
 const confirmOnce=(()=>{let k='',t=0;return key=>{if(k===key&&Date.now()-t<4000){k='';return true}k=key;t=Date.now();return false}})();
@@ -838,7 +854,7 @@ function hdrHtml(){
   const chip=name?'<span class="uchip"><span class="av">'+esc(ini(name))+'</span><span class="nm">'+esc(name)+(S.isAdmin?' · Gestor':'')+'</span><button data-act="sair">sair</button></span>':'';
   let h='<div class="hbar"><div class="wrap in"><span class="logo">'+LOGO+'</span><span class="ttl">Contagem de Inventário</span><span class="sp"></span><span class="live'+(S.online?'':' off')+'"><i></i>'+(S.online?'Ao vivo':'Sem internet')+'</span>'+chip+'</div></div>';
   if(S.isAdmin){
-    const nNew=S.meta?[...S.extras.values()].filter(x=>x.inv===S.meta.inv&&x.st!=='resolvido').length:0;
+    const nNew=S.meta?[...S.extras.values()].filter(x=>x.inv===S.meta.inv&&x.kind!=='cat'&&x.st!=='resolvido').length:0;
     const st=S.stats,nDiv=st?st.rec3+st.rec4+st.sem:0;
     h+='<div class="tabbar"><div class="wrap"><div class="tabs" role="tablist">'+MTABS.map(([k,ic,l])=>'<button class="tab" role="tab" data-act="tab" data-v="'+k+'" aria-selected="'+(S.tab===k)+'"><span>'+ic+'</span>'+l+(k==='divergencias'&&nDiv?'<span class="badge">'+nDiv+'</span>':'')+(k==='foraerp'&&nNew?'<span class="badge">'+nNew+'</span>':'')+'</button>').join('')+'</div></div></div>';
   }
@@ -932,16 +948,8 @@ function assignee2(it){
   const a=(S.assign&&S.meta&&S.assign.inv===S.meta.inv&&S.assign.map)||{};
   return a['2i:'+it.id]||a['2'+grpKey(it)]||a['2'+whKey(it)]||'';
 }
-function myShelfView(key){
-  const sh=S.shelves.get(key);if(!sh)return null;
-  if(S.isAdmin)return sh;
-  const k=myKey(),items=sh.items.filter(it=>assigneeOf(it)===k);
-  return{key:sh.key,name:sh.name,items};
-}
-function myShelves(){
-  if(!S.meta)return[];
-  return[...S.shelves.keys()].map(myShelfView).filter(s=>s&&s.items.length);
-}
+function myShelfView(key){return manualShelves().find(x=>x.key===key)||null}
+function myShelves(){if(!S.meta)return[];return manualShelves().filter(x=>S.isAdmin||inTeam(x.key,myKey()))}
 const editing=new Set();
 let rows=new Map(),heads=new Map(),lastListKey='';
 
@@ -960,7 +968,7 @@ function drawOpContent(){
   if(!S.meta){opMode='msg';host.innerHTML=opNav(v.page)+ro+'<div class="card"><div class="empty">Nenhum inventário aberto no momento.<br>Aguarde o supervisor publicar a lista.</div></div>';return}
   if(S.meta.status==='encerrado'){opMode='msg';host.innerHTML=opNav(v.page)+'<div class="card"><div class="empty"><b>Inventário encerrado.</b><br>Obrigado pela contagem.</div></div>';return}
   if(v.page==='contagem'&&!v.shelf&&v.kind!=='recount'){
-    const l=myShelves().filter(s=>s.items.some(i=>i.state==='pend')).sort((a,b)=>a.name.localeCompare(b.name,'pt',{numeric:true}));
+    const l=myShelves().sort((a,b)=>a.name.localeCompare(b.name,'pt',{numeric:true}));
     if(l.length)S.opView={page:'contagem',kind:'shelf',shelf:l[0].key};
     else if(recountItems().length||secondItems().length){S.rg='';S.rf=recountItems().length?'':'2';S.opView={page:'contagem',kind:'recount',shelf:null}}
     else S.opView={page:'locais',kind:'shelf',shelf:null};
@@ -968,14 +976,14 @@ function drawOpContent(){
   }
   if(v.page==='locais'){
     opMode='locais';lastListKey='';
-    const list=myShelves().filter(s=>s.items.some(i=>i.state==='pend')).sort((a,b)=>a.name.localeCompare(b.name,'pt',{numeric:true}));
+    const list=myShelves().sort((a,b)=>a.name.localeCompare(b.name,'pt',{numeric:true}));
     const rc=recountItems().filter(canRecount).length,sc=secondItems().filter(canRecount).length;
     let h=opNav('locais')+ro+'<div><div class="sub">'+esc(S.meta.name)+'</div><h1 class="hero">Seus locais</h1></div>';
     const openSecond=secondItems().some(i=>{const m=S.local.map[i.id];return !(m&&m.q!=null&&m.dr==null)});
-    if(!list.length&&!rc&&!openSecond)h+='<div class="note info">'+(myShelves().length?'Você concluiu os seus locais. Aguarde novas atribuições do supervisor; esta tela atualiza sozinha.':'O supervisor ainda não atribuiu prateleiras a você. Esta tela atualiza sozinha.')+'</div>';
+    if(!list.length&&!rc&&!openSecond)h+='<div class="note info">'+(myShelves().length?'Você concluiu os seus locais. Aguarde novas atribuições do supervisor; esta tela atualiza sozinha.':'O supervisor ainda não liberou prateleiras para você. Esta tela atualiza sozinha.')+'</div>';
     for(const s of list){
-      const tot=s.items.length,done=s.items.filter(i=>i.state!=='pend').length;
-      h+='<button class="shelf" data-act="openshelf" data-sk="'+esc(s.key)+'"><div><div class="t">📍 '+esc(s.name)+'</div><div class="sub">'+tot+' itens</div></div><div class="c"><div class="num"><b>'+done+'</b> / '+tot+'</div>'+(done===tot?'<span class="chip ok">Concluído</span>':'<span class="sub">contados</span>')+'</div></button>';
+      const done=0,mine=blList(s.key).length,tm=teamOf(s.key);
+      h+='<button class="shelf" data-act="openshelf" data-sk="'+esc(s.key)+'"><div><div class="t">📍 '+esc(shName(s))+'</div><div class="sub">'+(tm.length>1?'Equipe: '+tm.map(nameOfKey).join(', '):'Contagem às cegas')+'</div></div><div class="c">'+blChip(s.key)+'</div></button>';
     }
     if(sc||secondItems().length){
       const gm=new Map(),keep=S.rg;S.rg='';
@@ -1015,12 +1023,15 @@ function drawOpContent(){
         '<div class="field" style="flex:1;min-width:120px"><label for="xq">QUANTIDADE</label><input type="text" id="xq" inputmode="decimal" autocomplete="off" placeholder="0"></div></div>'+
         '<datalist id="xul">'+['UN','PC','CX','KG','G','L','ML','M','M2','M3','PAR','RL','SC','GL','KIT','PCT','FD'].map(u=>'<option value="'+u+'">').join('')+'</datalist>'+
         '<div class="field"><label for="xl">LOCAL ONDE FOI ENCONTRADO</label><input type="text" id="xl" list="xll" autocomplete="off" placeholder="Prateleira / seção / observação" value="'+esc(cur?cur.name:'')+'"></div>'+
+        '<div class="field"><label for="xc">CÓDIGO (SE SOUBER)</label><input type="text" id="xc" autocomplete="off" autocapitalize="characters" placeholder="Deixe em branco se não tiver"></div>'+
+        '<label style="display:flex;gap:10px;align-items:center;min-height:40px"><input type="checkbox" id="xa"> <span><b>Aplicação direta (APD)</b><br><span class="sub">Material que não passa pelo estoque virtual, mas precisa ser contado (ex.: formulários).</span></span></label>'+
+        '<div class="field"><label>FOTOS DO ITEM (ATÉ 2, PARA O GESTOR CONFERIR DEPOIS)</label><div class="row" style="gap:10px;flex-wrap:wrap"><div id="xph0"></div><div id="xph1"></div></div></div>'+
         '<datalist id="xll">'+sh.map(s=>'<option value="'+esc(s.name)+'">').join('')+'</datalist>'+
         '<div id="xerr" class="note bad" hidden></div>'+
         '<button class="btn primary" data-act="xsave" style="min-height:48px;font-size:15px">Cadastrar item</button></div></div>'+
         '<div id="xlist"></div>';
     }
-    updateXList();return;
+    drawPh();updateXList();return;
   }
   if(v.page==='hist'){
     opMode='hist';lastListKey='';
@@ -1028,6 +1039,7 @@ function drawOpContent(){
     host.innerHTML=opNav('hist')+'<h1 class="hero">Meu histórico</h1>'+(mine.length?'<div class="card"><div class="bd feed">'+mine.map(e=>'<div class="ev"><span class="tm">'+fmtT(e.t)+'</span><div style="min-width:0"><b>'+esc(e.label)+'</b> · <span class="mono">'+esc(e.it.code)+'</span> '+esc(e.it.desc)+'<div class="sub">'+esc(e.it.shelf)+(e.it.sec?' / '+esc(e.it.sec):'')+' · '+fmtQ(e.q)+' '+esc(e.it.un)+(e.pend?' · <b>na fila de envio</b>':'')+'</div></div></div>').join('')+'</div></div>':'<div class="card"><div class="empty">Você ainda não enviou contagens.</div></div>');
     return;
   }
+  if(v.kind==='shelf')return drawBlind(host,ro);
   // lista de contagem
   const key=v.kind+'|'+v.shelf+'|'+S.meta.inv+'|'+(v.kind==='recount'?(S.rf||'')+'|'+(S.rg||''):'');
   if(opMode!=='list'||key!==lastListKey||!$('#oplist')){
@@ -1051,7 +1063,7 @@ function updateXList(){
   const mine=S.xl.list.filter(e=>e.ok===myKey());
   h.innerHTML=mine.length?'<div class="card"><div class="hd"><h2>Meus cadastros</h2><span class="sub">'+mine.length+'</span></div><div class="bd feed">'+mine.map(e=>{
     const d=S.extras.get(e.id);const stt=d?(d.st==='resolvido'?'<span class="chip ok">✓ resolvido'+(d.note?' · '+esc(d.note):'')+'</span>':'<span class="chip">enviado</span>'):'<span class="chip warn">na fila de envio</span>';
-    return'<div class="ev"><span class="tm">'+fmtT(e.t)+'</span><div style="min-width:0"><b>'+esc(e.name)+'</b><div class="sub">'+fmtQ(e.qty)+' '+esc(e.un)+' · '+esc(e.loc||'sem local')+'</div><div style="margin-top:4px">'+stt+(!d&&e.s===0?' <button class="lnk" data-act="xundo" data-id="'+esc(e.id)+'">remover</button>':'')+'</div></div></div>'}).join('')+'</div></div>':'';
+    return'<div class="ev"><span class="tm">'+fmtT(e.t)+'</span><div style="min-width:0"><b>'+esc(e.name)+'</b>'+(e.apd?' <span class="chip info">APD</span>':'')+'<div class="sub">'+(e.code?esc(e.code)+' · ':'')+fmtQ(e.qty)+' '+esc(e.un)+' · '+esc(e.loc||'sem local')+'</div><div style="margin-top:4px">'+stt+(!d&&e.s===0&&!e.item?' <button class="lnk" data-act="xundo" data-id="'+esc(e.id)+'">remover</button>':'')+'</div></div></div>'}).join('')+'</div></div>':'';
 }
 function wantedItems(){
   const v=S.opView,q=(S.q.op||'').trim().toLowerCase();
@@ -1095,10 +1107,12 @@ function makeRow(it){
   el.innerHTML='<div style="min-width:0"><div class="tags"><span class="tag c"></span><span class="tag s"></span></div><div class="rd"></div><div class="desc"></div></div>'+
     '<div class="in"><input class="qty" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="next" placeholder="Qtd"><span class="un"></span></div>'+
     '<div class="sent"><span class="q"></span><span class="chip warn pend"></span><button class="lnk" type="button">alterar</button></div>'+
-    '<div class="nlr" style="grid-column:1/-1;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="lnk nlb" type="button">Produto não encontrado</button><span class="chip bad nlc" hidden>✗ Produto não localizado</span><button class="lnk nlu" type="button" hidden>desfazer</button></div>';
+    '<div class="nlr" style="grid-column:1/-1;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="lnk nlb" type="button">Produto não encontrado</button><span class="chip bad nlc" hidden>✗ Produto não localizado</span><button class="lnk nlu" type="button" hidden>desfazer</button></div>'+
+    '<div class="adrow" style="grid-column:1/-1;display:none"><div class="adprev sub" style="margin-bottom:6px"></div><div class="field"><label>ENDEREÇO ONDE ESTÁ (CONFIRA OU CORRIJA)</label><input class="adr" type="text" autocomplete="off" placeholder="Ex.: P14-D2"></div></div>';
   $('.c',el).textContent=it.code;$('.s',el).textContent=S.opView.kind==='recount'?it.shelf+(it.sec?' / '+it.sec:''):(it.sec||it.shelf);
   if(it.moved)$('.s',el).textContent='📍 '+it.moved;
   $('.desc',el).textContent=it.desc;$('.un',el).textContent=it.un;
+  {const adi=$('.adr',el);adi.addEventListener('input',()=>{adm[it.id]=adi.value.trim()});const z=document.createElement('button');z.type='button';z.className='btn sm nlz';z.hidden=true;z.style.marginTop='8px';z.textContent='Não encontrei este produto (contar 0)';z.onclick=()=>{const q=$('.qty',el);q.value='0';q.dispatchEvent(new Event('input'))};$('.adrow',el).appendChild(z);const ph=document.createElement('div');ph.className='adph';ph.style.marginTop='8px';$('.adrow',el).appendChild(ph)}
   const inp=$('input',el);inp.setAttribute('aria-label','Quantidade contada de '+it.code+' '+it.desc);
   inp.addEventListener('input',()=>{
     const s=inp.value.trim();
@@ -1122,6 +1136,7 @@ function paintRow(el,it){
   {const rl=(m&&m.rd)||roundLabel(it),rn=parseInt(rl,10)||1;const r=$('.rd',el);r.textContent=rn>=3?'🔁 '+rl+' (recontagem)':(rn===2?'2ª contagem':rl);r.dataset.n=rn;r.className='rd n'+Math.min(rn,4);r.hidden=rn<2;el.dataset.n=rn>=3?Math.min(rn,4):''}
   {const lf=S.fl.list.find(e=>e.id===it.id),fl=lf?lf.st==='nao':!!(it.find&&it.find.st==='nao'),has=!!(m&&(m.q!=null||m.dr!=null))||it.cnt.length>0;
    $('.nlc',el).hidden=!fl||has;$('.nlu',el).hidden=!fl||has;$('.nlb',el).hidden=fl||has}
+  {const rec=S.opView.kind==='recount',ar=$('.adrow',el);ar.style.display=rec?'':'none';{const z=$('.nlz',el);if(z)z.hidden=!(rec&&it.xo)}if(rec){const ai=$('.adr',el);if(document.activeElement!==ai)ai.value=adm[it.id]!=null?adm[it.id]:defAddr(it);{const ph=$('.adph',el);if(ph){const n=String((it.photos||[]).length);if(ph.dataset.n!==n){ph.dataset.n=n;ph.innerHTML=thumbsHtml(it.photos||[],it.id)}}}const pv=it.cnt.map((c,i)=>c.a?ordn(i+1)+': '+c.a:'').filter(Boolean);$('.adprev',el).textContent=(it.cnt.length>=2&&pv.length)?'📍 Endereço informado antes — '+pv.join(' · '):''}}
   const inp=$('input',el);
   if(document.activeElement!==inp)inp.value=hasDraft?fmtIn(m.dr):(ed&&m&&m.q!=null?fmtIn(m.q):'');
   if(sent){
@@ -1188,6 +1203,7 @@ function managerBody(){
     case 'enderecos':return vEnd();
     case 'busca':return vBusca();
     case 'relatorio':return vReport();
+    case 'indicadores':return vIndic();
     default:return vDashboard();
   }
 }
@@ -1201,7 +1217,7 @@ function vDashboard(){
   const people=knownOps();const seen=new Set(people.map(p=>p.key));
   st.ops.forEach(o=>{if(!seen.has(o.key))people.push({key:o.key,name:o.name})});
   const asg=(S.assign&&S.assign.inv===S.meta.inv&&S.assign.map)||{};
-  const shelfOf=k=>Object.entries(asg).filter(([,v])=>v===k).map(([sk])=>(S.shelves.get(sk)||{}).name).filter(Boolean);
+  const shelfOf=k=>Object.entries(asg).filter(([sk,v])=>sk.startsWith('s:')?String(v).split('|').includes(k):v===k).map(([sk])=>(sk.startsWith('s:')?manualName(sk.slice(2)):(S.shelves.get(sk)||{}).name)).filter(Boolean);
   const list=people.map(p=>({p,o:st.ops.get(p.key)||{n:0,m15:0,last:null,c1n:0,c1ok:0},pe:peersBy.get(p.key)}))
     .sort((a,b)=>(!!b.pe-!!a.pe)||(b.o.n-a.o.n));
   const onl=list.filter(x=>x.pe).length+1;
@@ -1227,7 +1243,6 @@ function vDashboard(){
   h+='<div class="card"><div class="hd"><h2>🔁 Fila de contagens</h2><span class="sub">itens aguardando cada rodada</span></div><div class="bd"><div class="row" style="gap:10px;align-items:stretch">'+
     tl('n2',st.pend,'Aguardam 1ª contagem')+tl('n2',st.rec2,'Aguardam 2ª contagem')+tl('n3',st.rec3,'Aguardam 3ª contagem',st.rec3?'(1ª ≠ 2ª)':'')+tl('n4',st.rec4,'Aguardam 4ª contagem')+tl('sem',st.sem,'Sem consenso','decisão do supervisor')+
     (st.unasg?tl('n3',st.unasg,'Sem responsável','3ª/4ª a atribuir'):'')+'</div></div></div>';
-  h+=nfDashCard();
   if([...S.items.values()].some(it=>it.grp)){
     const gm=new Map();
     for(const it of S.items.values()){const g=it.grp||'(Sem grupo)';let o=gm.get(g);if(!o){o={n:g,tot:0,cont:0,closed:0,pend:0,busca:0};gm.set(g,o)}o.tot++;if(it.state==='pend'){o.pend++;if(it.sreq&&(!it.find||it.find.t<it.sreq.t))o.busca++}else o.cont++;if(it.state==='closed')o.closed++}
@@ -1332,7 +1347,7 @@ function nfDashCard(){
     (l.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th>Local</th><th>Coletor</th><th>Quando</th></tr></thead><tbody>'+l.slice(0,5).map(x=>'<tr><td class="mono">'+esc(x.code)+'</td><td class="wc">'+esc(x.desc)+'</td><td>'+esc(x.loc)+'</td><td>'+esc(x.op)+'</td><td>'+fmtDT(x.t)+'</td></tr>').join('')+'</tbody></table></div>'+(l.length>5?'<div class="sub">Mostrando os 5 mais recentes de '+fmtN(l.length)+'. A lista completa está na aba Divergências.</div>':''):'<div class="sub">Nenhum produto foi marcado como não localizado na contagem.</div>')+
     '</div></div>';
 }
-function nfDivCard(){
+function nfDivCard0(){
   const l=nfRows();
   return'<div class="card"><div class="hd"><h2>🚫 Produtos não localizados</h2><span class="sub">'+fmtN(l.length)+' item(ns) que o coletor não encontrou no local indicado</span><span class="sp" style="flex:1"></span><button class="btn sm" data-act="nfxl"'+(l.length?'':' disabled')+'>⬇ Exportar .xlsx</button></div><div class="bd">'+
     (l.length?'<div class="scroll" style="max-height:360px;overflow:auto"><table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th>Grupo</th><th>Local</th><th>Coletor</th><th>Quando</th><th></th></tr></thead><tbody>'+l.map(x=>'<tr><td class="mono">'+esc(x.code)+'</td><td class="wc">'+esc(x.desc)+'</td><td class="sub">'+esc(x.grp)+'</td><td>'+esc(x.loc)+'</td><td>'+esc(x.op)+'</td><td>'+fmtDT(x.t)+'</td><td style="white-space:nowrap"><button class="btn sm" data-act="bzero" data-id="'+esc(x.it.id)+'">Fechar como 0</button> <button class="btn sm" data-act="nfclear" data-id="'+esc(x.it.id)+'" data-fk="1" data-ak="" title="Tira a marcação e devolve o item para a contagem">Devolver</button></td></tr>').join('')+'</tbody></table></div>':'<div class="sub">Nenhum produto foi marcado como não localizado na contagem.</div>')+'</div></div>';
@@ -1372,15 +1387,15 @@ function exportCsv(){
 
 /* ---- Itens fora do ERP ---- */
 const XCOLS=[{h:'Data/hora',k:'dt',w:18},{h:'Produto',k:'name',w:40},{h:'UN',k:'un',w:8},{h:'Quantidade',k:'qty',w:12,z:'#,##0.000'},{h:'Local encontrado',k:'loc',w:26},{h:'Registrado por',k:'op',w:22},{h:'Situação',k:'sit',w:14},{h:'Observação / código ERP',k:'note',w:32}];
-const extrasList=()=>S.meta?[...S.extras.values()].filter(x=>x.inv===S.meta.inv).sort((a,b)=>b.t-a.t):[];
+const extrasList=()=>S.meta?[...S.extras.values()].filter(x=>x.inv===S.meta.inv&&x.kind!=='cat'&&!x.apd).sort((a,b)=>b.t-a.t):[];
 const extraRows=()=>extrasList().map(x=>({dt:new Date(x.t).toLocaleString('pt-BR'),name:x.name,un:x.un,qty:x.qty,loc:x.loc,op:x.op,sit:x.st==='resolvido'?'Resolvido':'Sem cadastro no ERP',note:x.note||''}));
-function vForaErp(){
+function vForaErp0(){
   if(!S.meta)return noInv();
   const l=extrasList(),nn=l.filter(x=>x.st!=='resolvido').length;
   return'<div class="kpis">'+kpi('Itens fora do ERP',fmtN(l.length),'cadastros genéricos feitos pela equipe','a')+kpi('Sem origem definida',fmtN(nn),'ainda sem cadastro/explicação','r')+kpi('Resolvidos',fmtN(l.length-nn),'origem identificada','g')+'</div>'+
   '<div class="card"><div class="hd"><h2>🆕 Itens fora do ERP</h2><button class="btn sm" data-act="xl-x">⬇ Planilha .xlsx</button></div><div class="bd scroll">'+
   (l.length?'<table class="tbl"><thead><tr><th>Quando</th><th>Produto</th><th>UN</th><th class="r">Qtd</th><th>Local</th><th>Registrado por</th><th>Situação</th><th></th></tr></thead><tbody>'+
-  l.map(x=>'<tr><td class="sub">'+fmtDT(x.t)+'</td><td class="wc"><b>'+esc(x.name)+'</b></td><td>'+esc(x.un)+'</td><td class="r num">'+fmtQ(x.qty)+'</td><td>'+esc(x.loc||'–')+'</td><td>'+esc(x.op)+'</td>'+
+  l.map(x=>'<tr><td class="sub">'+fmtDT(x.t)+'</td><td class="wc">'+(x.code?'<span class="mono sub">'+esc(x.code)+'</span><br>':'')+'<b>'+esc(x.name)+'</b>'+xoLine(x)+itemCtl(x,false)+'</td><td>'+esc(x.un)+'</td><td class="r num">'+fmtQ(x.qty)+'</td><td>'+esc(x.loc||'–')+'</td><td>'+esc(x.op)+'</td>'+
     '<td>'+(x.st==='resolvido'?'<span class="chip ok">✓ Resolvido</span>'+(x.note?'<div class="sub">'+esc(x.note)+'</div>':''):'<span class="chip warn">Sem cadastro</span>')+'</td>'+
     '<td><div class="row" style="flex-wrap:nowrap;gap:6px">'+(x.st==='resolvido'?'<button class="btn sm" data-act="xres" data-id="'+esc(x.id)+'" data-v="0">Reabrir</button>':'<input type="text" id="xn-'+esc(x.id)+'" autocomplete="off" placeholder="Código ERP / obs." style="width:150px;min-height:30px;padding:3px 8px"><button class="btn sm" data-act="xres" data-id="'+esc(x.id)+'" data-v="1">Resolver</button>')+'<button class="btn sm danger" data-act="xrm" data-id="'+esc(x.id)+'">Excluir</button></div></td></tr>').join('')+'</tbody></table>':'<div class="empty">Nenhum item fora do ERP cadastrado ainda.<br><span class="sub">Os operadores cadastram em ➕ Novo item.</span></div>')+'</div></div>';
 }
@@ -1415,11 +1430,11 @@ function vShelves(){
   const sh=[...st.shelves.values()].sort((a,b)=>a.name.localeCompare(b.name,'pt',{numeric:true}));
   let h='<div class="grid2"><div class="card"><div class="hd"><h2>👥 Equipe</h2></div><div class="bd stack">'+
     '<div class="row"><button class="btn" data-act="tab" data-v="usuarios">👤 Cadastrar operadores e senhas</button></div>'+
-    (ops.length?'<div class="sub">Marque quem vai contar e use a distribuição automática (divide por quantidade de itens; depois ajuste por armazém, grupo ou produto abaixo):</div><div class="stack" style="gap:8px">'+ops.map(o=>'<label style="display:flex;gap:10px;align-items:center;min-height:32px"><input type="checkbox" class="dist" value="'+esc(o.key)+'" checked> '+esc(o.name)+'</label>').join('')+'</div><div class="row"><button class="btn primary" data-act="distribute">Distribuir automaticamente</button><button class="btn" data-act="clearassign">Limpar atribuições</button></div>':'<div class="sub">Cadastre os operadores na aba Usuários.</div>')+
+    '<div class="sub">A 1ª contagem é liberada por prateleira (card abaixo). A 2ª contagem continua sendo atribuída por armazém, grupo ou produto.</div>'+
     '</div></div>'+
     '<div class="card"><div class="hd"><h2>Regras desta contagem</h2></div><div class="bd stack"><div class="sub">Todo item precisa de pelo menos duas contagens físicas, feitas por pessoas diferentes, mesmo que a 1ª bata com o ERP. O saldo do ERP é só referência: o item fecha quando duas contagens são iguais, e só então é comparado com o ERP. Se a 1ª e a 2ª diferirem, vem a 3ª; se ainda não houver duas iguais, vem a 4ª. Sem consenso na 4ª, você decide na aba Divergências.</div>'+
-    '<label style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" id="allowsame" '+(S.meta.allowSame?'checked':'')+' data-chg="allowsame"> <span>Permitir que o mesmo operador faça a recontagem (use só se a equipe for muito pequena)</span></label></div></div></div>';
-  h+=locHtml(ops)+vBusca();
+    '<div class="note info"><b>Trava:</b> a mesma pessoa nunca faz duas contagens do mesmo produto (1ª, 2ª, 3ª ou 4ª). O app esconde da pessoa os itens que ela já contou e avisa aqui quando você escolhe um responsável que já contou itens do grupo.</div></div></div></div>';
+  h+=relHtml(ops)+vBusca();
   return h;
 }
 
@@ -1457,12 +1472,12 @@ function locBody(ops){
   if(!tree.length)return'<div class="empty">Nenhum produto encontrado.</div>';
   return tree.map(w=>{
     const wkey='w:'+w.k,gs=[...w.groups.values()].sort((a,b)=>a.name.localeCompare(b.name,'pt',{numeric:true}));
-    return'<div class="wg"><div class="wh"><span class="nm">🏭 '+esc(w.name)+' <span class="sub">'+w.n+' produtos · '+w.done+' contados · '+gs.length+' grupos</span></span>'+
-      '<div class="field"><label>1ª CONTAGEM (ARMAZÉM)</label><select data-chg="lassign" data-key="'+esc(wkey)+'" aria-label="1ª contagem do armazém '+esc(w.name)+'">'+locOpts(ops,asg[wkey])+'</select></div><div class="field"><label>2ª CONTAGEM (ARMAZÉM)</label><select data-chg="lassign" data-key="2'+esc(wkey)+'" aria-label="2ª contagem do armazém '+esc(w.name)+'">'+locOpts(ops,asg['2'+wkey])+'</select></div></div>'+
+    return'<div class="wg"><div class="wh"><span class="nm">🏭 '+esc(w.name)+' <span class="sub">'+w.n+' produtos · '+w.done+' contados · '+gs.length+' grupos</span>'+blkChip(gs.flatMap(g=>g.items),asg['2'+wkey])+'</span>'+
+      '<div class="field"><label>2ª CONTAGEM (ARMAZÉM)</label><select data-chg="lassign" data-key="2'+esc(wkey)+'" aria-label="2ª contagem do armazém '+esc(w.name)+'">'+locOpts(ops,asg['2'+wkey])+'</select></div></div>'+
       gs.map(g=>{
         const ok='o:'+w.k+'~'+g.k,open=q||S.lopen.has(ok),allSel=g.items.every(i=>S.lsel.has(i.id));
-        let h='<div class="gr"><div class="gh"><div class="gl"><button class="tg" data-act="lopen" data-k="'+esc(ok)+'" aria-expanded="'+!!open+'">'+(open?'▾':'▸')+'</button><span class="nm">🗂️ '+esc(g.name)+'</span><span class="sub">'+g.items.length+' produtos · '+g.done+' contados</span>'+(g.noAddr?'<span class="chip warn">'+g.noAddr+' sem endereço</span>':'')+'</div>'+
-          '<div class="field"><label>1ª contagem</label><select data-chg="lassign" data-key="'+esc(g.key)+'" aria-label="1ª contagem do grupo '+esc(g.name)+'">'+locOpts(ops,asg[g.key])+'</select></div><div class="field"><label>2ª contagem</label><select data-chg="lassign" data-key="2'+esc(g.key)+'" aria-label="2ª contagem do grupo '+esc(g.name)+'">'+locOpts(ops,asg['2'+g.key])+'</select></div></div>';
+        let h='<div class="gr"><div class="gh"><div class="gl"><button class="tg" data-act="lopen" data-k="'+esc(ok)+'" aria-expanded="'+!!open+'">'+(open?'▾':'▸')+'</button><span class="nm">🗂️ '+esc(g.name)+'</span><span class="sub">'+g.items.length+' produtos · '+g.done+' contados</span>'+blkChip(g.items,asg['2'+g.key])+(g.noAddr?'<span class="chip warn">'+g.noAddr+' sem endereço</span>':'')+'</div>'+
+          '<div class="field"><label>2ª contagem</label><select data-chg="lassign" data-key="2'+esc(g.key)+'" aria-label="2ª contagem do grupo '+esc(g.name)+'">'+locOpts(ops,asg['2'+g.key])+'</select></div></div>';
         if(open){
           h+='<div class="scroll"><table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th>Endereço</th><th>1ª / 2ª contagem</th><th>Situação</th></tr></thead><tbody>'+
             g.items.slice().sort(byLoc).slice(0,300).map(it=>{
@@ -1475,7 +1490,7 @@ function locBody(ops){
 }
 function locHtml(ops){
   const n=S.lsel.size;
-  return'<div class="card"><div class="hd"><h2>🏭 Quem conta o quê — por armazém e grupo</h2></div><div class="bd stack">'+
+  return'<div class="card"><div class="hd"><h2>🏭 2ª contagem — quem conta o quê, por armazém e grupo</h2></div><div class="bd stack">'+
     '<div id="loc-body">'+locBody(ops)+'</div></div></div>';
 }
 
@@ -1615,6 +1630,7 @@ const CCOLS=[
 function ctrlItems(){
   const q=(S.q.ctrl||'').trim().toLowerCase();
   let l=[...S.items.values()];
+  l=l.filter(it=>!it.apd||it.ctrl);
   if(!S.ctrlAll)l=l.filter(it=>it.state!=='pend');
   if(S.dep)l=l.filter(it=>it.sk===S.dep);
   if(q)l=l.filter(it=>(it.code+' '+it.desc).toLowerCase().includes(q));
@@ -1624,13 +1640,13 @@ function ctrlRow(it){
   const qf=it.state==='closed'?it.final:(it.state==='pend'?null:it.prov);
   const c=i=>it.cnt[i]?it.cnt[i].q:null,e=i=>it.cnt[i]?it.cnt[i].op:'';
   const cost=it.cost||0;
-  return{cod:it.code,desc:it.desc,c1:c(0),c2:c(1),c3:c(2),c4:c(3),qf,prov:it.state!=='closed'&&it.state!=='pend',end:it.shelf+(it.sec?' / '+it.sec:''),e1:e(0),e2:e(1),e3:e(2),e4:e(3),arm:it.wh||(S.meta&&S.meta.wh)||'',vu:it.cost==null?null:cost,vt:qf==null?null:Math.round(qf*cost*100)/100};
+  return{cod:(it.cad==='solicitado'&&!it.rawCode)?'CADASTRAR PRODUTO':it.code,desc:it.desc,c1:c(0),c2:c(1),c3:c(2),c4:c(3),qf,prov:it.state!=='closed'&&it.state!=='pend',end:lastAddr(it),e1:e(0),e2:e(1),e3:e(2),e4:e(3),arm:it.wh||(S.meta&&S.meta.wh)||'',vu:it.cost==null?null:cost,vt:qf==null?null:Math.round(qf*cost*100)/100};
 }
 const ctrlTotals=rows=>({n:rows.length,vt:Math.round(rows.reduce((a,r)=>a+(r.vt||0),0)*100)/100,prov:rows.filter(r=>r.prov).length});
 function ctrlTableRows(rows){
   if(!rows.length)return'<tr><td colspan="15" class="empty">Nenhum item para exibir.</td></tr>';
   const q=v=>v==null?'<span class="sub">—</span>':fmtQ(v);
-  return rows.slice(0,300).map(r=>'<tr><td class="mono">'+esc(r.cod)+'</td><td class="wc">'+esc(r.desc)+'</td><td class="r num">'+q(r.c1)+'</td><td class="r num">'+q(r.c2)+'</td><td class="r num">'+q(r.c3)+'</td><td class="r num">'+q(r.c4)+'</td><td class="r num"><b>'+(r.qf==null?'—':fmtQ(r.qf))+'</b>'+(r.prov?'<span class="sub" title="contagem ainda não fechada"> *</span>':'')+'</td><td>'+esc(r.end)+'</td>'+
+  return rows.slice(0,300).map(r=>'<tr><td class="mono">'+(r.cod==='CADASTRAR PRODUTO'?'<span class="chip warn">CADASTRAR PRODUTO</span>':esc(r.cod))+'</td><td class="wc">'+esc(r.desc)+'</td><td class="r num">'+q(r.c1)+'</td><td class="r num">'+q(r.c2)+'</td><td class="r num">'+q(r.c3)+'</td><td class="r num">'+q(r.c4)+'</td><td class="r num"><b>'+(r.qf==null?'—':fmtQ(r.qf))+'</b>'+(r.prov?'<span class="sub" title="contagem ainda não fechada"> *</span>':'')+'</td><td>'+esc(r.end)+'</td>'+
     [r.e1,r.e2,r.e3,r.e4].map(n=>'<td>'+(n?esc(n):'<span class="sub">—</span>')+'</td>').join('')+'<td>'+esc(r.arm||'–')+'</td><td class="r num">'+(r.vu==null?'—':fmtR(r.vu))+'</td><td class="r num"><b>'+(r.vt==null?'—':fmtR(r.vt))+'</b></td></tr>').join('')+(rows.length>300?'<tr><td colspan="15" class="sub" style="text-align:center">Mostrando 300 de '+rows.length+'. A exportação traz todos.</td></tr>':'');
 }
 function vCtrl(){
@@ -1644,7 +1660,7 @@ function vCtrl(){
   '<label style="display:flex;gap:8px;align-items:center;font-size:13px"><input type="checkbox" data-chg="call"'+(S.ctrlAll?' checked':'')+'> incluir itens não contados</label></div>'+
   '<div class="row"><button class="btn primary" data-act="ctrl-pdf">⬇ Exportar PDF</button><button class="btn" data-act="ctrl-xlsx">⬇ Exportar XLSX</button><span class="sub">As exportações trazem todos os itens do filtro atual, com o total no final.</span></div>'+
   '<div class="scroll"><table class="tbl"><thead><tr>'+CCOLS.map(c=>'<th'+(c.z?' class="r"':'')+'>'+esc(c.h)+'</th>').join('')+'</tr></thead><tbody id="ctrl-body">'+ctrlTableRows(rows)+'</tbody></table></div>'+
-  '<div class="sub">* Quantidade provisória: o item ainda não fechou (faltam contagens). Valor total = quantidade final × valor unitário do ERP. Equipe = quem fez cada contagem.</div></div></div>';
+  '<div class="sub">* Quantidade provisória: o item ainda não fechou (faltam contagens). Valor total = quantidade final × valor unitário do ERP. Equipe = quem fez cada contagem. Itens de aplicação direta (APD) ficam de fora, a menos que você marque "Enviar para a controladoria" no card Aplicação Direta (aba Fora do ERP).</div></div></div>';
 }
 const ctrlName=()=>'Controladoria_'+fileBase().slice(11);
 function exportCtrlXlsx(){
@@ -1890,7 +1906,7 @@ function endBody(){
   if(!l.length)return'<tr><td colspan="6" class="empty">Nenhum item nesta situação.</td></tr>';
   return l.slice(0,300).map(x=>'<tr><td class="mono">'+esc(x.c)+'</td><td class="wc">'+esc(x.d||'—')+'</td><td class="sub">'+esc(x.g||'')+'</td><td class="r num">'+(x.q==null?'<span class="sub">—</span>':fmtQ(x.q))+'</td><td>'+(x.end?esc(x.end):'<span class="chip warn">sem endereço</span>')+'</td></tr>').join('')+(l.length>300?'<tr><td colspan="6" class="sub" style="text-align:center">Mostrando 300 de '+fmtN(l.length)+'. A exportação traz todos.</td></tr>':'');
 }
-function vEnd(){
+function vEnd0(){
   const a=S.aend,GF=[['code','Código do material *'],['shelf','Endereço / prateleira *'],['sec','Seção (opcional)']];
   let h='';
   if(a){
@@ -1998,7 +2014,7 @@ function vBusca(){
   const ops=knownOps().filter(o=>S.ops.has(o.key));
   const gs=[...new Set([...S.items.values()].map(it=>it.grp||'(Sem grupo)'))].sort((x,y)=>x.localeCompare(y,'pt',{numeric:true}));
   let h='<div class="kpis">'+kpi('Sem contagem',fmtN(all.length),'itens que ninguém contou','r')+kpi('Em busca',fmtN(cnt('busca')),'aguardando resposta da equipe','a')+kpi('Não localizados',fmtN(cnt('nao')),'o coletor não encontrou o produto','r')+kpi('Achados em outro endereço',fmtN(ach.length),'com endereço informado','g')+'</div>';
-  h+='<div class="card"><div class="hd"><h2>🔎 Itens sem contagem</h2><span class="sub">marque os itens e peça a busca à equipe</span></div><div class="bd stack">'+
+  h+='<div class="card"><div class="hd"><h2>🔎 Itens sem contagem</h2><span class="sub">'+(S.cl.has('busca-sus')?fmtN(all.length)+' item(ns) · card suspenso':'marque os itens e peça a busca à equipe')+'</span><span class="sp" style="flex:1"></span><button class="btn sm" data-act="cltog" data-k="busca-sus" aria-expanded="'+!S.cl.has('busca-sus')+'" title="Esconde ou mostra a lista de itens sem contagem">'+(S.cl.has('busca-sus')?'▸ Reativar':'⏸ Suspender')+'</button></div><div class="bd stack"'+(S.cl.has('busca-sus')?' style="display:none"':'')+'>'+
     '<div class="row"><div class="field" style="flex:1;min-width:180px"><label for="bq">BUSCAR</label><input type="search" id="bq" data-inp="bq" placeholder="Código ou descrição" value="'+esc(S.q.bq||'')+'"></div>'+
     '<div class="field"><label for="bg">GRUPO</label><select id="bg" data-chg="bg"><option value="">Todos</option>'+gs.map(g=>'<option'+(S.q.bg===g?' selected':'')+'>'+esc(g)+'</option>').join('')+'</select></div>'+
     depSelect().replace('data-chg="dep"','data-chg="dep"')+
@@ -2609,6 +2625,676 @@ function qCardGestor(){
     '<div class="row"><button class="btn primary" data-act="qrelease" '+(can?'':'disabled')+'>'+(m?'↻ Atualizar consulta':'Liberar consulta para os coletores')+'</button>'+(m?'<button class="btn danger sm" data-act="qoff">Desligar consulta</button>':'')+'</div></div></div>';
 }
 
+/* ============ contagem às cegas por prateleira (equipe) ============ */
+const teamOf=sk=>{const a=(S.assign&&S.meta&&S.assign.inv===S.meta.inv&&S.assign.map)||{};return String(a['s:'+sk]||'').split('|').filter(Boolean)};
+const manualShelves=()=>{const a=(S.assign&&S.meta&&S.assign.inv===S.meta.inv&&S.assign.map)||{};return Object.entries(a).filter(([k,v])=>k.startsWith('sn:')&&v).map(([k,v])=>({key:k.slice(3),name:String(v),r2:k.endsWith('@2'),items:[]})).sort((x,y)=>x.name.localeCompare(y.name,'pt',{numeric:true}))};
+const shName=s=>s.name+(s.r2?' · 2ª contagem':'');
+const manualName=k=>(manualShelves().find(s=>s.key===k)||{}).name||'';
+const inTeam=(sk,k)=>{const t=teamOf(sk);return t.includes(k)||t.includes('*')};
+function blAll(){
+  const inv=S.meta&&S.meta.inv,k='ci:bl:'+S.dev+':'+inv;
+  if(S.blk!==k){S.blk=k;try{S.bl=JSON.parse(store.get(k)||'{}')||{}}catch(e){S.bl={}}}
+  return S.bl;
+}
+function blSave(){if(S.blk)store.set(S.blk,JSON.stringify(S.bl||{}))}
+function blList(sk){const b=blAll();return b[sk]||(b[sk]=[])}
+function blCount(){return 0}
+const nameOfKey=k=>k==='*'?'qualquer operador':((S.users.get(k)||{}).name||(knownOpsSafe().find(o=>o.key===k)||{}).name||k);
+function knownOpsSafe(){try{return knownOps()}catch(e){return[]}}
+function blFindCode(code){
+  const s=String(code).trim().toLowerCase();if(!s)return null;
+  const r0=blFindStock(code);if(r0)return r0;
+  return cpItem(zc(code));
+}
+function blFindStock(code){
+  const s=String(code).trim().toLowerCase();if(!s)return null;
+  const z=x=>String(x).trim().toLowerCase().replace(/^0+(?=.)/,'');
+  let hit=null;
+  for(const it of S.items.values()){if(String(it.code).trim().toLowerCase()===s)return it;if(!hit&&z(it.code)===z(s))hit=it}
+  return hit;
+}
+function addrsFor(it){
+  const z=x=>String(x).trim().toLowerCase().replace(/^0+(?=.)/,'');
+  let e=null;try{e=qIndex().find(r=>z(r.c)===z(it.code))}catch(x){}
+  const out=e?String(e.end||'').split(' | ').map(x=>x.trim()).filter(Boolean):[];
+  return out;
+}
+const addrOnShelf=(a,shelf)=>{const n=x=>String(x).toLowerCase().replace(/\s+/g,'');const A=n(a),B=n(shelf);return A===B||(A.startsWith(B)&&!/[a-z0-9]/.test(A.charAt(B.length)))};
+function drawBlind(host,ro){
+  const v=S.opView,sh=manualShelves().find(s=>s.key===v.shelf);
+  if(!sh||(!S.isAdmin&&!inTeam(sh.key,myKey()))){S.opView={page:'locais',kind:'shelf',shelf:null};return drawOpContent()}
+  const key='bl|'+v.shelf+'|'+S.meta.inv;
+  if(opMode!=='blind'||lastListKey!==key||!$('#blcode')){
+    opMode='blind';lastListKey=key;
+    host.innerHTML=opNav('contagem')+ro+
+      '<div style="display:flex;align-items:center;gap:10px"><button class="back" data-act="opage" data-v="locais">‹ Locais</button><span class="sp" style="flex:1"></span></div>'+
+      '<div><h1 class="hero">📍 '+esc(shName(sh))+'</h1><div class="sub" id="blteam"></div></div>'+
+      '<div class="card" id="blsearch"><div class="bd stack"><div class="field"><label for="blcode">CÓDIGO DO PRODUTO</label><div class="row" style="gap:8px;flex-wrap:nowrap"><input type="text" id="blcode" autocomplete="off" autocapitalize="characters" enterkeyhint="search" placeholder="Digite o código" style="flex:1"><button class="btn primary" data-act="blfind">Buscar</button></div></div>'+
+      '<div class="sub">'+(blShelf()&&blShelf().r2?'<b>2ª contagem:</b> conte de novo, às cegas, tudo o que estiver nesta prateleira. ':'')+'Conte tudo o que estiver nesta prateleira, em qualquer ordem. Digite o código de cada produto para abrir a ficha dele.</div><div id="blres"></div></div></div>'+
+      '<div id="bllist"></div><div id="blsent"></div>';
+  }
+  paintBlind();
+}
+function blShelf(){return manualShelves().find(s=>s.key===S.opView.shelf)}
+const blClosed=sk=>!!blAll()['!'+sk];
+function blInfo(){const o={};if(!S.meta)return o;const b=blAll();for(const sh of manualShelves()){const l=b[sh.key];if((l&&l.length)||b['!'+sh.key])o[sh.key]={n:(l||[]).length,c:b['!'+sh.key]?1:0}}return o}
+function blChip(sk){const n=blList(sk).length;return blClosed(sk)?'<span class="chip ok">fechada · '+n+'</span>':(n?'<span class="chip warn">'+n+' contados · aberta</span>':'<span class="sub">toque para contar</span>')}
+function blSig(l,cl){return cl+'|'+l.map(e=>e.id+'~'+e.q+'~'+(e.mv?'m':'')+'~'+blStat(e)+'~'+((blItem(e.id)||{}).state==='closed'?'c':'')).join('|')}
+function paintBlind(){
+  const sk=S.opView.shelf,sh=blShelf();if(!sh||!$('#bllist'))return;
+  const t=$('#blteam');if(t){const tm=teamOf(sk);t.textContent=tm.length?'Equipe: '+tm.map(nameOfKey).join(', '):(S.isAdmin?'Nenhuma equipe definida':'')}
+  const cl=blClosed(sk),sc=$('#blsearch');if(sc)sc.hidden=cl;
+  const l=blList(sk),host=$('#bllist'),sig=blSig(l,cl);
+  if(host.dataset.sig===sig&&host.dataset.sig!==undefined&&host.dataset.init)return;
+  const ae=document.activeElement,keepId=ae&&ae.dataset&&ae.dataset.chg==='blq'?ae.dataset.id:null;
+  if(keepId)return;
+  host.dataset.sig=sig;host.dataset.init='1';
+  const pendQ=l.filter(e=>blStat(e)===0).length;
+  host.innerHTML=cl?'<div class="card"><div class="bd stack"><div class="note info"><b>Prateleira fechada.</b> '+l.length+' '+(l.length===1?'produto contado':'produtos contados')+' e enviados ao gestor.</div>'+
+      '<div class="sub">Precisa alterar algo? Peça ao gestor para reabrir a prateleira. Esta tela atualiza sozinha quando ele reabrir.</div></div></div>'+
+      (l.length?'<div class="card"><div class="bd feed">'+l.map(e=>{const it=blItem(e.id);return it?'<div class="ev"><div style="min-width:0"><b class="mono">'+esc(it.code)+'</b> '+esc(it.desc)+'<div class="sub">'+fmtQ(e.q)+' '+esc(it.un)+' · '+esc(e.ad||'')+'</div></div></div>':''}).join('')+'</div></div>':''):
+    (l.length?'<div class="card"><div class="hd"><h2>Contagem desta prateleira</h2><span class="sub">'+l.length+' '+(l.length===1?'produto':'produtos')+' · '+(pendQ?'enviando…':'tudo enviado ao gestor')+'</span></div><div class="bd stack">'+
+      '<div class="sub">Cada produto já vai para o gestor assim que você adiciona. Você ainda pode corrigir as quantidades até fechar a prateleira.</div>'+
+      l.map(e=>{const it=blItem(e.id);if(!it)return'';const m={s:blStat(e)},lock=it.state==='closed';
+        return'<div class="it'+(e.mv?' has':'')+'" data-bid="'+esc(e.id)+'"><div style="min-width:0"><div class="tags"><span class="tag c">'+esc(it.code)+'</span>'+(e.mv?'<span class="tag s">⚠ informado: '+esc(e.ad||'—')+'</span>':'<span class="tag s">✓ '+esc(e.ad)+'</span>')+'</div><div class="desc">'+esc(it.desc)+'</div><div class="sub">'+(m&&m.s===1?'✓ enviado':'⏳ na fila de envio')+(lock?' · item concluído pela apuração (fale com o gestor para alterar)':'')+'</div></div>'+
+        '<div class="in"><input class="qty" type="text" inputmode="decimal" autocomplete="off" data-chg="blq" data-id="'+esc(e.id)+'" value="'+esc(fmtIn(e.q))+'"'+(lock?' disabled':'')+' aria-label="Quantidade de '+esc(it.code)+'"><span class="un">'+esc(it.un)+'</span></div></div>'}).join('')+
+      '<button class="btn primary" data-act="blclose" style="min-height:48px;font-size:15px">✅ Fechar prateleira ('+l.length+' '+(l.length===1?'produto':'produtos')+')</button><div class="sub">Feche só quando não houver mais nada para alterar.</div></div></div>':'');
+}
+function blSearch(){
+  const sk=S.opView.shelf,inp=$('#blcode'),res=$('#blres');if(!inp||!res)return;
+  const code=inp.value.trim();if(!code)return;
+  const it=blFindCode(code);
+  if(!it){res.innerHTML='<div class="note bad"><b>Código "'+esc(code)+'" não encontrado.</b> Confira o código. Se o material não está no ERP, use <button class="lnk" data-act="opage" data-v="novo">Item fora do ERP</button>.</div>';return}
+  const ex=blList(sk).find(e=>e.id===it.id);
+  if(ex){res.innerHTML='<div class="note info"><b>'+esc(it.code)+' já está na lista desta prateleira.</b> Altere a quantidade lá embaixo.</div>';inp.value='';const q=$('[data-bid="'+ex.id.replace(/"/g,'')+'"] input');if(q){q.scrollIntoView({block:'center'});q.focus();q.select()}return}
+  const other=Object.keys(blAll()).find(k=>k[0]!=='~'&&k[0]!=='!'&&k!==sk&&blList(k).some(e=>e.id===it.id));
+  if(other&&!(blShelf()&&blShelf().r2)){res.innerHTML='<div class="note warn"><b>'+esc(it.code)+' já foi contado por você na prateleira '+esc(manualName(other))+'.</b> Altere a quantidade lá.</div>';return}
+  {const sh0=blShelf();
+   if(sh0&&sh0.r2){
+     if(it.state==='pend'){res.innerHTML='<div class="note warn"><b>'+esc(it.code)+' — '+esc(it.desc)+'</b><br>Este produto ainda não passou pela 1ª contagem, então não entra na 2ª. Avise o gestor se ele está nesta prateleira.</div>';return}
+     if(it.state==='rec2'&&!eligible(it,myKey())){res.innerHTML='<div class="note warn"><b>'+esc(it.code)+' — '+esc(it.desc)+'</b><br>Você fez a 1ª contagem deste produto, então outra pessoa precisa fazer a 2ª. Deixe este para a equipe.</div>';return}
+     if(it.state!=='rec2'){res.innerHTML='<div class="note warn"><b>'+esc(it.code)+' — '+esc(it.desc)+'</b><br>Este produto já passou pela 2ª contagem'+(it.state==='closed'?' e está concluído':'; a próxima contagem é definida pelo gestor')+'. Não precisa contar de novo.</div>';return}
+   }else if(it.state!=='pend'){res.innerHTML='<div class="note warn"><b>'+esc(it.code)+' — '+esc(it.desc)+'</b><br>Este item já foi contado'+(it.state==='closed'?' e está concluído':'; a próxima contagem é definida pelo gestor')+'. Não precisa contar de novo.</div>';return}
+  }
+  const sh=blShelf(),ads=addrsFor(it),match=ads.some(a=>addrOnShelf(a,sh?sh.name:''));
+  res.innerHTML='<div class="stack" style="gap:10px" data-bres="'+esc(it.id)+'" data-ads="'+esc(ads.join(' | '))+'"><div class="desc"><span class="tag c">'+esc(it.code)+'</span> <b>'+esc(it.desc)+'</b></div>'+
+    '<div class="sub">Unidade de medida: <b>'+esc(it.un||'—')+'</b></div>'+
+    (ads.length?'<div class="note info">📍 Endereço cadastrado: <b style="font-size:17px">'+ads.map(esc).join(' | ')+'</b><br>Este produto está mesmo nesse endereço?'+'</div>':
+      '<div class="note warn">📍 <b>Sem endereço cadastrado</b> para este produto. Informe onde ele está.</div>')+
+    '<div class="field"><label for="blqty">QUANTIDADE ('+esc(it.un||'un')+')</label><input type="text" id="blqty" inputmode="decimal" autocomplete="off" placeholder="0"></div>'+
+    '<div id="blother" '+(ads.length?'hidden':'')+' class="field"><label for="bladdr">ENDEREÇO ONDE ESTÁ</label><input type="text" id="bladdr" autocomplete="off" placeholder="Ex.: P14-D2" value="'+(ads.length?'':esc(sh?sh.name:''))+'"></div>'+
+    '<div class="row">'+(ads.length?'<button class="btn primary" data-act="bladd" data-mode="ok">✓ Sim, está em '+esc(ads[0])+(ads.length>1?' (…)':'')+'</button><button class="btn" data-act="blother">Não, está em outro endereço</button>':'<button class="btn primary" data-act="bladd" data-mode="new">Adicionar</button>')+'<button class="btn" data-act="blcancel">Cancelar</button></div></div>';
+  const q=$('#blqty');if(q)q.focus();
+}
+function blAdd(mode){
+  const sk=S.opView.shelf,box=$('[data-bres]');if(!box)return;
+  let it=blItem(box.dataset.bres);if(!it)return;
+  const q=parseQty($('#blqty').value);
+  if(!isFinite(q)||q<0){toast('Informe a quantidade (use vírgula para decimais)');$('#blqty').focus();return}
+  const ads=(box.dataset.ads||'').split(' | ').filter(Boolean),oth=$('#blother');
+  let ad,mv;
+  if(mode==='ok'&&oth&&oth.hidden){ad=ads[0];mv=false}
+  else{ad=($('#bladdr').value||'').trim();if(!ad){toast('Informe o endereço onde o produto está');$('#bladdr').focus();return}mv=!ads.some(a=>a.toLowerCase()===ad.toLowerCase())}
+  const l=blList(sk);if(l.some(e=>e.id===it.id))return;
+  const t=Date.now();
+  if(it.x){addCatItem(it);rebuild();const r=S.items.get(it.id);if(!r){toast('Não foi possível registrar o produto');return}it=r}
+  l.unshift({id:it.id,q:normQ(q),mv,ad,t,p:(blShelf()||{}).name||''});
+  S.local.map[it.id]={q:normQ(q),t,s:0,ch:it.ch,op:S.name,r:0,rd:roundLabel(it),a:ad,p:(blShelf()||{}).name||''};
+  if(mv){S.fl.list=S.fl.list.filter(x=>x.id!==it.id);S.fl.list.unshift({id:it.id,st:'achou',q:normQ(q),addr:ad,op:S.name,ok:myKey(),t,s:0});persistF()}
+  blSave();persistLocal();$('#blres').innerHTML='';$('#blcode').value='';
+  rebuild();paintBlind();updateSync();flush();if(mv)flushF();pushPresence(true);toast('Enviado ao gestor: '+it.code);
+  $('#blcode').focus();
+}
+function blOther(){const o=$('#blother');if(!o)return;o.hidden=false;const b=$('[data-act="bladd"]');if(b){b.dataset.mode='new';b.textContent='Adicionar'}const ot=$('[data-act="blother"]');if(ot)ot.remove();$('#bladdr').focus()}
+function blSetQty(id,val,el){
+  const sk=S.opView.shelf,e=blList(sk).find(x=>x.id===id),it=blItem(id);if(!e||!it)return;
+  const q=parseQty(val);
+  if(!isFinite(q)||q<0){toast('Quantidade inválida');if(el)el.value=fmtIn(e.q);return}
+  if(normQ(q)===normQ(e.q))return;
+  if(it.state==='closed'){toast('Este item já foi concluído; fale com o gestor');if(el)el.value=fmtIn(e.q);return}
+  const t=Date.now(),old=S.local.map[id]||{};
+  e.q=normQ(q);e.t=t;
+  S.local.map[id]={q:e.q,t,s:0,ch:it.ch,op:S.name,r:0,rd:old.rd||roundLabel(it),a:e.ad,p:e.p||''};
+  if(e.mv){const f=S.fl.list.find(x=>x.id===id);if(f){f.q=e.q}}
+  blSave();persistLocal();rebuild();paintBlind();updateSync();flush();pushPresence(true);toast('Quantidade atualizada e enviada');
+}
+function blClose(){
+  const sk=S.opView.shelf,l=blList(sk);
+  if(!l.length){toast('Nenhum produto contado nesta prateleira');return}
+  if(pendingList().length){toast('Aguarde: ainda há contagens sendo enviadas');return}
+  if(!confirmOnce('blclose'+sk)){toast('Toque de novo para fechar a prateleira',4000);return}
+  S.bl['!'+sk]=Date.now();blSave();$('#bllist').dataset.sig='';paintBlind();pushPresence(true);toast('Prateleira fechada');
+}
+function blReopen(){const sk=S.opView.shelf;delete S.bl['!'+sk];blSave();$('#bllist').dataset.sig='';paintBlind();pushPresence(true);toast('Prateleira reaberta')}
+/* gestor: liberar prateleiras para equipes */
+const r1Block=(sk2,k)=>{const base=sk2.slice(0,-2),n=((((S.hb.get(k)||{}).bl)||{})[base]||{}).n||0;return n>0||teamOf(base).includes(k)};
+function relBody(ops,r2){
+  r2=!!r2;const sh=manualShelves().filter(s=>!!s.r2===r2);
+  if(!sh.length)return'<div class="empty">'+(r2?'Nenhuma prateleira liberada para a 2ª contagem ainda. Digite o nome da prateleira acima e toque em Adicionar.':'Nenhuma prateleira liberada ainda. Digite o nome da prateleira acima e toque em Adicionar.')+'</div>';
+  return sh.map(s=>{const tm=teamOf(s.key).filter(k=>k!=='*'),base=r2?s.key.slice(0,-2):'';
+    const st=tm.map(k=>{const d=(S.hb.get(k)||{}).bl;const x=d&&d[s.key];return x?{k,n:x.n,c:x.c}:{k,n:0,c:0}});
+    const tot=st.reduce((a,x)=>a+x.n,0),cl=st.filter(x=>x.c).length;
+    return'<div class="gr"><div class="gh"><span class="nm">📍 '+esc(s.name)+'</span>'+(tm.length?'<span class="chip '+(cl===tm.length?'ok':'warn')+'">'+(cl===tm.length?'fechada':cl+'/'+tm.length+' fechadas')+' · '+tot+' contados</span>':'<span class="chip warn">sem equipe</span>')+'<button class="lnk" data-act="relrm" data-sk="'+esc(s.key)+'">remover</button></div>'+
+      '<div class="row" style="gap:6px 16px;flex-wrap:wrap">'+ops.map(o=>{const x=st.find(y=>y.k===o.key);const f1=r2&&(((S.hb.get(o.key)||{}).bl||{})[base]||{}).n,blk=r2&&r1Block(s.key,o.key);return'<label style="display:flex;gap:6px;align-items:center;min-height:32px'+(blk?';opacity:.55':'')+'"><input type="checkbox" data-chg="relteam" data-sk="'+esc(s.key)+'" data-k="'+esc(o.key)+'"'+(tm.includes(o.key)?' checked':'')+(blk?' disabled':'')+'> '+esc(o.name)+(x?' <span class="sub">· '+x.n+(x.c?' · fechou':'')+'</span>':'')+(blk?' <span class="chip warn" title="Quem conta a 1ª desta prateleira não pode fazer a 2ª">'+(f1?'fez a 1ª ('+f1+')':'equipe da 1ª')+' · bloqueado</span>':'')+'</label>'}).join('')+'</div></div>'}).join('');
+}
+function relClosedRows(){
+  const a=(S.assign&&S.meta&&S.assign.inv===S.meta.inv&&S.assign.map)||{},out=[];
+  for(const sh of manualShelves()){
+    for(const [k,h] of S.hb){const x=((h||{}).bl||{})[sh.key];if(x&&x.c)out.push({sh,k,n:x.n,ro:Number(a['ro:'+sh.key+':'+k])||0})}
+  }
+  return out.sort((x,y)=>x.sh.name.localeCompare(y.sh.name,'pt',{numeric:true})||(x.sh.r2?1:0)-(y.sh.r2?1:0)||nameOfKey(x.k).localeCompare(nameOfKey(y.k),'pt'));
+}
+function relClosedBody(){
+  const l=relClosedRows();
+  if(!l.length)return'<div class="empty">Nenhum coletor fechou prateleira até agora.</div>';
+  return'<div class="scroll"><table class="tbl"><thead><tr><th>Prateleira</th><th>Coletor</th><th class="r">Produtos</th><th></th></tr></thead><tbody>'+l.map(r=>'<tr><td><b>'+esc(r.sh.name)+'</b>'+(r.sh.r2?' <span class="chip warn">2ª contagem</span>':' <span class="chip">1ª contagem</span>')+'</td><td>'+esc(nameOfKey(r.k))+'</td><td class="r num">'+fmtN(r.n)+'</td><td><button class="btn sm" data-act="relreopen" data-sk="'+esc(r.sh.key)+'" data-k="'+esc(r.k)+'">↺ Reabrir para alterar</button>'+(r.ro?' <span class="sub">pedido enviado, aguardando o celular</span>':'')+'</td></tr>').join('')+'</tbody></table></div>';
+}
+async function relReopen(sk,k){
+  if(!confirmOnce('rro'+sk+k)){toast('Toque de novo para reabrir a prateleira de '+nameOfKey(k),4000);return}
+  await setAssignKey('ro:'+sk+':'+k,Date.now());toast('Prateleira reaberta para '+nameOfKey(k));
+}
+function blApplyRo(){
+  if(!S.meta||!S.assign||S.assign.inv!==S.meta.inv)return;
+  const m=S.assign.map||{},me=myKey();let ch=false;
+  for(const [key,v] of Object.entries(m)){
+    if(!key.startsWith('ro:'))continue;const i=key.lastIndexOf(':'),k=key.slice(i+1),sk=key.slice(3,i);
+    if(k!==me)continue;const b=blAll(),c=b['!'+sk];
+    if(c&&Number(v)>Number(c)){delete b['!'+sk];ch=true}
+  }
+  if(ch){blSave();try{const h=$('#bllist');if(h)h.dataset.sig=''}catch(e){}try{pushPresence(true)}catch(e){}toast('O gestor reabriu uma prateleira para você alterar',4000)}
+}
+function relHtml(ops){
+  const n1=manualShelves().filter(s=>!s.r2).map(s=>'<option value="'+esc(s.name)+'">').join('');
+  return'<div class="card"><div class="hd"><h2>📍 Liberar prateleiras para a equipe (1ª contagem)</h2></div><div class="bd stack">'+
+    '<div class="sub">Digite o nome da prateleira (ex.: P05) e adicione; ela também entra sozinha na lista da 2ª contagem. Depois marque quem vai contar. A contagem é às cegas: o colaborador digita o código de cada produto, o app mostra o endereço do cadastro e ele confirma. Mais de uma pessoa por prateleira: cada um conta o que encontrar.</div>'+
+    '<div class="row" style="gap:8px;flex-wrap:nowrap"><input type="text" id="relname" autocomplete="off" placeholder="Nome da prateleira, ex.: P05" style="flex:1"><button class="btn primary" data-act="reladd" data-r="1">Adicionar</button></div>'+
+    '<div id="rel-body">'+relBody(ops,false)+'</div></div></div>'+
+    '<div class="card"><div class="hd"><h2>📍 Liberar prateleiras para a equipe (2ª contagem)</h2></div><div class="bd stack">'+
+    '<div class="sub">Mesmo formato da 1ª: libere a prateleira para <b>outra equipe</b>, que conta de novo às cegas. Quem fez a 1ª contagem de um produto não consegue fazer a 2ª dele. A 3ª e a 4ª continuam por item divergente, na aba Divergências.</div>'+
+    '<div class="row" style="gap:8px;flex-wrap:nowrap"><input type="text" id="relname2" list="relnames2" autocomplete="off" placeholder="Nome da prateleira, ex.: P05" style="flex:1"><datalist id="relnames2">'+n1+'</datalist><button class="btn primary" data-act="reladd" data-r="2">Adicionar</button></div>'+
+    '<div class="row"><button class="btn sm" data-act="relsync2">⇣ Trazer todas as prateleiras da 1ª contagem</button><span class="sub">As prateleiras que você cadastra na 1ª já entram aqui sozinhas, sem equipe. Basta marcar quem vai contar.</span></div>'+
+    '<div id="rel-body2">'+relBody(ops,true)+'</div></div></div>'+
+    '<div class="card"><div class="hd"><h2>↺ Prateleiras fechadas pelos coletores</h2></div><div class="bd stack">'+
+    '<div class="sub">Quando o coletor fecha a prateleira, ela fica travada para ele. Se precisar corrigir algo, reabra aqui: ele volta a poder alterar as quantidades e fecha de novo. A 1ª e a 2ª contagem são independentes: reabrir uma não mexe na outra.</div>'+
+    '<div id="rel-closed">'+relClosedBody()+'</div></div></div>';
+}
+async function relAdd(r){
+  const r2=String(r)==='2',i=$(r2?'#relname2':'#relname');const name=(i&&i.value||'').trim().slice(0,30);if(!name){toast('Digite o nome da prateleira');return}
+  const key='m'+slug(name)+(r2?'@2':'');
+  if(manualShelves().some(s=>s.key===key)){toast('Essa prateleira já está na lista');return}
+  await setAssignKey('sn:'+key,name);
+  if(!r2){const k2=key+'@2';if(!manualShelves().some(x=>x.key===k2))await setAssignKey('sn:'+k2,name)}
+  if(i)i.value='';
+}
+async function relSync2(){
+  const falta=manualShelves().filter(s=>!s.r2&&!manualShelves().some(x=>x.key===s.key+'@2'));
+  if(!falta.length){toast('Todas as prateleiras da 1ª contagem já estão na 2ª');return}
+  for(const s of falta)await setAssignKey('sn:'+s.key+'@2',s.name);
+  toast(falta.length+' prateleira(s) trazida(s) para a 2ª contagem')
+}
+async function relRm(sk){
+  if(!confirmOnce('relrm'+sk)){toast('Toque em remover de novo para confirmar');return}
+  await setAssignKey('s:'+sk,'');await setAssignKey('sn:'+sk,'');
+  if(!sk.endsWith('@2')&&manualShelves().some(x=>x.key===sk+'@2')){await setAssignKey('s:'+sk+'@2','');await setAssignKey('sn:'+sk+'@2','')}
+}
+async function setTeam(sk,k,on){
+  if(on&&sk.endsWith('@2')&&r1Block(sk,k)){toast('Quem conta a 1ª desta prateleira não pode fazer a 2ª');return}
+  const cur=teamOf(sk).filter(x=>x!=='*'),s=new Set(cur);
+  if(on)s.add(k);else s.delete(k);
+  await setAssignKey('s:'+sk,[...s].join('|'));
+}
+
+let _relLast='';
+function relRefresh(){const h=$('#rel-body'),h2=$('#rel-body2');if(!h||!S.meta)return;const a=document.activeElement;if(a&&a.closest&&(a.closest('#rel-body')||a.closest('#rel-body2')))return;const ops=knownOps(),n=relBody(ops,false),n2=relBody(ops,true),n3=relClosedBody(),h3=$('#rel-closed');if(n+'§'+n2+'§'+n3!==_relLast){_relLast=n+'§'+n2+'§'+n3;h.innerHTML=n;if(h2)h2.innerHTML=n2;if(h3)h3.innerHTML=n3}}
+
+const adm={};
+function defAddr(it){if(!it)return'';for(let i=it.cnt.length-1;i>=0;i--)if(it.cnt[i].a)return it.cnt[i].a;return addrsFor(it)[0]||''}
+
+function blkChip(items,k){if(!k||k==='*')return'';const n=items.filter(i=>i.state==='rec2'&&!eligible(i,k)).length;return n?' <span class="chip warn">⚠ '+n+' '+(n===1?'item já contado':'itens já contados')+' por '+esc(nameOfKey(k))+' na 1ª: outro responsável precisa fazer a 2ª</span>':''}
+
+/* ---- base completa de produtos (cadastro do ERP) ---- */
+const zc=x=>String(x).trim().toLowerCase().replace(/^0+(?=.)/,'');
+const cpMeta=()=>{const m=S.atask.get('pmeta');return m&&m.on?m:null};
+let _cp=null;
+function cpIndex(){
+  if(_cp&&_cp.k===S.atask)return _cp.m;
+  const m=new Map();
+  [...S.atask.entries()].filter(([k])=>/^p\d+$/.test(k)).sort((a,b)=>a[0]<b[0]?-1:1).forEach(([,d])=>(d.rows||[]).forEach(r=>{m.set(zc(r[0]),{code:String(r[0]),desc:r[1]||String(r[0]),un:r[2]||'',grp:r[3]||''})}));
+  _cp={k:S.atask,m};return m;
+}
+function cpItem(z){const r=cpIndex().get(z);return r?{id:'x:'+z,x:true,code:r.code,desc:r.desc,un:r.un,grp:r.grp,state:'pend',cnt:[],shelf:'',sec:'',ch:0}:null}
+const blItem=id=>String(id).startsWith('x:')?cpItem(id.slice(2)):S.items.get(id);
+const blXe=e=>e.xid?S.xl.list.find(x=>x.id===e.xid):null;
+const blStat=e=>e.xid?((blXe(e)||{}).s):((S.local.map[e.id]||{}).s);
+let S_cp=null;
+async function cpParse(f){
+  const sheets=await loadWorkbook(f);
+  const names=Object.keys(sheets).filter(n=>sheets[n].length>1);
+  if(!names.length){toast('A planilha está vazia');return}
+  const aoa=sheets[names[0]],hdr=detectHeader(aoa),map=autoMap(aoa[hdr]||[]);
+  if(map.code==null){toast('Não achei a coluna de código do produto',4000);return}
+  const seen=new Set(),rows=[];let semDesc=0;
+  for(let r=hdr+1;r<aoa.length;r++){
+    const row=aoa[r]||[],code=String(row[map.code]==null?'':row[map.code]).trim();if(!code||seen.has(zc(code)))continue;seen.add(zc(code));
+    const desc=map.desc!=null?String(row[map.desc]==null?'':row[map.desc]).trim():'';if(!desc)semDesc++;
+    const un=map.un!=null?String(row[map.un]==null?'':row[map.un]).trim().slice(0,6):'';
+    const gc=map.grp!=null?String(row[map.grp]==null?'':row[map.grp]).trim():'',gd=map.gdesc!=null?String(row[map.gdesc]==null?'':row[map.gdesc]).trim():'';
+    rows.push([code.slice(0,30),(desc||code).slice(0,100),un,((gc&&gd&&gc!==gd?gc+' — '+gd:(gd||gc))||'').slice(0,40)]);
+  }
+  if(!rows.length){toast('Nenhum produto encontrado na planilha');return}
+  S_cp={name:f.name,rows,semDesc,hasDesc:map.desc!=null,hasUn:map.un!=null};
+}
+async function cpSave(){
+  if(!S_cp)return;const rows=S_cp.rows;
+  try{
+    const ids=new Set();
+    for(let i=0,n=0;i<rows.length;i+=500,n++){const id='p'+String(n).padStart(3,'0');ids.add(id);await S.db.doc('addrtask/'+id).set({no:n,rows:rows.slice(i,i+500)})}
+    for(const id of [...S.atask.keys()])if(/^p\d+$/.test(id)&&!ids.has(id))await S.db.doc('addrtask/'+id).delete();
+    await S.db.doc('addrtask/pmeta').set({on:true,t:Date.now(),count:rows.length,file:S_cp.name,by:S.name});
+    toast('Base de produtos salva: '+fmtN(rows.length)+' produtos');S_cp=null;draw(true);
+  }catch(e){console.error(e);toast('Não foi possível salvar a base ('+((e&&e.code)||'erro')+')',4000)}
+}
+async function cpOff(){
+  if(!confirmOnce('cpoff')){toast('Toque de novo para excluir a base de produtos',3500);return}
+  try{for(const id of [...S.atask.keys()])if(/^p\d+$/.test(id)||id==='pmeta')await S.db.doc('addrtask/'+id).delete();toast('Base de produtos excluída')}catch(e){toast('Não foi possível excluir')}
+}
+function catCard(){
+  const m=cpMeta();let h='<div class="card"><div class="hd"><h2>📚 Base de todos os produtos</h2>'+(m?'<span class="chip ok">ativa · '+fmtN(m.count)+' produtos</span>':'<span class="chip">não carregada</span>')+'</div><div class="bd stack">'+
+    '<div class="sub">Carregue o cadastro completo de produtos do ERP (código, descrição e unidade). Assim o coletor consegue contar também produtos que estão na prateleira mas sem saldo no estoque: ele digita o código e o app traz nome e unidade. Esses itens vão para a aba <b>Fora do ERP</b>.</div>'+
+    (m?'<div class="sub">Arquivo: <b>'+esc(m.file||'')+'</b> · salvo em '+fmtDT(m.t)+'</div>':'');
+  if(S_cp){
+    h+='<div class="note info"><b>'+fmtN(S_cp.rows.length)+' produtos lidos de '+esc(S_cp.name)+'.</b>'+(S_cp.hasDesc?'':' Não achei a coluna de descrição.')+(S_cp.hasUn?'':' Não achei a coluna de unidade.')+(S_cp.semDesc?' '+S_cp.semDesc+' sem descrição.':'')+'<br>Exemplo: '+esc(S_cp.rows[0][0])+' — '+esc(S_cp.rows[0][1])+' ('+esc(S_cp.rows[0][2]||'sem UN')+')</div>'+
+      '<div class="row"><button class="btn primary" data-act="cpsave">'+(m?'Substituir a base atual':'Salvar base de produtos')+'</button><button class="btn" data-act="cpcancel">Cancelar</button></div>';
+  }else{
+    h+='<div class="row"><label class="btn" style="cursor:pointer">'+(m?'Trocar planilha':'Escolher planilha')+'<input type="file" accept=".xlsx,.xls,.csv,.txt" data-chg="cpfile" hidden></label>'+(m?'<button class="btn danger sm" data-act="cpoff">Excluir base</button>':'')+'</div>';
+  }
+  return h+'</div></div>';
+}
+
+const ckey=inv=>'ci:cx:'+inv+':'+S.dev;
+function loadC(inv){try{const l=JSON.parse(store.get(ckey(inv))||'[]');return Array.isArray(l)?l:[]}catch(e){return[]}}
+function persistC(){if(S.cx.inv)store.set(ckey(S.cx.inv),JSON.stringify(S.cx.list))}
+function addCatItem(it){
+  const z=zc(it.code),id=S.meta.inv+'_c'+z;
+  if([...S.extras.values()].some(d=>d.id===id)||S.cx.list.some(e=>e.id===id))return;
+  S.cx.list.push({id,code:it.code,desc:it.desc,un:it.un||'',grp:it.grp||'',op:S.name,ok:myKey(),t:Date.now(),s:0});persistC();flushC();
+}
+let _cflush=false;
+async function flushC(){
+  if(_cflush||!S.db||!S.meta||S.cx.inv!==S.meta.inv)return;
+  const un=S.cx.list.filter(e=>e.s===0);if(!un.length)return;
+  _cflush=true;
+  try{for(const e of un){await withTimeout(S.db.doc('extras/'+e.id).set({kind:'cat',id:e.id,inv:S.meta.inv,code:e.code,desc:e.desc,un:e.un,grp:e.grp,op:e.op,ok:e.ok,t:e.t,st:'novo',note:''}),20000);e.s=1;persistC()}}
+  catch(err){setTimeout(flushC,8000)}
+  finally{_cflush=false;scheduleRebuild()}
+}
+
+/* ---- fotos e aplicação direta (APD) ---- */
+const XPH=[null,null];
+function compressImg(file,max=720,q=0.55){
+  return new Promise((res,rej)=>{
+    const fr=new FileReader();
+    fr.onerror=rej;
+    fr.onload=()=>{const im=new Image();im.onerror=rej;im.onload=()=>{
+      const r=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');
+      c.width=Math.max(1,Math.round(im.width*r));c.height=Math.max(1,Math.round(im.height*r));
+      c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',q))};im.src=fr.result};
+    fr.readAsDataURL(file);
+  });
+}
+function drawPh(){
+  for(let i=0;i<2;i++){const el=$('#xph'+i);if(!el)continue;
+    el.innerHTML=XPH[i]?'<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start"><img src="'+XPH[i]+'" alt="Foto '+(i+1)+'" style="height:96px;border-radius:10px;border:1px solid var(--line)"><button class="lnk" type="button" data-act="xphrm" data-i="'+i+'">remover foto '+(i+1)+'</button></div>':
+      '<label class="btn sm" style="cursor:pointer;min-height:44px">📷 Foto '+(i+1)+'<input type="file" accept="image/*" capture="environment" data-chg="xph" data-i="'+i+'" hidden></label>'}
+}
+function photosOf(id){
+  const it=S.items.get(id);if(it&&it.photos&&it.photos.length)return it.photos;
+  return[];
+}
+function thumbsHtml(ph,id){return(ph||[]).map((s,i)=>'<img src="'+s+'" alt="Foto '+(i+1)+'" data-act="photo" data-id="'+esc(id)+'" data-i="'+i+'" style="height:52px;border-radius:8px;margin:4px 6px 0 0;cursor:zoom-in;border:1px solid var(--line)">').join('')}
+function showPhoto(id,i){
+  const s=photosOf(id)[i];if(!s)return;
+  const o=document.createElement('div');o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px;cursor:zoom-out';
+  const im=document.createElement('img');im.src=s;im.style.cssText='max-width:100%;max-height:100%;border-radius:10px';o.appendChild(im);o.onclick=()=>o.remove();document.body.appendChild(o);
+}
+function xoInfo(i){
+  const q=i.cnt.map(c=>normQ(c.q)),zero=q.filter(x=>x===0).length,pos=q.filter(x=>x>0).length;
+  if(i.state==='closed'&&normQ(i.final)===0)return{k:0,lab:'<span class="chip bad">Não existe (confirmado)</span>'};
+  if(zero&&pos)return{k:1,lab:'<span class="chip warn">Em dúvida: alguém não encontrou</span>'};
+  if(i.state==='closed')return{k:3,lab:'<span class="chip ok">Existe (confirmado)</span>'};
+  return{k:2,lab:'<span class="chip">Aguarda '+(i.cnt.length+1)+'ª contagem</span>'};
+}
+const xoCnts=i=>i.cnt.map((c,n)=>'<div><b>'+(n+1)+'ª</b> '+esc(c.op)+': <b>'+fmtQ(c.q)+'</b> '+esc(i.un)+(c.a?' <span class="sub">· '+esc(c.a)+'</span>':'')+'</div>').join('');
+function xoLine(x){
+  if(x.item!==1||!S.meta)return'';
+  const id='n:'+String(x.id).slice(S.meta.inv.length+1),i=S.items.get(id);if(!i)return'';
+  return(i.photos&&i.photos.length?'<div>'+thumbsHtml(i.photos,id)+'</div>':'')+'<div class="sub" style="margin-top:4px">'+xoCnts(i)+'</div><div style="margin-top:4px">'+xoInfo(i).lab+'</div>';
+}
+function apdCard(){
+  if(!S.meta)return'';
+  const l=[...S.extras.values()].filter(d=>d.inv===S.meta.inv&&d.apd).sort((a,b)=>b.t-a.t);
+  return'<div class="card"><div class="hd"><h2>📦 Aplicação Direta</h2><span class="sub">'+l.length+' '+(l.length===1?'item':'itens')+' · não passam pelo estoque virtual e ficam fora da controladoria, salvo se você enviar</span></div><div class="bd scroll">'+
+    (l.length?'<table class="tbl"><thead><tr><th>Quando</th><th>Produto</th><th>UN</th><th>Contagens (quem contou)</th><th>Situação</th><th>Código · Controladoria · Cadastro</th></tr></thead><tbody>'+
+    l.map(x=>{const id='n:'+String(x.id).slice(S.meta.inv.length+1),i=S.items.get(id);
+      return'<tr><td class="sub">'+fmtDT(x.t)+'<div>'+esc(x.op)+'</div></td><td class="wc">'+(x.code?'<span class="mono sub">'+esc(x.code)+'</span><br>':'')+'<b>'+esc(x.name)+'</b>'+(i&&i.photos&&i.photos.length?'<div>'+thumbsHtml(i.photos,id)+'</div>':'')+'</td><td>'+esc(x.un)+'</td><td>'+(i?xoCnts(i):'')+'</td><td>'+(i?xoInfo(i).lab:'')+'</td><td>'+itemCtl(x,true)+'</td></tr>'}).join('')+'</tbody></table>':'<div class="empty">Nenhum item de aplicação direta cadastrado. O colaborador marca "Aplicação direta" ao cadastrar um novo item.</div>')+'</div></div>';
+}
+function vForaErp(){return vForaErp0()+apdCard()+cadCard()}
+
+/* ---- código oficial e pedido de cadastro ---- */
+function itemCtl(x,withCtrl){
+  if(x.item!==1)return'';
+  const id=esc(x.id);
+  return'<div class="stack" style="gap:6px;margin-top:8px;min-width:230px">'+
+    (x.origName&&x.origName!==x.name?'<div class="sub">Cadastrado pelo coletor como: <i>'+esc(x.origName)+'</i></div>':'')+
+    '<input type="text" id="apc-'+id+'" autocomplete="off" placeholder="Código no ERP" value="'+esc(x.code||'')+'" style="min-height:32px;padding:4px 8px">'+
+    (withCtrl?'<label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="apf-'+id+'"'+(x.ctrl?' checked':'')+'> Enviar para a controladoria</label>':'')+
+    '<div class="row" style="gap:6px"><button class="btn sm primary" data-act="apdsave" data-id="'+id+'">Salvar código</button>'+(withCtrl?(x.ctrl?'<span class="chip ok">na controladoria</span>':'<span class="chip">fora da controladoria</span>'):'')+'</div>'+
+    '<div class="sub">Ao salvar, o nome do item passa a ser a descrição oficial do código (da base de produtos).</div>'+
+    (x.code?'':'<div style="border-top:1px solid var(--line);padding-top:6px" class="stack"><div class="sub">Sem código? Renomeie com a sua descrição e peça o cadastro:</div><input type="text" id="apn-'+id+'" autocomplete="off" value="'+esc(x.cadDesc||x.name||'')+'" style="min-height:32px;padding:4px 8px"><button class="btn sm" data-act="apdreq" data-id="'+id+'">'+(x.cad==='solicitado'?'Atualizar pedido de cadastro':'Pedir cadastro do produto')+'</button></div>')+
+    (x.cad==='solicitado'?'<span class="chip warn">cadastro solicitado</span>':(x.cad==='cadastrado'?'<span class="chip ok">cadastrado</span>':''))+'</div>';
+}
+async function applyCode(id,code,extra){
+  const x=S.extras.get(id);if(!x)return false;
+  code=String(code||'').trim();const z=zc(code);
+  let info=cpIndex().get(z);
+  if(!info){const si=[...S.items.values()].find(i=>!i.xo&&zc(i.code)===z);if(si)info={code:si.code,desc:si.desc,un:si.un}}
+  if(!info){toast('Código "'+code+'" não encontrado na base de produtos. Carregue a base completa em Importar ou confira o código.',5500);return false}
+  const upd=Object.assign({code:String(info.code).slice(0,30),name:String(info.desc).slice(0,120),origName:x.origName||x.name,un:String(info.un||x.un||'').slice(0,8)},x.cad==='solicitado'?{cad:'cadastrado'}:{},extra||{});
+  await writeDoc(S.db.doc('extras/'+id),upd);
+  return info;
+}
+async function apdSave(id){
+  const code=((document.getElementById('apc-'+id)||{}).value||'').trim(),fe=document.getElementById('apf-'+id),f=fe?!!fe.checked:null;
+  try{
+    if(!code){
+      const x0=S.extras.get(id)||{};
+      if(f&&x0.cad!=='solicitado'){toast('Informe o código do produto ou peça o cadastro para enviar à controladoria',4800);return}
+      if(f!==null){await writeDoc(S.db.doc('extras/'+id),{ctrl:f?1:0});toast(f?'Enviado para a controladoria (cadastrar produto)':'Salvo');return}
+      toast('Informe um código para salvar');return;
+    }
+    const info=await applyCode(id,code,f==null?{}:{ctrl:f?1:0});
+    if(info)toast('Código salvo. Descrição oficial: '+info.desc,4000);
+  }catch(e){console.error(e);toast('Não foi possível salvar')}
+}
+async function apdReq(id){
+  const x=S.extras.get(id);if(!x)return;
+  const d=((document.getElementById('apn-'+id)||{}).value||'').trim();
+  if(d.length<3){toast('Escreva a descrição que deve ser cadastrada');return}
+  const fe=document.getElementById('apf-'+id),upd={cad:'solicitado',cadDesc:d.slice(0,120),name:d.slice(0,120),origName:x.origName||x.name,cadT:Date.now(),cadBy:S.name};
+  if(fe)upd.ctrl=fe.checked?1:0;
+  try{await writeDoc(S.db.doc('extras/'+id),upd);toast(x.apd&&!upd.ctrl?'Cadastro solicitado (marque "Enviar para a controladoria" para ele aparecer lá)':'Cadastro solicitado',4000)}catch(e){toast('Não foi possível salvar')}
+}
+const cadList=()=>S.meta?[...S.extras.values()].filter(d=>d.inv===S.meta.inv&&d.item===1&&(d.cad==='solicitado'||d.cad==='cadastrado')).sort((a,b)=>(b.cadT||0)-(a.cadT||0)):[];
+function cadCard(){
+  const l=cadList();
+  return'<div class="card"><div class="hd"><h2>📝 Pedidos de cadastro de produto</h2><span class="sub">'+l.length+' '+(l.length===1?'pedido':'pedidos')+' · '+l.filter(d=>d.cad==='solicitado').length+' aguardando</span><button class="btn sm" data-act="cadxl">⬇ Planilha .xlsx</button></div><div class="bd scroll">'+
+    (l.length?'<table class="tbl"><thead><tr><th>Pedido em</th><th>Descrição para cadastro</th><th>UN</th><th>Coletor escreveu</th><th>Situação</th></tr></thead><tbody>'+
+    l.map(d=>{const id='n:'+String(d.id).slice(S.meta.inv.length+1);return'<tr><td class="sub">'+fmtDT(d.cadT)+'<div>'+esc(d.cadBy||'')+'</div></td><td class="wc"><b>'+esc(d.cadDesc||d.name)+'</b>'+(d.apd?' <span class="chip info">APD</span>':'')+'</td><td>'+esc(d.un)+'</td><td class="sub">'+esc(d.origName||'')+'</td><td>'+(d.cad==='cadastrado'?'<span class="chip ok">cadastrado · '+esc(d.code||'')+'</span>':'<span class="chip warn">aguardando cadastro</span>')+'</td></tr>'}).join('')+'</tbody></table>':'<div class="empty">Nenhum pedido. Em um item fora do ERP sem código, use "Pedir cadastro do produto".</div>')+'</div></div>';
+}
+function cadExport(){
+  if(typeof XLSX==='undefined'){toast('Biblioteca de planilhas não carregou');return}
+  const rows=cadList().map(d=>({dt:new Date(d.cadT||d.t).toLocaleString('pt-BR'),desc:d.cadDesc||d.name,un:d.un,orig:d.origName||'',por:d.cadBy||'',apd:d.apd?'Sim':'Não',cod:d.cad==='cadastrado'?d.code:'',sit:d.cad==='cadastrado'?'Cadastrado':'Aguardando cadastro'}));
+  const cols=[{h:'Pedido em',k:'dt',w:18},{h:'Descrição para cadastro',k:'desc',w:46},{h:'UN',k:'un',w:8},{h:'Como o coletor escreveu',k:'orig',w:40},{h:'Pedido por',k:'por',w:20},{h:'Aplicação direta',k:'apd',w:16},{h:'Código ERP',k:'cod',w:14},{h:'Situação',k:'sit',w:20}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,mkSheet(rows,cols),'Pedidos de cadastro');
+  saveXlsx(wb,'Pedidos_de_cadastro_'+fileBase().slice(11)+'.xlsx');
+}
+
+/* ============ Resumo por local (prateleira, armário...) no Endereçamento ============ */
+const LS_TIPOS={P:'Prateleira',AR:'Armário'};
+function lsParse(shelf){
+  const raw=String(shelf||'').trim().toUpperCase();
+  const m=raw.match(/^([A-ZÀ-Ý]+)\s*[-_./ ]?\s*0*(\d+)/);
+  if(m)return{key:m[1]+m[2],let:m[1]};
+  const first=raw.split(/[-\/]/)[0].trim()||'(sem endereço)',l=(first.match(/^[A-ZÀ-Ý]+/)||['?'])[0];
+  return{key:first,let:l};
+}
+const lsTipo=l=>LS_TIPOS[l]||('Tipo '+l);
+function lsData(){
+  const base=stockBase(),gm=new Map(base.map(x=>[zc(x.c),x.g||''])),bm=new Map(base.map(x=>[zc(x.c),x]));
+  const hasStock=base.length>0,locs=new Map();let semGrupo=0;
+  const cp=cpIndex();
+  for(const [code,a] of S.addr){
+    const z=zc(code);let g=gm.get(z)||'';
+    if(!g){const r=cp.get(z);if(r&&r.grp)g=r.grp}
+    if(!g){g='(Sem grupo)';semGrupo++}
+    const p=lsParse(a.shelf);
+    let L=locs.get(p.key);if(!L){L={key:p.key,let:p.let,n:0,g:new Map(),gp:new Map()};locs.set(p.key,L)}
+    L.n++;L.g.set(g,(L.g.get(g)||0)+1);
+    const b=bm.get(z),r=cp.get(z);let arr=L.gp.get(g);if(!arr){arr=[];L.gp.set(g,arr)}
+    arr.push({c:String(code),d:(b&&b.d)||(r&&r.desc)||'',q:b?b.q:null,u:(b&&b.u)||(r&&r.un)||'',end:addrTxt(a)});
+  }
+  const list=[...locs.values()].sort((x,y)=>x.let.localeCompare(y.let,'pt')||x.key.localeCompare(y.key,'pt',{numeric:true}));
+  return{list,semSaldo:0,semGrupo,hasStock};
+}
+function lsFiltered(D){
+  const t=S.q.lst||'',q=(S.q.lsq||'').trim().toLowerCase();
+  return D.list.filter(L=>(!t||L.let===t)&&(!q||L.key.toLowerCase().includes(q)||[...L.g.keys()].some(g=>g.toLowerCase().includes(q))));
+}
+function lsGrp(L,g,n){
+  const ps=(L.gp.get(g)||[]).slice().sort((x,y)=>String(x.c).localeCompare(String(y.c),'pt',{numeric:true}));
+  return'<details class="lsg"><summary><span class="chip" style="margin:2px 4px 2px 0;cursor:pointer">'+esc(g)+' · '+n+' ▾</span></summary>'+
+    '<table class="tbl" style="margin:4px 0 8px"><thead><tr><th>Código</th><th>Descrição</th><th>Endereço</th><th class="r">Qtd. ERP</th></tr></thead><tbody>'+
+    ps.map(p=>'<tr><td class="mono">'+esc(p.c)+'</td><td class="wc">'+esc(p.d||'—')+'</td><td class="sub">'+esc(p.end)+'</td><td class="r num">'+(p.q==null?'<span class="sub">—</span>':fmtQ(p.q)+(p.u?' '+esc(p.u):''))+'</td></tr>').join('')+'</tbody></table></details>';
+}
+function lsBody(D){
+  const l=lsFiltered(D);
+  if(!l.length)return'<tr><td colspan="5" class="empty">Nenhum local encontrado.</td></tr>';
+  return l.map(L=>{const gs=[...L.g.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'pt',{numeric:true}));
+    return'<tr><td><b>'+esc(L.key)+'</b></td><td>'+esc(lsTipo(L.let))+'</td><td class="r num">'+fmtN(L.n)+'</td><td class="r num">'+gs.length+'</td><td class="wc">'+gs.map(([g,n])=>lsGrp(L,g,n)).join('')+'</td></tr>'}).join('');
+}
+function locSumCard(){
+  if(!S.addr.size)return'';
+  const D=lsData(),tipos=[...new Set(D.list.map(L=>L.let))];
+  const tot=t=>{const l=D.list.filter(L=>L.let===t);return{n:l.length,p:l.reduce((a,L)=>a+L.n,0),g:new Set(l.flatMap(L=>[...L.g.keys()])).size}};
+  return'<div class="card" id="lsum"><div class="hd"><h2>🗂️ Resumo por local (para distribuir as contagens)</h2><span class="sub">'+D.list.length+' locais</span></div><div class="bd stack">'+
+    '<div class="sub">Agrupa o endereçamento pela letra e número do endereço: <b>P</b> = prateleira, <b>AR</b> = armário, outras letras aparecem como "Tipo X". Ex.: P14-D2 e P14-D3 contam no local P14. '+'Considera todos os produtos que têm endereço na base de endereçamento. O grupo vem do estoque do ERP ou da base de todos os produtos (Importar).'+'</div>'+
+    '<div class="kpis">'+tipos.map(t=>{const x=tot(t);return kpi(lsTipo(t)+'s ('+esc(t)+')',fmtN(x.n),fmtN(x.p)+' produtos · '+x.g+' grupos')}).join('')+'</div>'+
+    '<div class="row"><div class="field"><label for="lst">TIPO</label><select id="lst" data-chg="lst"><option value="">Todos</option>'+tipos.map(t=>'<option value="'+esc(t)+'"'+(S.q.lst===t?' selected':'')+'>'+esc(lsTipo(t))+' ('+esc(t)+')</option>').join('')+'</select></div>'+
+    '<div class="field" style="flex:1;min-width:200px"><label for="lsq">BUSCAR LOCAL OU GRUPO</label><input type="search" id="lsq" data-inp="lsq" placeholder="Ex.: P14 ou parafuso" value="'+esc(S.q.lsq||'')+'"></div>'+
+    '<button class="btn sm" data-act="lsumxl">⬇ Exportar (XLSX)</button><button class="btn sm" data-act="lsumpdf">⬇ Exportar (PDF com produtos)</button><button class="btn sm" data-act="lsumpdf2">⬇ Exportar (PDF só grupos)</button></div>'+
+    '<div class="scroll"><table class="tbl"><thead><tr><th>Local</th><th>Tipo</th><th class="r">Produtos</th><th class="r">Grupos</th><th>Grupos dentro do local (produtos)</th></tr></thead><tbody id="lsum-body">'+lsBody(D)+'</tbody></table></div>'+
+    (D.semGrupo?'<div class="sub">'+fmtN(D.semGrupo)+' produtos endereçados não têm grupo (não estão no estoque do ERP nem na base de todos os produtos) e aparecem como "(Sem grupo)". Importe a base de todos os produtos para completar.</div>':'')+'</div></div>';
+}
+function lsExport(){
+  if(typeof XLSX==='undefined'){toast('Biblioteca de planilhas não carregou');return}
+  const D=lsData(),l=lsFiltered(D);if(!l.length){toast('Nada para exportar');return}
+  const r1=l.map(L=>({tipo:lsTipo(L.let),loc:L.key,n:L.n,g:L.g.size,det:[...L.g.entries()].sort((a,b)=>b[1]-a[1]).map(([g,n])=>g+' ('+n+')').join('; ')}));
+  const c1=[{h:'Tipo',k:'tipo',w:14},{h:'Local',k:'loc',w:12},{h:'Produtos',k:'n',w:11},{h:'Grupos',k:'g',w:9},{h:'Grupos (produtos)',k:'det',w:80}];
+  const r2=[];l.forEach(L=>[...L.g.entries()].sort((a,b)=>a[0].localeCompare(b[0],'pt',{numeric:true})).forEach(([g,n])=>r2.push({tipo:lsTipo(L.let),loc:L.key,g,n})));
+  const c2=[{h:'Tipo',k:'tipo',w:14},{h:'Local',k:'loc',w:12},{h:'Grupo',k:'g',w:40},{h:'Produtos',k:'n',w:11}];
+  const r3=[];l.forEach(L=>[...L.gp.entries()].forEach(([g,ps])=>ps.forEach(p=>r3.push({tipo:lsTipo(L.let),loc:L.key,g,c:p.c,d:p.d,end:p.end,q:p.q==null?'':p.q,u:p.u}))));
+  const c3=[{h:'Tipo',k:'tipo',w:14},{h:'Local',k:'loc',w:12},{h:'Grupo',k:'g',w:30},{h:'Código',k:'c',w:14},{h:'Descrição',k:'d',w:50},{h:'Endereço',k:'end',w:18},{h:'Qtd. ERP',k:'q',w:11},{h:'Un.',k:'u',w:7}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,mkSheet(r1,c1),'Resumo por local');XLSX.utils.book_append_sheet(wb,mkSheet(r2,c2),'Local x Grupo');XLSX.utils.book_append_sheet(wb,mkSheet(r3,c3),'Produtos');
+  saveXlsx(wb,'Resumo_por_local_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+function lsPdf(){
+  const J=window.jspdf&&window.jspdf.jsPDF;
+  if(!J){toast('Biblioteca de PDF não carregou. Verifique a conexão e recarregue.',4000);return}
+  if(!S.dl){toast('Download indisponível nesta visualização');return}
+  const D=lsData(),l=lsFiltered(D);if(!l.length){toast('Nada para exportar');return}
+  const doc=new J({orientation:'landscape',unit:'mm',format:'a4'});
+  if(typeof doc.autoTable!=='function'){toast('Biblioteca de tabela do PDF não carregou.',4000);return}
+  doc.setProperties({title:'Resumo por local',author:'Italo Santos',creator:IP_TXT});
+  const tp=l.reduce((a,L)=>a+L.n,0);
+  doc.setFontSize(14);doc.text('Resumo por local — grupos e produtos',10,12);
+  doc.setFontSize(8);doc.text('Gerado em '+new Date().toLocaleString('pt-BR')+' · '+l.length+' local(is) · '+fmtN(tp)+' produto(s) · '+IP_TXT,10,17);
+  const body=[];
+  l.forEach(L=>{
+    const gs=[...L.g.entries()].sort((a,b)=>a[0].localeCompare(b[0],'pt',{numeric:true}));
+    body.push([{content:L.key+' · '+lsTipo(L.let)+' · '+fmtN(L.n)+' produto(s) · '+gs.length+' grupo(s)',colSpan:5,styles:{fillColor:[47,127,21],textColor:255,fontStyle:'bold',fontSize:8}}]);
+    gs.forEach(([g,n])=>{
+      body.push([{content:g+' ('+n+')',colSpan:5,styles:{fillColor:[225,236,220],fontStyle:'bold'}}]);
+      (L.gp.get(g)||[]).slice().sort((a,b)=>String(a.c).localeCompare(String(b.c),'pt',{numeric:true})).forEach(p=>body.push([p.c,p.d||'',p.end||'',p.u||'',p.q==null?'':fmtQ(p.q)]));
+    });
+  });
+  doc.autoTable({
+    head:[['Código','Descrição','Endereço','UN','Qtd. ERP']],body,startY:20,margin:{left:8,right:8,bottom:12},theme:'grid',
+    styles:{fontSize:7,cellPadding:1.2,overflow:'linebreak',lineWidth:.1,lineColor:[200,205,200]},headStyles:{fillColor:[60,60,60],textColor:255,fontSize:7,halign:'center'},
+    columnStyles:{0:{cellWidth:26},1:{cellWidth:120},2:{cellWidth:50},3:{cellWidth:12},4:{cellWidth:'auto',halign:'right'}},
+    didDrawPage:d=>{doc.setFontSize(7);doc.text(IP_TXT,8,doc.internal.pageSize.getHeight()-5);doc.text('Página '+doc.internal.getNumberOfPages(),doc.internal.pageSize.getWidth()-8,doc.internal.pageSize.getHeight()-5,{align:'right'})}
+  });
+  S.dl.save({filename:'Resumo_por_local_'+new Date().toISOString().slice(0,10)+'.pdf',data:doc.output('blob')}).then(()=>toast('Arquivo salvo')).catch(e=>{if(!e||e.code!=='declined')toast('Não foi possível salvar o arquivo')});
+}
+function lsPdf2(){
+  const J=window.jspdf&&window.jspdf.jsPDF;
+  if(!J){toast('Biblioteca de PDF não carregou. Verifique a conexão e recarregue.',4000);return}
+  if(!S.dl){toast('Download indisponível nesta visualização');return}
+  const D=lsData(),l=lsFiltered(D);if(!l.length){toast('Nada para exportar');return}
+  const doc=new J({orientation:'portrait',unit:'mm',format:'a4'});
+  if(typeof doc.autoTable!=='function'){toast('Biblioteca de tabela do PDF não carregou.',4000);return}
+  doc.setProperties({title:'Resumo por local (grupos)',author:'Italo Santos',creator:IP_TXT});
+  const tp=l.reduce((a,L)=>a+L.n,0);
+  doc.setFontSize(14);doc.text('Resumo por local — grupos e quantidade de produtos',10,12);
+  doc.setFontSize(8);doc.text('Gerado em '+new Date().toLocaleString('pt-BR')+' · '+l.length+' local(is) · '+fmtN(tp)+' produto(s) · '+IP_TXT,10,17);
+  const body=[];
+  l.forEach(L=>{
+    const gs=[...L.g.entries()].sort((a,b)=>a[0].localeCompare(b[0],'pt',{numeric:true}));
+    body.push([{content:L.key+' · '+lsTipo(L.let),styles:{fillColor:[47,127,21],textColor:255,fontStyle:'bold',fontSize:8}},{content:gs.length+' grupo(s)',styles:{fillColor:[47,127,21],textColor:255,fontStyle:'bold',halign:'right',fontSize:8}},{content:fmtN(L.n),styles:{fillColor:[47,127,21],textColor:255,fontStyle:'bold',halign:'right',fontSize:8}}]);
+    gs.forEach(([g,n])=>body.push([{content:g,colSpan:2},{content:fmtN(n),styles:{halign:'right'}}]));
+  });
+  doc.autoTable({
+    head:[['Local / Grupo','','Produtos']],body,startY:20,margin:{left:10,right:10,bottom:12},theme:'grid',
+    styles:{fontSize:8,cellPadding:1.3,overflow:'linebreak',lineWidth:.1,lineColor:[200,205,200]},headStyles:{fillColor:[60,60,60],textColor:255,fontSize:8},
+    columnStyles:{0:{cellWidth:110},1:{cellWidth:35,halign:'right'},2:{cellWidth:'auto',halign:'right'}},
+    didDrawPage:d=>{doc.setFontSize(7);doc.text(IP_TXT,10,doc.internal.pageSize.getHeight()-5);doc.text('Página '+doc.internal.getNumberOfPages(),doc.internal.pageSize.getWidth()-10,doc.internal.pageSize.getHeight()-5,{align:'right'})}
+  });
+  S.dl.save({filename:'Resumo_por_local_grupos_'+new Date().toISOString().slice(0,10)+'.pdf',data:doc.output('blob')}).then(()=>toast('Arquivo salvo')).catch(e=>{if(!e||e.code!=='declined')toast('Não foi possível salvar o arquivo')});
+}
+function vEnd(){const h=vEnd0();return h+locSumCard()}
+
+/* apuração de não localizados / itens que ficaram de fora dos grupos encerrados */
+function nfLeft(){
+  const cl=(S.gstat&&S.meta&&S.gstat.inv===S.meta.inv&&S.gstat.closed)||{},out=[];
+  for(const it of S.items.values()){
+    if(it.xo||it.state!=='pend'||it.cnt.length)continue;
+    const gn=it.grp||'(Sem grupo)',nf=bStatus(it)==='nao';
+    if(!nf&&!cl[slug(gn)])continue;
+    out.push({it,code:it.code,desc:it.desc,grp:gn,loc:locTxt(it),st:bStatus(it),closed:!!cl[slug(gn)],op:nf?it.find.op:'',t:nf?it.find.t:0});
+  }
+  return out.sort((a,b)=>a.grp.localeCompare(b.grp,'pt',{numeric:true})||byLoc(a.it,b.it));
+}
+function nfDivCard(){
+  const l=nfLeft(),cl=(S.gstat&&S.meta&&S.gstat.inv===S.meta.inv&&S.gstat.closed)||{};
+  const nClosed=Object.values(cl).filter(Boolean).length,nNf=l.filter(x=>x.st==='nao').length,nOut=l.filter(x=>x.closed).length;
+  const byG=new Map();l.forEach(x=>{let o=byG.get(x.grp);if(!o){o={n:x.grp,c:x.closed,l:[]};byG.set(x.grp,o)}o.l.push(x)});
+  const row=x=>'<tr><td class="mono">'+esc(x.code)+'</td><td class="wc">'+esc(x.desc)+'</td><td>'+esc(x.loc)+'</td><td><span class="chip '+B_CHIP[x.st]+'">'+B_TXT[x.st]+'</span>'+(x.op?'<div class="sub">'+esc(x.op)+' · '+fmtDT(x.t)+'</div>':'')+'</td><td style="white-space:nowrap"><button class="btn sm" data-act="nfreq" data-id="'+esc(x.it.id)+'" title="Pede para a equipe procurar este produto">🔎 '+(x.st==='busca'?'Pedir de novo':'Pedir busca')+'</button> <button class="btn sm" data-act="bzero" data-id="'+esc(x.it.id)+'">Fechar como 0</button>'+(x.st==='nao'?' <button class="btn sm" data-act="nfclear" data-id="'+esc(x.it.id)+'" data-fk="1" data-ak="" title="Tira a marcação e devolve o item para a contagem">Devolver</button>':'')+'</td></tr>';
+  return'<div class="card"><div class="hd"><h2>🚫 Produtos não localizados e que ficaram de fora</h2><span class="sub">apuração após o encerramento dos grupos</span><span class="sp" style="flex:1"></span><button class="btn sm" data-act="nfxl2"'+(l.length?'':' disabled')+'>⬇ Exportar .xlsx</button></div><div class="bd stack">'+
+    (l.length?'<div class="row" style="align-items:flex-end"><div class="field"><label for="nfto">PEDIR BUSCA PARA</label><select id="nfto" data-chg="nfto"><option value="*">Todos os operadores</option>'+knownOps().filter(o=>S.ops.has(o.key)).map(o=>'<option value="'+esc(o.key)+'"'+(S.q.nfto===o.key?' selected':'')+'>'+esc(o.name)+'</option>').join('')+'</select></div><button class="btn primary" data-act="nfreqall">🔎 Pedir busca de todos os da lista ('+l.filter(x=>x.st!=='busca').length+')</button><span class="sub">a equipe recebe o pedido no celular e responde "achei" ou "não encontrado"</span></div>':'')+'<div class="kpis">'+kpi('Grupos encerrados',fmtN(nClosed),'já podem ser apurados')+kpi('Ficaram de fora',fmtN(nOut),'sem contagem em grupo encerrado',nOut?'r':'g')+kpi('Não localizados',fmtN(nNf),'marcados pelo coletor',nNf?'r':'g')+'</div>'+
+    (l.length?[...byG.values()].map(o=>'<details class="lsg" open><summary><span class="chip '+(o.c?'bad':'warn')+'" style="cursor:pointer">'+esc(o.n)+' · '+o.l.length+' produto(s) '+(o.c?'· grupo encerrado':'· grupo em andamento')+' ▾</span></summary><div class="scroll"><table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th>Local</th><th>Situação</th><th></th></tr></thead><tbody>'+o.l.map(row).join('')+'</tbody></table></div></details>').join(''):'<div class="sub">'+(nClosed?'Nenhum produto ficou de fora nos grupos encerrados.':'Nenhum grupo foi encerrado ainda. Quando você encerrar um grupo (aba Dashboard, "Andamento por grupo"), os produtos que ficaram sem contagem aparecem aqui.')+'</div>')+
+    '</div></div>';
+}
+function exportNf2(){
+  if(typeof XLSX==='undefined'){toast('Biblioteca de planilhas não carregou');return}
+  const l=nfLeft();if(!l.length){toast('Nada para exportar');return}
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,mkSheet(l.map(x=>({c:x.code,d:x.desc,g:x.grp,l:x.loc,s:B_TXT[x.st],e:x.closed?'Encerrado':'Em andamento',o:x.op,t:x.t?new Date(x.t).toLocaleString('pt-BR'):''})),[{h:'Código',k:'c',w:16},{h:'Descrição',k:'d',w:46},{h:'Grupo',k:'g',w:30},{h:'Local',k:'l',w:22},{h:'Situação',k:'s',w:24},{h:'Grupo está',k:'e',w:14},{h:'Coletor',k:'o',w:22},{h:'Quando',k:'t',w:18}]),'Ficaram de fora');
+  saveXlsx(wb,'Nao_localizados_e_de_fora_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
+async function nfRequest(ids){
+  ids=ids.filter(id=>S.items.has(id));if(!ids.length){toast('Nenhum produto para pedir busca');return}
+  const to=S.q.nfto||'*',t=Date.now(),items={};ids.forEach(id=>{items[id]={t,to}});
+  try{await writeDoc(S.db.doc('search/current'),{inv:S.meta.inv,items});toast('Pedido de busca enviado ('+ids.length+' item'+(ids.length>1?'s':'')+')');draw(true)}catch(e){toast('Não foi possível enviar o pedido')}
+}
+const nfReqAll=()=>nfRequest(nfLeft().filter(x=>x.st!=='busca').map(x=>x.it.id));
+
+/* endereço da Controladoria: o último informado pelo coletor entre as contagens */
+function lastAddr(it){
+  for(let i=it.cnt.length-1;i>=0;i--){const a=String(it.cnt[i].a||'').trim();if(a)return a}
+  return it.shelf+(it.sec?' / '+it.sec:'');
+}
+
+
+/* ============ Indicadores de desempenho da equipe ============ */
+const IND_COL=['#2e7d32','#1976d2','#f57c00','#7b1fa2','#00838f','#c2185b','#5d4037','#455a64'];
+const fmtDur=m=>m==null||!isFinite(m)?'–':(m<1?'<1 min':(m<60?Math.round(m)+' min':Math.floor(m/60)+'h'+String(Math.round(m%60)).padStart(2,'0')));
+function indData(){
+  const per=S.q.indper||'all',sel=S.q.indsh||'',t0=per==='today'?new Date().setHours(0,0,0,0):0;
+  const rows=[];
+  for(const it of S.items.values())it.cnt.forEach((c,i)=>{if(c.t>=t0)rows.push({it,c,n:i+1,sh:c.p||it.shelf||'—'})});
+  const shelves=[...new Set(rows.map(r=>r.sh))].sort((a,b)=>a.localeCompare(b,'pt',{numeric:true}));
+  const R=sel?rows.filter(r=>r.sh===sel):rows;
+  /* por colaborador */
+  const ops=new Map();
+  for(const r of R){let o=ops.get(r.c.ok);if(!o){o={key:r.c.ok,name:r.c.op,n:0,first:0,ts:[],agree:0,agreeN:0,div:0,ghost:0};ops.set(r.c.ok,o)}
+    o.n++;if(r.n===1)o.first++;o.ts.push(r.c.t);
+    if(r.it.state==='closed'){o.agreeN++;if(normQ(r.c.q)===normQ(r.it.final))o.agree++}
+    if(r.it.xo&&r.it.state==='closed'&&normQ(r.it.final)===0&&normQ(r.c.q)>0)o.ghost++}
+  for(const o of ops.values()){
+    o.ts.sort((a,b)=>a-b);let act=0,g=0;
+    for(let i=1;i<o.ts.length;i++){const d=(o.ts[i]-o.ts[i-1])/60000;if(d<=10){act+=d;g++}}
+    o.act=act;o.gaps=g;o.avg=g?act/g:null;o.rate=act>=1?o.n/(act/60):null;
+    o.span=o.ts.length>1?(o.ts[o.ts.length-1]-o.ts[0])/60000:0;
+  }
+  /* por prateleira */
+  const shm=new Map();
+  for(const r of rows){let s=shm.get(r.sh);if(!s){s={name:r.sh,n:0,items:new Set(),ops:new Set(),t1:Infinity,t2:0};shm.set(r.sh,s)}
+    s.n++;s.items.add(r.it.id);s.ops.add(r.c.op);s.t1=Math.min(s.t1,r.c.t);s.t2=Math.max(s.t2,r.c.t)}
+  for(const s of shm.values()){let multi=0,dv=0,mx=0;
+    for(const id of s.items){const it=S.items.get(id);if(it.cnt.length>=2){multi++;const q=it.cnt.map(c=>normQ(c.q)),lo=Math.min(...q),hi=Math.max(...q);if(hi!==lo){dv++;mx=Math.max(mx,(hi-lo)/Math.max(hi,1)*100)}}}
+    s.multi=multi;s.dv=dv;s.mx=mx;s.span=(s.t2-s.t1)/60000}
+  /* diferenças entre contagens */
+  const seen=new Set(),diff=[];
+  for(const r of R){if(seen.has(r.it.id))continue;seen.add(r.it.id);const it=r.it;if(it.cnt.length<2)continue;
+    const q=it.cnt.map(c=>normQ(c.q)),lo=Math.min(...q),hi=Math.max(...q);if(hi===lo)continue;
+    diff.push({it,sh:r.sh,lo,hi,sp:hi-lo,pct:(hi-lo)/Math.max(hi,1)*100})}
+  diff.sort((a,b)=>b.pct-a.pct||b.sp-a.sp);
+  /* contagens por hora */
+  const hr=new Map(),opKeys=[...ops.keys()];
+  for(const r of R){const h=new Date(r.c.t),k=h.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+String(h.getHours()).padStart(2,'0')+'h';
+    let b=hr.get(k);if(!b){b={k,t:new Date(h.getFullYear(),h.getMonth(),h.getDate(),h.getHours()).getTime(),by:{}};hr.set(k,b)}
+    b.by[r.c.ok]=(b.by[r.c.ok]||0)+1}
+  const hours=[...hr.values()].sort((a,b)=>a.t-b.t).slice(-36);
+  return{rows,R,shelves,ops:[...ops.values()].sort((a,b)=>b.n-a.n),shm:[...shm.values()].sort((a,b)=>a.name.localeCompare(b.name,'pt',{numeric:true})),diff,hours,opKeys,sel,per};
+}
+function vIndic(){
+  if(!S.meta||!S.stats)return noInv();
+  const D=indData(),R=D.R;
+  const tot=R.length,multi=D.diff.length;
+  const allMulti=new Set(R.filter(r=>r.it.cnt.length>=2).map(r=>r.it.id)).size;
+  const tsAll=R.map(r=>r.c.t),span=tsAll.length>1?(Math.max(...tsAll)-Math.min(...tsAll))/60000:0;
+  const act=D.ops.reduce((a,o)=>a+o.act,0),rate=act>=1?tot/(act/60):null;
+  const colorOf=k=>IND_COL[D.opKeys.indexOf(k)%IND_COL.length];
+  let h='<div class="card"><div class="bd"><div class="row" style="gap:12px;align-items:flex-end;flex-wrap:wrap"><div class="field"><label for="indsh">PRATELEIRA</label><select id="indsh" data-chg="indsh"><option value="">Todas</option>'+D.shelves.map(s=>'<option value="'+esc(s)+'"'+(D.sel===s?' selected':'')+'>'+esc(s)+'</option>').join('')+'</select></div>'+
+    '<div class="field"><label for="indper">PERÍODO</label><select id="indper" data-chg="indper"><option value="all"'+(D.per==='all'?' selected':'')+'>Toda a contagem</option><option value="today"'+(D.per==='today'?' selected':'')+'>Só hoje</option></select></div>'+
+    '<button class="btn" data-act="indxl">Baixar diferenças (.xlsx)</button></div></div></div>';
+  h+='<div class="kpis">'+
+    kpi('Contagens feitas',fmtN(tot),fmtN(D.ops.length)+' '+(D.ops.length===1?'colaborador':'colaboradores'))+
+    kpi('Ritmo da equipe',rate?fmtN(rate,0)+'/h':'–','contagens por hora ativa','g')+
+    kpi('Tempo de contagem',fmtDur(span),'da primeira à última')+
+    kpi('Itens com diferença',fmtN(multi),fmtP(allMulti?multi/allMulti*100:null)+' dos itens contados 2x ou mais',multi?'r':'g')+'</div>';
+  /* gráfico */
+  const mx=Math.max(1,...D.hours.map(b=>Object.values(b.by).reduce((a,x)=>a+x,0)));
+  h+='<div class="card"><div class="hd"><h2>⏱️ Contagens × tempo</h2><span class="sub">contagens por hora, por colaborador</span></div><div class="bd stack">'+
+    (D.hours.length?'<div style="display:flex;align-items:flex-end;gap:4px;height:150px;overflow-x:auto;padding-top:8px">'+D.hours.map(b=>{const t=Object.values(b.by).reduce((a,x)=>a+x,0);
+      return'<div style="flex:1 0 26px;min-width:26px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%" title="'+esc(b.k)+': '+t+' contagens"><div class="sub" style="font-size:10px">'+t+'</div><div style="width:100%;height:'+Math.round(t/mx*110)+'px;display:flex;flex-direction:column-reverse;border-radius:4px 4px 0 0;overflow:hidden">'+D.opKeys.filter(k=>b.by[k]).map(k=>'<div style="height:'+(b.by[k]/t*100)+'%;background:'+colorOf(k)+'"></div>').join('')+'</div><div class="sub" style="font-size:9.5px;margin-top:3px;white-space:nowrap">'+esc(b.k.slice(6))+'</div></div>'}).join('')+'</div>'+
+      '<div class="row" style="gap:6px 14px;flex-wrap:wrap">'+D.ops.map(o=>'<span class="sub"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:'+colorOf(o.key)+';margin-right:4px"></span>'+esc(o.name)+'</span>').join('')+'</div>':'<div class="empty">Sem contagens no período.</div>')+'</div></div>';
+  /* colaboradores */
+  h+='<div class="card"><div class="hd"><h2>👥 Desempenho por colaborador</h2></div><div class="scroll"><table class="tbl"><thead><tr><th>Colaborador</th><th class="r">Contagens</th><th class="r">Ritmo (por hora)</th><th class="r">Tempo médio entre contagens</th><th class="r">Tempo ativo</th><th class="r">Concordância</th><th class="r">Contou item inexistente</th></tr></thead><tbody>'+
+    (D.ops.length?D.ops.map(o=>'<tr><td><b>'+esc(o.name)+'</b></td><td class="r num">'+o.n+'<div class="sub">'+o.first+' 1ª</div></td><td class="r num">'+(o.rate?fmtN(o.rate,0):'–')+'</td><td class="r num">'+(o.avg!=null?fmtDur(o.avg):'–')+'</td><td class="r num">'+fmtDur(o.act)+'</td><td class="r num">'+(o.agreeN?fmtP(o.agree/o.agreeN*100):'–')+'<div class="sub">'+o.agree+' de '+o.agreeN+'</div></td><td class="r num">'+(o.ghost?'<span class="chip bad">'+o.ghost+'</span>':'0')+'</td></tr>').join(''):'<tr><td colspan="7" class="empty">Sem contagens.</td></tr>')+
+    '</tbody></table></div><div class="bd sub">Tempo ativo soma só os intervalos de até 10 min entre contagens seguidas (pausas maiores não contam). Concordância é a parte das contagens da pessoa que bateu com o valor final do item (só itens já concluídos).</div></div>';
+  /* prateleiras */
+  h+='<div class="card"><div class="hd"><h2>📍 Por prateleira</h2></div><div class="scroll"><table class="tbl"><thead><tr><th>Prateleira</th><th>Equipe</th><th class="r">Itens</th><th class="r">Contados 2x+</th><th class="r">Com diferença</th><th class="r">Maior diferença</th><th class="r">Duração</th></tr></thead><tbody>'+
+    (D.shm.length?D.shm.map(s=>'<tr><td><b>'+esc(s.name)+'</b></td><td class="wc">'+esc([...s.ops].join(', '))+'</td><td class="r num">'+s.items.size+'</td><td class="r num">'+s.multi+'</td><td class="r num">'+(s.dv?'<span class="chip bad">'+s.dv+'</span>':'0')+'</td><td class="r num">'+(s.dv?fmtP(s.mx):'–')+'</td><td class="r num">'+fmtDur(s.span)+'</td></tr>').join(''):'<tr><td colspan="7" class="empty">Sem contagens.</td></tr>')+'</tbody></table></div></div>';
+  /* diferenças */
+  h+='<div class="card"><div class="hd"><h2>⚠️ Maiores diferenças entre contagens</h2><span class="sub">'+D.diff.length+' '+(D.diff.length===1?'item':'itens')+'</span></div><div class="scroll"><table class="tbl"><thead><tr><th>Item</th><th>Prateleira</th><th>Contagens (quem contou)</th><th class="r">Diferença</th></tr></thead><tbody>'+
+    (D.diff.length?D.diff.slice(0,60).map(d=>'<tr><td class="wc"><span class="mono sub">'+esc(d.it.code)+'</span><br><b>'+esc(d.it.desc)+'</b></td><td>'+esc(d.sh)+'</td><td>'+d.it.cnt.map((c,i)=>'<div><b>'+(i+1)+'ª</b> '+esc(c.op)+': <b>'+fmtQ(c.q)+'</b> '+esc(d.it.un)+'</div>').join('')+(d.it.state==='closed'?'<div class="sub">final: '+fmtQ(d.it.final)+'</div>':'')+'</td><td class="r num"><b>'+fmtQ(d.sp)+'</b><div class="sub">'+fmtP(d.pct)+'</div></td></tr>').join(''):'<tr><td colspan="4" class="empty">Nenhuma diferença entre contagens. 🎉</td></tr>')+'</tbody></table></div>'+(D.diff.length>60?'<div class="bd sub">Mostrando 60 de '+D.diff.length+'. Baixe a planilha para ver todos.</div>':'')+'</div>';
+  const xo=[...S.items.values()].filter(i=>i.xo).map(i=>{const f=xoInfo(i);return{i,k:f.k,lab:f.lab}}).sort((a,b)=>a.k-b.k);
+  h+='<div class="card"><div class="hd"><h2>👻 Produtos fora do estoque contados</h2><span class="sub">'+xo.length+' '+(xo.length===1?'produto':'produtos')+' · '+xo.filter(x=>x.k===0).length+' inexistente(s)</span></div><div class="scroll"><table class="tbl"><thead><tr><th>Produto</th><th>Contagens (quem contou)</th><th>Situação</th></tr></thead><tbody>'+
+    (xo.length?xo.map(x=>'<tr><td class="wc"><span class="mono sub">'+esc(x.i.code)+'</span>'+(x.i.apd?' <span class="chip info">APD</span>':'')+'<br><b>'+esc(x.i.desc)+'</b>'+(x.i.photos&&x.i.photos.length?'<div>'+thumbsHtml(x.i.photos,x.i.id)+'</div>':'')+'</td><td>'+xoCnts(x.i)+'</td><td>'+x.lab+'</td></tr>').join(''):'<tr><td colspan="3" class="empty">Nenhum produto fora do estoque foi contado.</td></tr>')+'</tbody></table></div><div class="bd sub">Produto que a 1ª pessoa contou, mas a 2ª (e a 3ª) não encontraram e contaram 0, vira "não existe": erro de contagem da 1ª pessoa.</div></div>';
+  return h;
+}
+function indExport(){
+  if(typeof XLSX==='undefined'){toast('Biblioteca de planilhas não carregou');return}
+  const D=indData(),rows=D.diff.map(d=>({codigo:d.it.code,desc:d.it.desc,un:d.it.un,sh:d.sh,c1:d.it.cnt[0]?d.it.cnt[0].q:null,o1:d.it.cnt[0]?d.it.cnt[0].op:'',c2:d.it.cnt[1]?d.it.cnt[1].q:null,o2:d.it.cnt[1]?d.it.cnt[1].op:'',c3:d.it.cnt[2]?d.it.cnt[2].q:null,o3:d.it.cnt[2]?d.it.cnt[2].op:'',c4:d.it.cnt[3]?d.it.cnt[3].q:null,o4:d.it.cnt[3]?d.it.cnt[3].op:'',sp:d.sp,pct:Math.round(d.pct*10)/10,fin:d.it.state==='closed'?d.it.final:null}));
+  const cols=[{h:'Código',k:'codigo',w:14},{h:'Descrição',k:'desc',w:42},{h:'UN',k:'un',w:6},{h:'Prateleira',k:'sh',w:14},{h:'1ª contagem',k:'c1',w:11},{h:'1ª quem',k:'o1',w:16},{h:'2ª contagem',k:'c2',w:11},{h:'2ª quem',k:'o2',w:16},{h:'3ª contagem',k:'c3',w:11},{h:'3ª quem',k:'o3',w:16},{h:'4ª contagem',k:'c4',w:11},{h:'4ª quem',k:'o4',w:16},{h:'Diferença (máx-mín)',k:'sp',w:14},{h:'Diferença %',k:'pct',w:11},{h:'Final',k:'fin',w:10}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,mkSheet(rows,cols),'Diferenças');
+  const oc=[{h:'Colaborador',k:'name',w:22},{h:'Contagens',k:'n',w:11},{h:'1ªs contagens',k:'first',w:13},{h:'Ritmo (por hora)',k:'rate',w:14},{h:'Tempo médio entre contagens (min)',k:'avg',w:26},{h:'Tempo ativo (min)',k:'act',w:16},{h:'Concordância %',k:'ag',w:14}];
+  XLSX.utils.book_append_sheet(wb,mkSheet(D.ops.map(o=>({name:o.name,n:o.n,first:o.first,rate:o.rate?Math.round(o.rate):null,avg:o.avg!=null?Math.round(o.avg*10)/10:null,act:Math.round(o.act),ag:o.agreeN?Math.round(o.agree/o.agreeN*1000)/10:null})),oc),'Colaboradores');
+  saveXlsx(wb,'Indicadores_'+fileBase().slice(11)+'.xlsx');
+}
+
 /* ============ importação do ERP ============ */
 const normH=s=>String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
 const FIELDS=[['code','Código do material'],['desc','Descrição'],['un','Unidade'],['qty','Saldo do ERP'],['cost','Custo unitário'],['shelf','Prateleira / endereço'],['sec','Seção'],['wh','Cód. armazém (opcional)'],['grp','Grupo (opcional)'],['gdesc','Descrição do grupo (opcional)']];
@@ -2795,6 +3481,7 @@ function vInv(){
       '<div class="row"><button class="btn" data-act="toggleclose">'+(S.meta.status==='encerrado'?'Reabrir contagem':'Encerrar contagem')+'</button><button class="btn danger" data-act="delete">Apagar inventário</button></div>'+
       '<div class="sub">Ao encerrar, os celulares deixam de aceitar contagens. Baixe o relatório antes de apagar ou de publicar outro inventário.</div></div></div>';
   }
+  h+=catCard();
   const imp=S.imp;
   h+='<div class="card"><div class="hd"><h2>'+(S.meta?'Publicar novo inventário':'Importar planilha do ERP')+'</h2></div><div class="bd stack">';
   if(!imp){
@@ -2894,13 +3581,19 @@ const ACT={
   goto3(){S.tab='divergencias';S.filter='todas';mainMode='';draw(true);window.scrollTo(0,0)},
   xsave(){
     const g=id=>(document.getElementById(id)||{}).value||'';
-    const name=g('xn').trim(),un=g('xu').trim().toUpperCase(),qty=parseQty(g('xq')),loc=g('xl').trim();
+    const name=g('xn').trim(),un=g('xu').trim().toUpperCase(),qty=parseQty(g('xq')),loc=g('xl').trim(),code=g('xc').trim().slice(0,30),apd=!!(document.getElementById('xa')||{}).checked;
     const err=!name||name.length<2?'Informe o nome do produto.':!un?'Informe a unidade de medida.':!(qty>0)?'Informe a quantidade encontrada.':'';
     const e=$('#xerr');if(err){e.textContent=err;e.hidden=false;return}
     e.hidden=true;
-    addExtra({name:name.slice(0,120),un:un.slice(0,8),qty,loc:loc.slice(0,80)});
-    ['xn','xu','xq'].forEach(i=>{document.getElementById(i).value=''});document.getElementById('xn').focus();
-    updateXList();toast('Item cadastrado. O gestor foi avisado.');
+    const photos=XPH.filter(Boolean);
+    const xid=addExtra({name:name.slice(0,120),un:un.slice(0,8),qty,loc:loc.slice(0,80),code,item:1,apd,photos:photos.length?photos:null});
+    rebuild();
+    const it=S.items.get('n:'+xid.slice(S.meta.inv.length+1));
+    if(it){const t=Date.now();S.local.map[it.id]={q:normQ(qty),t,s:0,ch:it.ch,op:S.name,r:0,rd:roundLabel(it),a:loc.slice(0,80),p:''};persistLocal();rebuild();flush()}
+    ['xn','xu','xq','xc'].forEach(i=>{const el=document.getElementById(i);if(el)el.value=''});const xa=document.getElementById('xa');if(xa)xa.checked=false;
+    XPH[0]=null;XPH[1]=null;drawPh();
+    document.getElementById('xn').focus();
+    updateXList();toast(apd?'Item de aplicação direta cadastrado. Ele vai para as próximas contagens.':'Item cadastrado. Ele vai para as próximas contagens.');
   },
   xundo(b){S.xl.list=S.xl.list.filter(e=>!(e.id===b.dataset.id&&e.s===0));persistX();updateSync();updateXList()},
   async xres(b){
@@ -2941,6 +3634,31 @@ const ACT={
   async resetpw(b){const u=S.users.get(b.dataset.k);if(!u||!u.email)return;try{await window.FB.resetEmail(u.email);toast('E-mail de nova senha enviado para '+u.email,5000)}catch(e){toast('Não foi possível enviar o e-mail',3500)}},
   async rmuser(b){if(!confirmOnce('rm'+b.dataset.k)){toast('Toque em Excluir de novo para confirmar');return}const u=S.users.get(b.dataset.k)||{};try{await window.FB.removeAccount(b.dataset.k,u.uid);toast('Acesso excluído')}catch(e){toast('Não foi possível excluir')}},
   opage(b){const v=b.dataset.v;S.opView=v==='contagem'?{page:'contagem',kind:S.opView.kind||'shelf',shelf:S.opView.shelf||null}:{page:v,kind:'shelf',shelf:null};opMode='';lastListKey='';draw(true);window.scrollTo(0,0);pushPresence()},
+  cpsave(){cpSave()},
+  cpcancel(){S_cp=null;draw(true)},
+  cpoff(){cpOff()},
+  xphrm(b){XPH[Number(b.dataset.i)]=null;drawPh()},
+  photo(b){showPhoto(b.dataset.id,Number(b.dataset.i))},
+  apdsave(b){apdSave(b.dataset.id)},
+  apdreq(b){apdReq(b.dataset.id)},
+  cadxl(){cadExport()},
+  lsumxl(){lsExport()},
+  lsumpdf(){lsPdf()},
+  lsumpdf2(){lsPdf2()},
+  nfxl2(){exportNf2()},
+  nfreq(b){nfRequest([b.dataset.id])},
+  nfreqall(){nfReqAll()},
+  indxl(){indExport()},
+  blfind(){blSearch()},
+  blclose(){blClose()},
+  blreopen(){blReopen()},
+  blother(){blOther()},
+  reladd(b){relAdd(b.dataset.r)},
+  relsync2(){relSync2()},
+  relreopen(b){relReopen(b.dataset.sk,b.dataset.k)},
+  relrm(b){relRm(b.dataset.sk)},
+  bladd(b){blAdd(b.dataset.mode)},
+  blcancel(){const r=$('#blres');if(r)r.innerHTML='';const c=$('#blcode');if(c){c.value='';c.focus()}},
   openshelf(b){S.opView={page:'contagem',kind:'shelf',shelf:b.dataset.sk};S.q.op='';draw(true);window.scrollTo(0,0)},
   openrecount(){S.rf='';S.rg='';S.opView={page:'contagem',kind:'recount',shelf:null};S.q.op='';draw(true);window.scrollTo(0,0)},
   send(){editing.clear();sendDrafts()},
@@ -3036,6 +3754,11 @@ const CHG={
     try{startImp(await loadWorkbook(f),f.name)}catch(e){console.error(e);toast('Não consegui ler essa planilha',3500)}
     draw(true);
   },
+  async cpfile(t){const f=t.files&&t.files[0];if(!f)return;if(typeof XLSX==='undefined'){toast('A biblioteca de planilhas não carregou. Verifique a conexão e recarregue.',4000);return}try{await cpParse(f)}catch(e){console.error(e);toast('Não consegui ler esse arquivo',3500)}draw(true)},
+  async xph(t){const f=t.files&&t.files[0];if(!f)return;try{XPH[Number(t.dataset.i)]=await compressImg(f)}catch(e){toast('Não consegui ler a foto')}drawPh()},
+  lst(t){S.q.lst=t.value;draw(true)},
+  indsh(t){S.q.indsh=t.value;draw(true)},
+  indper(t){S.q.indper=t.value;draw(true)},
   assign(t){setAssignKey(t.dataset.sk,t.value)},
   dep(t){S.dep=t.value;draw(true)},
   wh(t){if(S.meta){S.meta.wh=t.value.trim().slice(0,40);draw(true)}S.db.doc('meta/current').update({wh:t.value.trim().slice(0,40)}).then(()=>toast('Armazém salvo')).catch(()=>toast('Não foi possível salvar'))},
@@ -3046,6 +3769,9 @@ const CHG={
   async allowsame(t){try{await S.db.doc('meta/current').update({allowSame:t.checked})}catch(e){toast('Não foi possível salvar')}},
   isheet(t){setSheet(S.imp,t.value);draw(true)},
   ihdr(t){const n=Math.max(1,Math.floor(Number(t.value)||1))-1;S.imp.hdr=n;remap(S.imp);draw(true)},
+  blq(t){blSetQty(t.dataset.id,t.value,t)},
+  relteam(t){setTeam(t.dataset.sk,t.dataset.k,t.checked)},
+  nfto(t){S.q.nfto=t.value;draw(true)},
   lassign(t){setAssignKey(t.dataset.key,t.value)},
   lisel(t){if(t.checked)S.lsel.add(t.dataset.id);else S.lsel.delete(t.dataset.id);const c=$('#lcount');if(c)c.textContent=S.lsel.size+' produto(s) marcado(s)'},
   lgsel(t){
@@ -3090,6 +3816,8 @@ root.addEventListener('input',e=>{
   else if(k==='gq'){S.q.gq=t.value;$('#grp-list').innerHTML=gGroupList()}
   else if(k==='gp'){S.q.gp=t.value;gRefresh()}
   else if(k==='igq'&&S.imp){S.imp.gq=t.value;const l=$('#ig-list');if(l)l.innerHTML=igList(S.imp)}
+  else if(k==='lsq'){S.q.lsq=t.value;const bd=$('#lsum-body');if(bd)bd.innerHTML=lsBody(lsData())}
+  else if(k==='rq'){S.q.rq=t.value;$('#rel-body').innerHTML=relBody(knownOps())}
   else if(k==='lq'){S.q.lq=t.value;$('#loc-body').innerHTML=locBody(knownOps())}
   else if(k==='apq'){S.q.apq=t.value;$('#apur-body').innerHTML=apBody(apRows())}
   else if(k==='adlq'){S.q.adlq=t.value;S.adlmax=100;adListRefresh()}
@@ -3103,7 +3831,7 @@ root.addEventListener('input',e=>{
   else if(k==='qdiv'){S.q.div=t.value;$('#div-body').innerHTML=divRows()}
   else if(k==='qaud'){S.q.aud=t.value;$('#aud-body').innerHTML=audRows()}
 });
-root.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.adin!=null){const b=e.target.closest('[data-ad]').querySelector('[data-act="adsave"]');if(b)b.click();return}if(e.key==='Enter'&&e.target.id&&e.target.id.startsWith('fin-')){const b=e.target.parentElement.querySelector('[data-act="setfinal"]');if(b)b.click()}});
+root.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='blcode'){e.preventDefault();blSearch();return}if(e.key==='Enter'&&e.target.id==='blqty'){e.preventDefault();const b=$('[data-act="bladd"]');if(b)b.click();return}if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.adin!=null){const b=e.target.closest('[data-ad]').querySelector('[data-act="adsave"]');if(b)b.click();return}if(e.key==='Enter'&&e.target.id&&e.target.id.startsWith('fin-')){const b=e.target.parentElement.querySelector('[data-act="setfinal"]');if(b)b.click()}});
 
 gLoad();
 init();
