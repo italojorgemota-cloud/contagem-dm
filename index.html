@@ -263,7 +263,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 16</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 19</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -327,17 +327,38 @@ window.FB={
   async createAccount(name,email,role,pw){
     let sec;try{sec=firebase.app('sec')}catch(e){sec=firebase.initializeApp(CFG,'sec')}
     const a2=sec.auth();
-    try{
-      const cr=await a2.createUserWithEmailAndPassword(email,pw);
+    const reg=async(uid)=>{
       const key=slug(name),b=fs.batch();
-      b.set(fs.doc('roles/'+cr.user.uid),{role,key,name,email,t:Date.now()});
-      b.set(fs.doc('users/'+key),{key,name,role,uid:cr.user.uid,email,t:Date.now()});
-      await b.commit();
-      return key;
+      b.set(fs.doc('roles/'+uid),{role,key,name,email,t:Date.now()});
+      b.set(fs.doc('users/'+key),{key,name,role,uid,email,t:Date.now()});
+      await b.commit();return key;
+    };
+    try{
+      let cr;
+      try{cr=await a2.createUserWithEmailAndPassword(email,pw)}
+      catch(e){
+        if(!(e&&e.code==='auth/email-already-in-use'))throw e;
+        /* 1) a conta de login já existe: se a senha digitada for a mesma de antes, reativa direto */
+        try{const si=await a2.signInWithEmailAndPassword(email,pw);const k=await reg(si.user.uid);return k}catch(e2){}
+        /* 2) acesso excluído pelo app: o app guardou o código da conta; reativa e manda e-mail de nova senha */
+        let uid=null;const old=[];
+        try{const q=await fs.collection('users').where('email','==',email).get();q.forEach(d=>{const x=d.data();if(x.gone&&x.uid){uid=x.uid;old.push(d.id)}})}catch(e3){}
+        if(uid){
+          const k=await reg(uid);
+          for(const id of old)if(id!==k){try{await fs.doc('users/'+id).delete()}catch(e4){}}
+          try{await auth.sendPasswordResetEmail(email)}catch(e5){}
+          const er=new Error('reativado');er.code='reactivated';er.key=k;throw er;
+        }
+        throw e;
+      }
+      return await reg(cr.user.uid);
     }finally{try{await a2.signOut()}catch(e){}}
   },
   async removeAccount(key,uid){
-    const b=fs.batch();b.delete(fs.doc('users/'+key));if(uid)b.delete(fs.doc('roles/'+uid));await b.commit();
+    /* a conta de login não pode ser apagada por aqui; guardamos o código dela para reativar depois */
+    const b=fs.batch();let old={};try{const s=await fs.doc('users/'+key).get();if(s.exists)old=s.data()}catch(e){}
+    b.set(fs.doc('users/'+key),{key,name:old.name||key,role:'gone',gone:true,uid:uid||old.uid||'',email:old.email||'',t:Date.now()});
+    if(uid)b.delete(fs.doc('roles/'+uid));await b.commit();
   },
   resetEmail:e=>auth.sendPasswordResetEmail(e)
 };
@@ -446,15 +467,15 @@ function rebuild(){
       if(!items.has(id))continue;
       const le=d.dev===S.dev?S.local.map[id]:null;
       if(le&&le.q!=null)continue;
-      push(id,{q:e.q,t:e.t,op:d.op,ok:slug(d.op),dev:d.dev,a:e.a,p:e.p});
+      push(id,{q:e.q,t:e.t,op:d.op,ok:slug(d.op),dev:d.dev,a:e.a,p:e.p,k:e.k});
     }
   }
   for(const [id,e] of Object.entries(S.local.map)){
     if(!items.has(id)||e.q==null)continue;
-    push(id,{q:e.q,t:e.t,op:e.op||S.name,ok:slug(e.op||S.name),dev:S.dev,pend:e.s===0,a:e.a,p:e.p});
+    push(id,{q:e.q,t:e.t,op:e.op||S.name,ok:slug(e.op||S.name),dev:S.dev,pend:e.s===0,a:e.a,p:e.p,k:e.k});
   }
   for(const it of items.values()){
-    const h=(hist.get(it.id)||[]).sort((a,b)=>a.t-b.t),r0=rt[it.id]||0;
+    const h=blMerge((hist.get(it.id)||[]).sort((a,b)=>a.t-b.t)).sort((a,b)=>(a.t0||a.t)-(b.t0||b.t)),r0=rt[it.id]||0;
     it.hist=h;it.reopened=!!rt[it.id];it.r0=r0;it.cnt=h.filter(c=>c.t>r0);evalItem(it);if(it.xo&&it.state==='closed')it.div=normQ(it.final)>0;
   }
   const fnd=new Map([...S.finds.values()].filter(d=>d.inv===inv).map(d=>[d.id,d]));
@@ -603,7 +624,7 @@ function thirdFor(it){
   const a=t.items&&t.items[it.id];
   return a&&a.k&&a.n===it.cnt.length+1?a:null;
 }
-const eligible=(it,k)=>!it.cnt.some(c=>c.ok===k);
+const eligible=(it,k)=>!it.cnt.some(c=>c.ok===k||(c.oks&&c.oks.includes(k)));
 let retryT=null;
 async function flush(){
   try{flushC()}catch(e){}
@@ -615,7 +636,7 @@ async function flush(){
     const byCh={};un.forEach(([id,e])=>{(byCh[e.ch]=byCh[e.ch]||[]).push([id,e])});
     for(const ch of Object.keys(byCh)){
       const ref=S.db.doc('counts/'+inv+'_'+ch+'_'+S.dev);
-      const items={};byCh[ch].forEach(([id,e])=>{items[id]=(()=>{const o={q:e.q,t:e.t};if(e.a)o.a=e.a;if(e.p)o.p=e.p;return o})()});
+      const items={};byCh[ch].forEach(([id,e])=>{items[id]=(()=>{const o={q:e.q,t:e.t};if(e.a)o.a=e.a;if(e.p)o.p=e.p;if(e.k)o.k=e.k;return o})()});
       const body={inv,ch:Number(ch),op:S.name,dev:S.dev,items};
       try{await withTimeout(ref.update(body),20000)}
       catch(e){if(e&&e.code==='invalid_argument')await withTimeout(ref.set(body),20000);else throw e}
@@ -785,7 +806,7 @@ function subscribe(){
   subs.push(db.doc('gstat/current').onSnapshot(s=>{S.gstat=s.exists?s.data():null;scheduleRebuild()},err));
   subs.push(db.doc('third/current').onSnapshot(s=>{S.third=s.exists?s.data():null;scheduleRebuild()},err));
   subs.push(db.collection('extras').onSnapshot(q=>{S.extras=new Map(q.docs.map(d=>[d.id,d.data()]));scheduleRebuild()},err));
-  subs.push(db.collection('users').onSnapshot(q=>{S.users=new Map(q.docs.map(d=>[d.id,d.data()]));S.ops=new Map([...S.users].filter(([,u])=>u.role==='op').map(([k,u])=>[k,{key:k,name:u.name}]));S.usersLoaded=true;validateSession();scheduleRebuild();draw()},err));
+  subs.push(db.collection('users').onSnapshot(q=>{S.users=new Map(q.docs.filter(d=>!(d.data()||{}).gone).map(d=>[d.id,d.data()]));S.ops=new Map([...S.users].filter(([,u])=>u.role==='op').map(([k,u])=>[k,{key:k,name:u.name}]));S.usersLoaded=true;validateSession();scheduleRebuild();draw()},err));
   subs.push(db.collection('addrtask').onSnapshot(q=>{S.atask=new Map(q.docs.map(d=>[d.id,d.data()]));scheduleRebuild()},err));
   subs.push(db.collection('addrnew').onSnapshot(q=>{S.anew=new Map(q.docs.map(d=>[d.id,d.data()]));if(S.canEdit)rebuildAddr();try{adListRefresh()}catch(e){}scheduleRebuild()},err));
   if(S.canEdit)subs.push(db.collection('apur').onSnapshot(q=>{S.apur=new Map(q.docs.map(d=>[d.id,d.data()]));scheduleRebuild();if(S.tab==='apuracao')draw()},err));
@@ -2698,6 +2719,37 @@ function paintBlind(){
         '<div class="in"><input class="qty" type="text" inputmode="decimal" autocomplete="off" data-chg="blq" data-id="'+esc(e.id)+'" value="'+esc(fmtIn(e.q))+'"'+(lock?' disabled':'')+' aria-label="Quantidade de '+esc(it.code)+'"><span class="un">'+esc(it.un)+'</span></div></div>'}).join('')+
       '<button class="btn primary" data-act="blclose" style="min-height:48px;font-size:15px">✅ Fechar prateleira ('+l.length+' '+(l.length===1?'produto':'produtos')+')</button><div class="sub">Feche só quando não houver mais nada para alterar.</div></div></div>':'');
 }
+const roundOfShelf=k=>String(k).endsWith('@2')?2:1;
+function blTotal(id,r){const b=blAll();let t=0;for(const k of Object.keys(b)){if(k[0]==='~'||k[0]==='!'||roundOfShelf(k)!==r)continue;const e=(b[k]||[]).find(x=>x.id===id);if(e)t+=Number(e.q)||0}return normQ(t)}
+function blAddrs(id,r){const b=blAll(),o=[];for(const k of Object.keys(b)){if(k[0]==='~'||k[0]==='!'||roundOfShelf(k)!==r)continue;const e=(b[k]||[]).find(x=>x.id===id);if(e&&e.ad&&!o.includes(e.ad))o.push(e.ad)}return o.join(' + ')}
+/* quem já contou o produto: lê os registros agrupados por rodada (cada um com 'parts') */
+function blRoundInfo(it){
+  const o={r1n:0,r2n:0,r1ok:[],legacy:false,r2:false};
+  it.cnt.forEach((c,i)=>{
+    if(c.parts){const r=c.rnd===2?2:1;if(r===1){o.r1n+=c.parts.length;o.r1ok=o.r1ok.concat(c.oks||[c.ok])}else{o.r2n+=c.parts.length;o.r2=true}}
+    else{o.legacy=true;if(i===0)o.r1ok.push(c.ok)}
+  });
+  return o;
+}
+function blMerge(l){
+  const out=[],g={};
+  for(const c of l){
+    if(!c.k){out.push(c);continue}
+    const r=roundOfShelf(c.k);let x=g[r];
+    const part={q:c.q,t:c.t,op:c.op,a:c.a,p:c.p,k:c.k,dev:c.dev};
+    if(!x){x=g[r]={q:0,t:c.t,t0:c.t,op:'',ok:c.ok,oks:[],dev:c.dev,pend:false,a:'',p:'',rnd:r,parts:[],k:c.k};out.push(x)}
+    x.parts.push(part);x.q=normQ((Number(x.q)||0)+(Number(c.q)||0));
+    if(c.t>x.t)x.t=c.t;if(c.t<x.t0)x.t0=c.t;
+    if(!x.oks.includes(c.ok))x.oks.push(c.ok);
+    if(c.pend)x.pend=true;
+  }
+  for(const x of out){if(x.parts){
+    const ops=[],ads=[],ps=[];
+    x.parts.forEach(p=>{if(p.op&&!ops.includes(p.op))ops.push(p.op);if(p.a&&!ads.includes(p.a))ads.push(p.a);if(p.p&&!ps.includes(p.p))ps.push(p.p)});
+    x.op=ops.join(', ');x.a=ads.join(' + ');x.p=ps.join(' + ');
+  }}
+  return out;
+}
 function blSearch(){
   const sk=S.opView.shelf,inp=$('#blcode'),res=$('#blres');if(!inp||!res)return;
   const code=inp.value.trim();if(!code)return;
@@ -2705,17 +2757,21 @@ function blSearch(){
   if(!it){res.innerHTML='<div class="note bad"><b>Código "'+esc(code)+'" não encontrado.</b> Confira o código. Se o material não está no ERP, use <button class="lnk" data-act="opage" data-v="novo">Item fora do ERP</button>.</div>';return}
   const ex=blList(sk).find(e=>e.id===it.id);
   if(ex){res.innerHTML='<div class="note info"><b>'+esc(it.code)+' já está na lista desta prateleira.</b> Altere a quantidade lá embaixo.</div>';inp.value='';const q=$('[data-bid="'+ex.id.replace(/"/g,'')+'"] input');if(q){q.scrollIntoView({block:'center'});q.focus();q.select()}return}
-  const other=Object.keys(blAll()).find(k=>k[0]!=='~'&&k[0]!=='!'&&k!==sk&&blList(k).some(e=>e.id===it.id));
-  if(other&&!(blShelf()&&blShelf().r2)){res.innerHTML='<div class="note warn"><b>'+esc(it.code)+' já foi contado por você na prateleira '+esc(manualName(other))+'.</b> Altere a quantidade lá.</div>';return}
-  {const sh0=blShelf();
-   if(sh0&&sh0.r2){
-     if(it.state==='pend'){res.innerHTML='<div class="note warn"><b>'+esc(it.code)+' — '+esc(it.desc)+'</b><br>Este produto ainda não passou pela 1ª contagem, então não entra na 2ª. Avise o gestor se ele está nesta prateleira.</div>';return}
-     if(it.state==='rec2'&&!eligible(it,myKey())){res.innerHTML='<div class="note warn"><b>'+esc(it.code)+' — '+esc(it.desc)+'</b><br>Você fez a 1ª contagem deste produto, então outra pessoa precisa fazer a 2ª. Deixe este para a equipe.</div>';return}
-     if(it.state!=='rec2'){res.innerHTML='<div class="note warn"><b>'+esc(it.code)+' — '+esc(it.desc)+'</b><br>Este produto já passou pela 2ª contagem'+(it.state==='closed'?' e está concluído':'; a próxima contagem é definida pelo gestor')+'. Não precisa contar de novo.</div>';return}
-   }else if(it.state!=='pend'){res.innerHTML='<div class="note warn"><b>'+esc(it.code)+' — '+esc(it.desc)+'</b><br>Este item já foi contado'+(it.state==='closed'?' e está concluído':'; a próxima contagem é definida pelo gestor')+'. Não precisa contar de novo.</div>';return}
+  const sh0=blShelf(),rnd=sh0&&sh0.r2?2:1;
+  let extra='',need=false;
+  const bl=blRoundInfo(it);   /* quem já contou este produto, por rodada */
+  const mineOther=Object.keys(blAll()).find(k=>k[0]!=='~'&&k[0]!=='!'&&k!==sk&&roundOfShelf(k)===rnd&&blList(k).some(e=>e.id===it.id));
+  const head='<b>'+esc(it.code)+' — '+esc(it.desc)+'</b><br>';
+  if(rnd===2){
+    if(it.state==='pend'&&!bl.r2){res.innerHTML='<div class="note warn">'+head+'Este produto ainda não passou pela 1ª contagem, então não entra na 2ª. Avise o gestor se ele está nesta prateleira.</div>';return}
+    if(bl.r1ok.includes(myKey())){res.innerHTML='<div class="note warn">'+head+'Você fez a 1ª contagem deste produto, então outra pessoa precisa fazer a 2ª. Deixe este para a equipe.</div>';return}
   }
+  if(bl.legacy||(rnd===1&&bl.r2&&false)){res.innerHTML='<div class="note warn">'+head+'Este item já está em recontagem ou foi concluído pelo gestor'+(it.state==='closed'?' (concluído)':'')+'. Fale com o gestor antes de contar de novo.</div>';return}
+  if(mineOther){extra='<div class="note info">➕ <b>Você já contou este produto na prateleira '+esc(manualName(mineOther))+'.</b> Conte só o que há <b>neste local</b>: a quantidade será somada à que você já informou.</div>'}
+  else if(rnd===1&&bl.r1n){extra='<div class="note warn">➕ <b>Outra pessoa já contou este produto</b> (em outro local ou nesta prateleira). Se há mais unidades aqui, conte <b>só as que você está vendo</b>: elas serão somadas.</div>';need=true}
+  else if(rnd===2&&bl.r2n){extra='<div class="note warn">➕ <b>Outra pessoa já contou este produto na 2ª contagem.</b> Se há mais unidades aqui, conte <b>só as que você está vendo</b>: elas serão somadas.</div>';need=true}
   const sh=blShelf(),ads=addrsFor(it),match=ads.some(a=>addrOnShelf(a,sh?sh.name:''));
-  res.innerHTML='<div class="stack" style="gap:10px" data-bres="'+esc(it.id)+'" data-ads="'+esc(ads.join(' | '))+'"><div class="desc"><span class="tag c">'+esc(it.code)+'</span> <b>'+esc(it.desc)+'</b></div>'+
+  res.innerHTML='<div class="stack" style="gap:10px" data-bres="'+esc(it.id)+'" data-need="'+(need?1:0)+'" data-ads="'+esc(ads.join(' | '))+'">'+extra+(need?'<label style="display:flex;gap:8px;align-items:flex-start;min-height:44px"><input type="checkbox" id="blextra" style="margin-top:4px"> <span>Confirmo: são <b>unidades diferentes</b> das já contadas (outro local).</span></label>':'')+'<div class="desc"><span class="tag c">'+esc(it.code)+'</span> <b>'+esc(it.desc)+'</b></div>'+
     '<div class="sub">Unidade de medida: <b>'+esc(it.un||'—')+'</b></div>'+
     (ads.length?'<div class="note info">📍 Endereço cadastrado: <b style="font-size:17px">'+ads.map(esc).join(' | ')+'</b><br>Este produto está mesmo nesse endereço?'+'</div>':
       '<div class="note warn">📍 <b>Sem endereço cadastrado</b> para este produto. '+(S.canEdit||abHas()?'':'(A base de endereços ainda não chegou ao seu aparelho; avise o gestor.) ')+'Digite o endereço completo onde ele está (ex.: P6-A-B1).</div>')+
@@ -2729,6 +2785,7 @@ function blAdd(mode){
   let it=blItem(box.dataset.bres);if(!it)return;
   const q=parseQty($('#blqty').value);
   if(!isFinite(q)||q<0){toast('Informe a quantidade (use vírgula para decimais)');$('#blqty').focus();return}
+  if(box.dataset.need==='1'&&!($('#blextra')||{}).checked){toast('Marque a confirmação: são unidades diferentes das já contadas',4000);return}
   const ads=(box.dataset.ads||'').split(' | ').filter(Boolean),oth=$('#blother');
   let ad,mv;
   if(mode==='ok'&&oth&&oth.hidden){ad=ads[0];mv=false}
@@ -2737,7 +2794,7 @@ function blAdd(mode){
   const t=Date.now();
   if(it.x){addCatItem(it);rebuild();const r=S.items.get(it.id);if(!r){toast('Não foi possível registrar o produto');return}it=r}
   l.unshift({id:it.id,q:normQ(q),mv,ad,t,p:(blShelf()||{}).name||''});
-  S.local.map[it.id]={q:normQ(q),t,s:0,ch:it.ch,op:S.name,r:0,rd:roundLabel(it),a:ad,p:(blShelf()||{}).name||''};
+  S.local.map[it.id]={q:blTotal(it.id,roundOfShelf(sk)),t,s:0,ch:it.ch,op:S.name,r:0,rd:roundLabel(it),a:blAddrs(it.id,roundOfShelf(sk)),p:(blShelf()||{}).name||'',k:sk};
   if(mv){S.fl.list=S.fl.list.filter(x=>x.id!==it.id);S.fl.list.unshift({id:it.id,st:'achou',q:normQ(q),addr:ad,op:S.name,ok:myKey(),t,s:0});persistF()}
   blSave();persistLocal();$('#blres').innerHTML='';$('#blcode').value='';
   rebuild();paintBlind();updateSync();flush();if(mv)flushF();pushPresence(true);toast('Enviado ao gestor: '+it.code);
@@ -2752,7 +2809,7 @@ function blSetQty(id,val,el){
   if(it.state==='closed'){toast('Este item já foi concluído; fale com o gestor');if(el)el.value=fmtIn(e.q);return}
   const t=Date.now(),old=S.local.map[id]||{};
   e.q=normQ(q);e.t=t;
-  S.local.map[id]={q:e.q,t,s:0,ch:it.ch,op:S.name,r:0,rd:old.rd||roundLabel(it),a:e.ad,p:e.p||''};
+  S.local.map[id]={q:blTotal(id,roundOfShelf(sk)),t,s:0,ch:it.ch,op:S.name,r:0,rd:old.rd||roundLabel(it),a:blAddrs(id,roundOfShelf(sk)),p:e.p||'',k:sk};
   if(e.mv){const f=S.fl.list.find(x=>x.id===id);if(f){f.q=e.q}}
   blSave();persistLocal();rebuild();paintBlind();updateSync();flush();pushPresence(true);toast('Quantidade atualizada e enviada');
 }
@@ -3158,7 +3215,13 @@ function lsPdf2(){
   });
   S.dl.save({filename:'Resumo_por_local_grupos_'+new Date().toISOString().slice(0,10)+'.pdf',data:doc.output('blob')}).then(()=>toast('Arquivo salvo')).catch(e=>{if(!e||e.code!=='declined')toast('Não foi possível salvar o arquivo')});
 }
-function vEnd(){const h=vEnd0();return h+locSumCard()}
+function abCard(){
+  if(!S.addr.size||!S.isAdmin)return'';
+  const m=S.atask.get('ameta'),ok=m&&m.count===S.addr.size;
+  return'<div class="card"><div class="hd"><h2>📲 Endereços para a contagem dos coletores</h2>'+(ok?'<span class="chip ok">enviada</span><span class="sub">'+fmtN(m.count)+' códigos · '+fmtDT(m.t)+'</span>':'<span class="chip warn">pendente</span>')+'</div><div class="bd stack"><div class="sub">É a base de endereços acima que aparece para o coletor, <b>só depois que ele digita o código</b> na contagem (para ele confirmar onde o produto está). Não tem relação com a Consulta de endereços: ela pode continuar desligada. O envio é automático quando a base muda.</div>'+
+    '<div class="row"><button class="btn sm" data-act="absync">↻ Enviar agora aos coletores</button>'+(ok?'':'<span class="sub">Ainda não chegou aos aparelhos. Toque em "Enviar agora".</span>')+'</div></div></div>';
+}
+function vEnd(){const h=vEnd0();return h+abCard()+locSumCard()}
 
 /* apuração de não localizados / itens que ficaram de fora dos grupos encerrados */
 function nfLeft(){
@@ -3216,21 +3279,22 @@ function abIndex(){
 }
 const abHas=()=>abIndex().size>0;
 let _abBusy=false,_abKey=null;
-async function abSync(){
+async function abSync(force){
   try{
     if(_abBusy||!S.meta||!S.isAdmin||!S.canEdit||!S.db)return;
     const raw=S.atask.get('ameta'),key=[S.addr,raw&&raw.sig];
-    if(_abKey&&_abKey.every((v,i)=>v===key[i]))return;
+    if(!force&&_abKey&&_abKey.every((v,i)=>v===key[i]))return;
     _abKey=key;
     const rows=abRows(),sig=rows.length?qSigOf(rows):'';
-    if((raw&&raw.sig||'')===sig)return;
+    if(!force&&(raw&&raw.sig||'')===sig)return;
     if(!raw&&!rows.length)return;
     _abBusy=true;
     const ids=new Set();
     for(let i=0,n=0;i<rows.length;i+=500,n++){const id='a'+String(n).padStart(3,'0');ids.add(id);await S.db.doc('addrtask/'+id).set({no:n,rows:rows.slice(i,i+500)})}
     for(const id of [...S.atask.keys()])if(/^a\d+$/.test(id)&&!ids.has(id))await S.db.doc('addrtask/'+id).delete();
     await S.db.doc('addrtask/ameta').set({t:Date.now(),count:rows.length,by:S.name,sig});
-  }catch(e){console.error(e)}finally{_abBusy=false}
+    if(force)toast('Base de endereços enviada aos coletores: '+fmtN(rows.length)+' códigos');
+  }catch(e){console.error(e);if(force)toast('Não foi possível enviar ('+((e&&e.code)||'erro')+')',5000)}finally{_abBusy=false}
 }
 setInterval(abSync,5000);
 
@@ -3916,7 +3980,7 @@ const ACT={
     if(pw.length<6){toast('A senha inicial precisa ter ao menos 6 caracteres.',3500);return}
     if(S.users.has(slug(n))){toast('Já existe um acesso com esse nome.',3500);return}
     try{await window.FB.createAccount(n,e,r,pw);toast('Acesso criado. Senha inicial: '+pw,7000);$('#un').value='';$('#ue').value='';$('#up').value=''}
-    catch(x){const c=(x&&x.code)||'';toast(/email-already/.test(c)?'Esse e-mail já tem conta. Peça a redefinição de senha.':/weak/.test(c)?'Senha fraca (mínimo 6 caracteres).':'Não foi possível criar o acesso ('+(c||'erro')+')',5000)}
+    catch(x){const c=(x&&x.code)||'';if(c==='reactivated'){toast('Acesso reativado. Enviamos um e-mail para '+e+' definir a nova senha.',9000);$('#un').value='';$('#ue').value='';$('#up').value='';return}toast(/email-already/.test(c)?'Esse e-mail já tem conta de um acesso excluído antes. No Firebase (Authentication), apague o usuário desse e-mail e cadastre de novo.':/weak/.test(c)?'Senha fraca (mínimo 6 caracteres).':'Não foi possível criar o acesso ('+(c||'erro')+')',5000)}
   },
   async resetpw(b){const u=S.users.get(b.dataset.k);if(!u||!u.email)return;try{await window.FB.resetEmail(u.email);toast('E-mail de nova senha enviado para '+u.email,5000)}catch(e){toast('Não foi possível enviar o e-mail',3500)}},
   async rmuser(b){if(!confirmOnce('rm'+b.dataset.k)){toast('Toque em Excluir de novo para confirmar');return}const u=S.users.get(b.dataset.k)||{};try{await window.FB.removeAccount(b.dataset.k,u.uid);toast('Acesso excluído')}catch(e){toast('Não foi possível excluir')}},
@@ -3942,6 +4006,7 @@ const ACT={
   blother(){blOther()},
   reladd(b){relAdd(b.dataset.r)},
   relsync2(){relSync2()},
+  absync(){abSync(true)},
   relreopen(b){relReopen(b.dataset.sk,b.dataset.k)},
   relrm(b){relRm(b.dataset.sk)},
   bladd(b){blAdd(b.dataset.mode)},
