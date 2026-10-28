@@ -263,7 +263,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 15</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 16</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -2667,7 +2667,7 @@ function drawBlind(host,ro){
     host.innerHTML=opNav('contagem')+ro+
       '<div style="display:flex;align-items:center;gap:10px"><button class="back" data-act="opage" data-v="locais">‹ Locais</button><span class="sp" style="flex:1"></span></div>'+
       '<div><h1 class="hero">📍 '+esc(shName(sh))+'</h1><div class="sub" id="blteam"></div></div>'+
-      '<div class="card" id="blsearch"><div class="bd stack"><div class="field"><label for="blcode">CÓDIGO DO PRODUTO</label><div class="row" style="gap:8px;flex-wrap:nowrap"><input type="text" id="blcode" autocomplete="off" autocapitalize="characters" enterkeyhint="search" placeholder="Digite o código" style="flex:1"><button class="btn primary" data-act="blfind">Buscar</button></div></div>'+
+      '<div class="card" id="blsearch"><div class="bd stack"><div class="field"><label for="blcode">CÓDIGO DO PRODUTO</label><div class="row" style="gap:8px;flex-wrap:nowrap"><input type="text" id="blcode" autocomplete="off" autocapitalize="characters" enterkeyhint="search" placeholder="Digite o código ou leia o QR" style="flex:1"><button class="btn" id="blqrbtn" type="button" data-qrscan="1" aria-label="Ler QR code com a câmera" title="Ler QR code">📷</button><button class="btn primary" data-act="blfind">Buscar</button></div></div>'+
       '<div class="sub">'+(blShelf()&&blShelf().r2?'<b>2ª contagem:</b> conte de novo, às cegas, tudo o que estiver nesta prateleira. ':'')+'Conte tudo o que estiver nesta prateleira, em qualquer ordem. Digite o código de cada produto para abrir a ficha dele.</div><div id="blres"></div></div></div>'+
       '<div id="bllist"></div><div id="blsent"></div>';
   }
@@ -3401,6 +3401,95 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&CALC.open){CALC.ope
     else if(!show&&f){f.remove();if(CALC.open){CALC.open=false;calcRender()}}
   },700);
 })();
+
+/* ============ leitura de QR code pela câmera (preenche o código do produto) ============ */
+const QRS={stream:null,raf:0,busy:false,det:null,last:0};
+function qrCandidates(text){
+  const t=String(text||'').trim(),out=[],add=x=>{x=String(x||'').trim();if(x&&!out.includes(x))out.push(x)};
+  const runs=t.match(/\d{4,}/g)||[];
+  add(t.replace(/^[^:=]*[:=]\s*/,''));
+  runs.forEach(r=>add(r));
+  runs.forEach(r=>{if(r.length>10){add(r.slice(-10));add(r.slice(0,10));if(r.length>12)add(r.slice(-12))}});
+  t.split(/[^A-Za-z0-9]+/).forEach(add);
+  return out;
+}
+function qrResolve(text){
+  for(const c of qrCandidates(text)){const it=blFindCode(c);if(it)return{code:it.code,it}}
+  return null;
+}
+function qrStop(){
+  if(QRS.raf)cancelAnimationFrame(QRS.raf);QRS.raf=0;
+  if(QRS.stream){QRS.stream.getTracks().forEach(t=>t.stop());QRS.stream=null}
+  const o=$('#qrov');if(o)o.remove();
+}
+function qrDone(text){
+  qrStop();
+  const inp=$('#blcode'),res=$('#blres');if(!inp)return;
+  const hit=qrResolve(text);
+  if(hit){inp.value=hit.code;blSearch();toast('QR lido: '+hit.code)}
+  else{
+    const run=(String(text).match(/\d{4,}/g)||[]).sort((a,b)=>b.length-a.length)[0]||'';
+    inp.value=run;
+    if(res)res.innerHTML='<div class="note warn"><b>Li o QR, mas não achei produto com ele.</b><br>Texto lido: <span class="mono">'+esc(String(text).slice(0,120))+'</span><br>Confira o código e toque em Buscar, ou digite o código do produto.</div>';
+  }
+}
+function qrLoadLib(){
+  return new Promise((ok,no)=>{
+    if(window.jsQR)return ok();
+    const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js';
+    s.onload=()=>ok();s.onerror=()=>no(new Error('lib'));document.head.appendChild(s);
+  });
+}
+async function qrOpen(){
+  if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){toast('Este aparelho ou navegador não permite usar a câmera aqui',4500);return}
+  qrStop();
+  const ov=document.createElement('div');ov.id='qrov';ov.setAttribute('role','dialog');ov.setAttribute('aria-label','Ler QR code');
+  ov.innerHTML='<div class="qrbox"><div class="qrhd"><b>Aponte para o QR code</b><button class="clr" id="qrx" aria-label="Fechar">✕</button></div><div class="qrvw"><video id="qrv" playsinline muted autoplay></video><div class="qrfr"></div></div><div class="qrft" id="qrmsg">Abrindo a câmera…</div></div>';
+  document.body.appendChild(ov);
+  $('#qrx').onclick=qrStop;
+  let stream;
+  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false})}
+  catch(e){qrStop();toast(e&&e.name==='NotAllowedError'?'Permita o uso da câmera no navegador para ler o QR':'Não foi possível abrir a câmera',5000);return}
+  if(!$('#qrov')){stream.getTracks().forEach(t=>t.stop());return}
+  QRS.stream=stream;const v=$('#qrv');v.srcObject=stream;try{await v.play()}catch(e){}
+  let det=null;
+  if('BarcodeDetector' in window){try{det=new BarcodeDetector({formats:['qr_code']})}catch(e){det=null}}
+  if(!det){try{await qrLoadLib()}catch(e){qrStop();toast('Não consegui carregar o leitor de QR. Verifique a internet.',5000);return}}
+  const m=$('#qrmsg');if(m)m.textContent='Chegue perto e mantenha o QR dentro do quadro.';
+  const cv=document.createElement('canvas'),cx=cv.getContext('2d',{willReadFrequently:true});
+  const tick=async()=>{
+    if(!QRS.stream)return;
+    QRS.raf=requestAnimationFrame(tick);
+    const now=performance.now();if(QRS.busy||now-QRS.last<120||v.readyState<2||!v.videoWidth)return;
+    QRS.last=now;QRS.busy=true;
+    try{
+      let txt='';
+      if(det){const r=await det.detect(v);if(r&&r.length)txt=r[0].rawValue||''}
+      else{
+        const w=Math.min(v.videoWidth,720),h=Math.round(v.videoHeight*w/v.videoWidth);cv.width=w;cv.height=h;cx.drawImage(v,0,0,w,h);
+        const d=cx.getImageData(0,0,w,h),r=window.jsQR(d.data,w,h,{inversionAttempts:'attemptBoth'});if(r)txt=r.data||'';
+      }
+      if(txt){QRS.busy=false;if(navigator.vibrate)try{navigator.vibrate(60)}catch(e){}qrDone(txt);return}
+    }catch(e){}
+    QRS.busy=false;
+  };
+  QRS.raf=requestAnimationFrame(tick);
+}
+(function(){
+  const st=document.createElement('style');st.textContent=
+  '#qrov{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center}'+
+  '#qrov .qrbox{width:100%;max-width:480px;padding:12px;color:#fff}'+
+  '#qrov .qrhd{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:16px}'+
+  '#qrov .clr{border:0;background:#333;color:#fff;border-radius:8px;min-width:40px;min-height:40px;font-size:16px;cursor:pointer}'+
+  '#qrov .qrvw{position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:3/4;max-height:70vh}'+
+  '#qrov video{width:100%;height:100%;object-fit:cover}'+
+  '#qrov .qrfr{position:absolute;inset:18% 14%;border:3px solid #79D65F;border-radius:16px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}'+
+  '#qrov .qrft{margin-top:10px;text-align:center;font-size:14px;color:#d8e8d6}'+
+  '#blqrbtn{min-width:52px;font-size:22px;padding:0 10px}';
+  document.head.appendChild(st);
+})();
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-qrscan]');if(b){e.preventDefault();qrOpen()}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#qrov'))qrStop()});
 
 
 /* ============ Indicadores de desempenho da equipe ============ */
