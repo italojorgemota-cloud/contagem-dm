@@ -263,7 +263,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 19</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 20</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -2732,10 +2732,12 @@ function blRoundInfo(it){
   return o;
 }
 function blMerge(l){
-  const out=[],g={};
+  const out=[],g={};let nk=0;
   for(const c of l){
-    if(!c.k){out.push(c);continue}
-    const r=roundOfShelf(c.k);let x=g[r];
+    let r;
+    if(!c.k){nk++;if(nk>2){out.push(c);continue}r=nk}   /* contagens antigas (sem prateleira): 1ª e 2ª entram como partes */
+    else r=roundOfShelf(c.k);
+    let x=g[r];
     const part={q:c.q,t:c.t,op:c.op,a:c.a,p:c.p,k:c.k,dev:c.dev};
     if(!x){x=g[r]={q:0,t:c.t,t0:c.t,op:'',ok:c.ok,oks:[],dev:c.dev,pend:false,a:'',p:'',rnd:r,parts:[],k:c.k};out.push(x)}
     x.parts.push(part);x.q=normQ((Number(x.q)||0)+(Number(c.q)||0));
@@ -2766,7 +2768,7 @@ function blSearch(){
     if(it.state==='pend'&&!bl.r2){res.innerHTML='<div class="note warn">'+head+'Este produto ainda não passou pela 1ª contagem, então não entra na 2ª. Avise o gestor se ele está nesta prateleira.</div>';return}
     if(bl.r1ok.includes(myKey())){res.innerHTML='<div class="note warn">'+head+'Você fez a 1ª contagem deste produto, então outra pessoa precisa fazer a 2ª. Deixe este para a equipe.</div>';return}
   }
-  if(bl.legacy||(rnd===1&&bl.r2&&false)){res.innerHTML='<div class="note warn">'+head+'Este item já está em recontagem ou foi concluído pelo gestor'+(it.state==='closed'?' (concluído)':'')+'. Fale com o gestor antes de contar de novo.</div>';return}
+  if(bl.legacy||['rec3','rec4','sem','closed'].includes(it.state)){res.innerHTML='<div class="note warn">'+head+'Este item já está em recontagem ou foi concluído pelo gestor'+(it.state==='closed'?' (concluído)':'')+'. Fale com o gestor antes de contar de novo.</div>';return}
   if(mineOther){extra='<div class="note info">➕ <b>Você já contou este produto na prateleira '+esc(manualName(mineOther))+'.</b> Conte só o que há <b>neste local</b>: a quantidade será somada à que você já informou.</div>'}
   else if(rnd===1&&bl.r1n){extra='<div class="note warn">➕ <b>Outra pessoa já contou este produto</b> (em outro local ou nesta prateleira). Se há mais unidades aqui, conte <b>só as que você está vendo</b>: elas serão somadas.</div>';need=true}
   else if(rnd===2&&bl.r2n){extra='<div class="note warn">➕ <b>Outra pessoa já contou este produto na 2ª contagem.</b> Se há mais unidades aqui, conte <b>só as que você está vendo</b>: elas serão somadas.</div>';need=true}
