@@ -263,7 +263,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 23</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 25</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -464,14 +464,14 @@ function rebuild(){
   for(const d of S.counts.values()){
     if(d.inv!==inv)continue;
     for(const [id,e] of Object.entries(d.items||{})){
-      if(!items.has(id))continue;
+      if(!items.has(id)||e.x)continue;
       const le=d.dev===S.dev?S.local.map[id]:null;
       if(le&&le.q!=null)continue;
       push(id,{q:e.q,t:e.t,op:d.op,ok:slug(d.op),dev:d.dev,a:e.a,p:e.p,k:e.k,ks:e.ks});
     }
   }
   for(const [id,e] of Object.entries(S.local.map)){
-    if(!items.has(id)||e.q==null)continue;
+    if(!items.has(id)||e.q==null||e.x)continue;
     push(id,{q:e.q,t:e.t,op:e.op||S.name,ok:slug(e.op||S.name),dev:S.dev,pend:e.s===0,a:e.a,p:e.p,k:e.k,ks:e.ks});
   }
   for(const it of items.values()){
@@ -486,7 +486,7 @@ function rebuild(){
   }
   /* contagem local enviada antes de um pedido de recontagem: descarta para a linha voltar vazia */
   for(const [id,e] of Object.entries(S.local.map)){
-    const it=items.get(id);if(!it||e.q==null||e.s!==1||e.dr!=null)continue;
+    const it=items.get(id);if(!it||e.q==null||e.x||e.s!==1||e.dr!=null)continue;
     if(e.t<=it.r0){delete S.local.map[id]}
   }
   S.items=items;S.shelves=shelves;
@@ -636,7 +636,7 @@ async function flush(){
     const byCh={};un.forEach(([id,e])=>{(byCh[e.ch]=byCh[e.ch]||[]).push([id,e])});
     for(const ch of Object.keys(byCh)){
       const ref=S.db.doc('counts/'+inv+'_'+ch+'_'+S.dev);
-      const items={};byCh[ch].forEach(([id,e])=>{items[id]=(()=>{const o={q:e.q,t:e.t};if(e.a)o.a=e.a;if(e.p)o.p=e.p;if(e.k)o.k=e.k;if(e.ks)o.ks=e.ks;return o})()});
+      const items={};byCh[ch].forEach(([id,e])=>{items[id]=(()=>{const o={q:e.q,t:e.t};if(e.a)o.a=e.a;if(e.p)o.p=e.p;if(e.k)o.k=e.k;if(e.ks)o.ks=e.ks;o.x=e.x?1:0;return o})()});
       const body={inv,ch:Number(ch),op:S.name,dev:S.dev,items};
       try{await withTimeout(ref.update(body),20000)}
       catch(e){if(e&&e.code==='invalid_argument')await withTimeout(ref.set(body),20000);else throw e}
@@ -2715,7 +2715,7 @@ function paintBlind(){
     (l.length?'<div class="card"><div class="hd"><h2>Contagem desta prateleira</h2><span class="sub">'+l.length+' '+(l.length===1?'produto':'produtos')+' · '+(pendQ?'enviando…':'tudo enviado ao gestor')+'</span></div><div class="bd stack">'+
       '<div class="sub">Cada produto já vai para o gestor assim que você adiciona. Você ainda pode corrigir as quantidades até fechar a prateleira.</div>'+
       l.map(e=>{const it=blItem(e.id);if(!it)return'';const m={s:blStat(e)},lock=it.state==='closed';
-        return'<div class="it'+(e.mv?' has':'')+'" data-bid="'+esc(e.id)+'"><div style="min-width:0"><div class="tags"><span class="tag c">'+esc(it.code)+'</span>'+(e.mv?'<span class="tag s">⚠ informado: '+esc(e.ad||'—')+'</span>':'<span class="tag s">✓ '+esc(e.ad)+'</span>')+'</div><div class="desc">'+esc(it.desc)+'</div><div class="sub">'+(m&&m.s===1?'✓ enviado':'⏳ na fila de envio')+(lock?' · item concluído pela apuração (fale com o gestor para alterar)':'')+'</div></div>'+
+        return'<div class="it'+(e.mv?' has':'')+'" data-bid="'+esc(e.id)+'"><div style="min-width:0"><div class="tags"><span class="tag c">'+esc(it.code)+'</span>'+(e.mv?'<span class="tag s">⚠ informado: '+esc(e.ad||'—')+'</span>':'<span class="tag s">✓ '+esc(e.ad)+'</span>')+'</div><div class="desc">'+esc(it.desc)+'</div><div class="sub">'+(m&&m.s===1?'✓ enviado':'⏳ na fila de envio')+(lock?' · item concluído pela apuração (fale com o gestor para alterar)':'')+'</div>'+(lock?'':'<button class="lnk" type="button" data-act="bldel" data-id="'+esc(e.id)+'" style="color:#b3261e">🗑 remover da contagem</button>')+'</div>'+
         '<div class="in"><input class="qty" type="text" inputmode="decimal" autocomplete="off" data-chg="blq" data-id="'+esc(e.id)+'" value="'+esc(fmtIn(e.q))+'"'+(lock?' disabled':'')+' aria-label="Quantidade de '+esc(it.code)+'"><span class="un">'+esc(it.un)+'</span></div></div>'}).join('')+
       '<button class="btn primary" data-act="blclose" style="min-height:48px;font-size:15px">✅ Fechar prateleira ('+l.length+' '+(l.length===1?'produto':'produtos')+')</button><div class="sub">Feche só quando não houver mais nada para alterar.</div></div></div>':'');
 }
@@ -2839,6 +2839,7 @@ async function relReopen(sk,k){
   await setAssignKey('ro:'+sk+':'+k,Date.now());toast('Prateleira reaberta para '+nameOfKey(k));
 }
 function blApplyRo(){
+  try{pauseSync()}catch(e){}
   if(!S.meta||!S.assign||S.assign.inv!==S.meta.inv)return;
   const m=S.assign.map||{},me=myKey();let ch=false;
   for(const [key,v] of Object.entries(m)){
@@ -2850,7 +2851,7 @@ function blApplyRo(){
 }
 function relHtml(ops){
   const n1=manualShelves().filter(s=>!s.r2).map(s=>'<option value="'+esc(s.name)+'">').join('');
-  return'<div class="card"><div class="hd"><h2>📍 Liberar prateleiras para a equipe (1ª contagem)</h2></div><div class="bd stack">'+
+  return pauseCard()+'<div class="card"><div class="hd"><h2>📍 Liberar prateleiras para a equipe (1ª contagem)</h2></div><div class="bd stack">'+
     '<div class="sub">Digite o nome da prateleira (ex.: P05) e adicione; ela também entra sozinha na lista da 2ª contagem. Depois marque quem vai contar. A contagem é às cegas: o colaborador digita o código de cada produto, o app mostra o endereço do cadastro e ele confirma. Mais de uma pessoa por prateleira: cada um conta o que encontrar.</div>'+
     '<div class="row" style="gap:8px;flex-wrap:nowrap"><input type="text" id="relname" autocomplete="off" placeholder="Nome da prateleira, ex.: P05" style="flex:1"><button class="btn primary" data-act="reladd" data-r="1">Adicionar</button></div>'+
     '<div id="rel-body">'+relBody(ops,false)+'</div></div></div>'+
@@ -2890,7 +2891,7 @@ async function setTeam(sk,k,on){
 }
 
 let _relLast='';
-function relRefresh(){const h=$('#rel-body'),h2=$('#rel-body2');if(!h||!S.meta)return;const a=document.activeElement;if(a&&a.closest&&(a.closest('#rel-body')||a.closest('#rel-body2')))return;const ops=knownOps(),n=relBody(ops,false),n2=relBody(ops,true),n3=relClosedBody(),h3=$('#rel-closed');if(n+'§'+n2+'§'+n3!==_relLast){_relLast=n+'§'+n2+'§'+n3;h.innerHTML=n;if(h2)h2.innerHTML=n2;if(h3)h3.innerHTML=n3}}
+function relRefresh(){const h=$('#rel-body'),h2=$('#rel-body2');if(!h||!S.meta)return;const pb=$('#pause-body');if(pb){const pt=pauseBody();if(pb.innerHTML!==pt)pb.innerHTML=pt}const a=document.activeElement;if(a&&a.closest&&(a.closest('#rel-body')||a.closest('#rel-body2')))return;const ops=knownOps(),n=relBody(ops,false),n2=relBody(ops,true),n3=relClosedBody(),h3=$('#rel-closed');if(n+'§'+n2+'§'+n3!==_relLast){_relLast=n+'§'+n2+'§'+n3;h.innerHTML=n;if(h2)h2.innerHTML=n2;if(h3)h3.innerHTML=n3}}
 
 const adm={};
 function defAddr(it){if(!it)return'';for(let i=it.cnt.length-1;i>=0;i--)if(it.cnt[i].a)return it.cnt[i].a;return addrsFor(it)[0]||''}
@@ -3471,6 +3472,35 @@ function qrResolve(text){
   for(const c of qrCandidates(text)){const it=blFindCode(c);if(it)return{code:it.code,it}}
   return null;
 }
+function qrJsq(cv,cx,sx,sy,sw,sh,max){
+  const k=Math.min(1,max/Math.max(sw,sh)),w=Math.max(1,Math.round(sw*k)),h=Math.max(1,Math.round(sh*k));
+  cv.width=w;cv.height=h;cx.drawImage(QRS.src,sx,sy,sw,sh,0,0,w,h);
+  const d=cx.getImageData(0,0,w,h),r=window.jsQR(d.data,w,h,{inversionAttempts:'attemptBoth'});return r?(r.data||''):'';
+}
+/* tenta a imagem inteira, o centro ampliado e um recorte menor, em resolução alta (o QR das etiquetas costuma ser pequeno) */
+function qrDecodeSrc(src,W,H,cv,cx,mode){
+  QRS.src=src;const m=Math.min(W,H);
+  if(mode===0)return qrJsq(cv,cx,0,0,W,H,1000);
+  if(mode===1){const s=Math.round(m*.7);return qrJsq(cv,cx,Math.round((W-s)/2),Math.round((H-s)/2),s,s,900)}
+  const s=Math.round(m*.5);return qrJsq(cv,cx,Math.round((W-s)/2),Math.round((H-s)/2),s,s,700);
+}
+function qrDecodeVideo(v,cv,cx,mode){return qrDecodeSrc(v,v.videoWidth,v.videoHeight,cv,cx,mode)}
+async function qrPhoto(file){
+  if(!file)return;
+  toast('Lendo a foto…');
+  try{
+    await qrLoadLib();
+    const url=URL.createObjectURL(file),img=new Image();
+    await new Promise((ok,no)=>{img.onload=ok;img.onerror=no;img.src=url});
+    const W=img.naturalWidth,H=img.naturalHeight,cv=document.createElement('canvas'),cx=cv.getContext('2d',{willReadFrequently:true});
+    let txt='';
+    for(const mode of [0,1,2]){txt=qrDecodeSrc(img,W,H,cv,cx,mode);if(txt)break}
+    if(!txt&&'BarcodeDetector' in window){try{const r=await new BarcodeDetector({formats:['qr_code']}).detect(img);if(r&&r.length)txt=r[0].rawValue||''}catch(e){}}
+    URL.revokeObjectURL(url);
+    if(txt){if(navigator.vibrate)try{navigator.vibrate(60)}catch(e){}qrDone(txt)}
+    else toast('Não consegui ler o QR na foto. Chegue mais perto, com boa luz, e tente de novo.',5000);
+  }catch(e){toast('Não foi possível ler a foto',4000)}
+}
 function qrStop(){
   if(QRS.raf)cancelAnimationFrame(QRS.raf);QRS.raf=0;
   if(QRS.stream){QRS.stream.getTracks().forEach(t=>t.stop());QRS.stream=null}
@@ -3498,14 +3528,16 @@ async function qrOpen(){
   if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){toast('Este aparelho ou navegador não permite usar a câmera aqui',4500);return}
   qrStop();
   const ov=document.createElement('div');ov.id='qrov';ov.setAttribute('role','dialog');ov.setAttribute('aria-label','Ler QR code');
-  ov.innerHTML='<div class="qrbox"><div class="qrhd"><b>Aponte para o QR code</b><button class="clr" id="qrx" aria-label="Fechar">✕</button></div><div class="qrvw"><video id="qrv" playsinline muted autoplay></video><div class="qrfr"></div></div><div class="qrft" id="qrmsg">Abrindo a câmera…</div></div>';
+  ov.innerHTML='<div class="qrbox"><div class="qrhd"><b>Aponte para o QR code</b><button class="clr" id="qrx" aria-label="Fechar">✕</button></div><div class="qrvw"><video id="qrv" playsinline muted autoplay></video><div class="qrfr"></div></div><div class="qrft" id="qrmsg">Abrindo a câmera…</div><div class="qrft"><label class="btn sm" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">📸 Não leu? Tirar foto do QR<input type="file" id="qrfile" accept="image/*" capture="environment" hidden></label></div></div>';
   document.body.appendChild(ov);
   $('#qrx').onclick=qrStop;
+  $('#qrfile').onchange=e=>{const f=e.target.files&&e.target.files[0];e.target.value='';if(f){const ov=$('#qrov');qrPhoto(f)}};
   let stream;
-  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false})}
+  try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false})}
   catch(e){qrStop();toast(e&&e.name==='NotAllowedError'?'Permita o uso da câmera no navegador para ler o QR':'Não foi possível abrir a câmera',5000);return}
   if(!$('#qrov')){stream.getTracks().forEach(t=>t.stop());return}
   QRS.stream=stream;const v=$('#qrv');v.srcObject=stream;try{await v.play()}catch(e){}
+  try{const tr=stream.getVideoTracks()[0],cp=tr.getCapabilities?tr.getCapabilities():{};if(cp.focusMode&&cp.focusMode.includes('continuous'))await tr.applyConstraints({advanced:[{focusMode:'continuous'}]})}catch(e){}
   let det=null;
   if('BarcodeDetector' in window){try{det=new BarcodeDetector({formats:['qr_code']})}catch(e){det=null}}
   if(!det){try{await qrLoadLib()}catch(e){qrStop();toast('Não consegui carregar o leitor de QR. Verifique a internet.',5000);return}}
@@ -3520,8 +3552,7 @@ async function qrOpen(){
       let txt='';
       if(det){const r=await det.detect(v);if(r&&r.length)txt=r[0].rawValue||''}
       else{
-        const w=Math.min(v.videoWidth,720),h=Math.round(v.videoHeight*w/v.videoWidth);cv.width=w;cv.height=h;cx.drawImage(v,0,0,w,h);
-        const d=cx.getImageData(0,0,w,h),r=window.jsQR(d.data,w,h,{inversionAttempts:'attemptBoth'});if(r)txt=r.data||'';
+        QRS.n=(QRS.n||0)+1;txt=qrDecodeVideo(v,cv,cx,QRS.n%3);
       }
       if(txt){QRS.busy=false;if(navigator.vibrate)try{navigator.vibrate(60)}catch(e){}qrDone(txt);return}
     }catch(e){}
@@ -3676,6 +3707,53 @@ function blNotify(){
   }
   if(fresh.length)toast('🔔 Prateleira fechada pela equipe',5000);
 }
+
+/* ===== remover produto da contagem (enquanto a prateleira está aberta) ===== */
+function blDelete(id){
+  const sk=S.opView.shelf,l=blList(sk),i=l.findIndex(x=>x.id===id),it=blItem(id);
+  if(i<0||!it)return;
+  if(blClosed(sk)){toast('Prateleira fechada: peça ao gestor para reabrir');return}
+  if(it.state==='closed'){toast('Este item já foi concluído; fale com o gestor');return}
+  if(!confirmOnce('bldel'+sk+id)){toast('Toque de novo em "remover" para tirar '+it.code+' da contagem',4000);return}
+  const e=l[i];l.splice(i,1);
+  if(e.mv){S.fl.list=S.fl.list.filter(x=>x.id!==id);persistF()}
+  const r=roundOfShelf(sk),t=Date.now(),old=S.local.map[id]||{},ks=blKs(id,r),oth=Object.keys(ks);
+  if(oth.length){
+    const ok=oth[oth.length-1],oe=(blAll()[ok]||[]).find(x=>x.id===id)||{};
+    S.local.map[id]={q:blTotal(id,r),t,s:0,ch:it.ch,op:S.name,r:0,rd:old.rd||roundLabel(it),a:blAddrs(id,r),p:oe.p||'',k:ok,ks};
+  }else{
+    S.local.map[id]={q:0,t,s:0,x:1,ch:it.ch,op:S.name,r:0,rd:old.rd||roundLabel(it)};
+  }
+  blSave();persistLocal();rebuild();const h=$('#bllist');if(h)h.dataset.sig='';paintBlind();updateSync();flush();pushPresence(true);
+  toast('Produto removido da contagem');
+}
+
+/* ===== pausar a contagem (para o gestor atualizar o app sem ninguém digitando) ===== */
+const pauseOn=()=>!!(S.meta&&S.assign&&S.assign.inv===S.meta.inv&&S.assign.map&&Number(S.assign.map.pause)>0);
+function pausePend(){
+  const out=[],now=Date.now();
+  for(const [k,h] of S.hb){if(!h||!h.name||!(h.t>now-90000))continue;if(h.role==='gestor')continue;const n=Number(h.pending)||0;if(n>0)out.push(h.name+' ('+n+')')}
+  return out;
+}
+function pauseBody(){
+  const on=pauseOn(),pend=pausePend();
+  return'<div class="row" style="align-items:center;gap:10px;flex-wrap:wrap">'+(on?'<span class="chip warn">⏸ PAUSADA</span><button class="btn primary" data-act="pausetoggle">▶ Retomar a contagem</button>':'<button class="btn" data-act="pausetoggle">⏸ Pausar a contagem de todos</button>')+'</div>'+
+    (on?(pend.length?'<div class="note warn">Ainda enviando contagens: <b>'+esc(pend.join(', '))+'</b>. Espere terminar antes de subir a atualização.</div>':'<div class="note info">✅ Todas as contagens dos coletores online já foram enviadas. Pode subir a atualização.</div>'):'');
+}
+function pauseCard(){
+  return'<div class="card"><div class="hd"><h2>⏸ Pausar a contagem (para atualizar o app)</h2></div><div class="bd stack"><div class="sub">Ao pausar, a tela dos coletores é bloqueada com um aviso e o que já foi contado fica salvo e enviado. Suba a atualização no GitHub e depois toque em Retomar. Eles só precisam tocar em "Atualizar o app" na tela.</div><div id="pause-body">'+pauseBody()+'</div></div></div>';
+}
+function pauseSync(){
+  const on=pauseOn()&&!S.isAdmin&&!!S.name;let o=document.getElementById('pauseov');
+  if(on&&!o){
+    o=document.createElement('div');o.id='pauseov';o.style.cssText='position:fixed;inset:0;z-index:300;background:rgba(20,35,20,.96);color:#fff;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center';
+    o.innerHTML='<div style="max-width:420px"><div style="font-size:48px">⏸</div><h2 style="margin:8px 0">Contagem pausada</h2><p>O gestor pausou a contagem para atualizar o aplicativo. <b>Tudo o que você contou está salvo.</b></p><p id="pausest" class="sub" style="color:#cfe"></p><p>Quando o gestor avisar que voltou, toque no botão abaixo.</p><button class="btn primary" id="pausego" style="min-height:48px;font-size:16px">↻ Atualizar o app</button></div>';
+    document.body.appendChild(o);document.getElementById('pausego').onclick=()=>location.reload();
+    try{flush()}catch(e){}
+  }else if(!on&&o){o.remove();return}
+  if(on){const st=document.getElementById('pausest');if(st){const n=pendingList().length;st.textContent=n?'⏳ Enviando '+n+' contagem(ns)…':'✅ Tudo enviado ao gestor'}}
+}
+setInterval(()=>{try{pauseSync()}catch(e){}},1500);
 
 
 /* ============ Indicadores de desempenho da equipe ============ */
@@ -4140,6 +4218,8 @@ const ACT={
   relpdf(b){relReportPdf(b.dataset.sk)},
   ntx(b){const n=b.closest('[id^=nt-]');if(n)n.remove()},
   ntgo(b){const n=b.closest('[id^=nt-]');if(n)n.remove();S.tab='locais';mainMode='';draw(true);window.scrollTo(0,0)},
+  bldel(b){blDelete(b.dataset.id)},
+  async pausetoggle(){const was=pauseOn();if(!confirmOnce('pausetg')){toast(was?'Toque de novo para retomar a contagem':'Toque de novo para pausar a contagem de todos',4000);return}await setAssignKey('pause',was?'':Date.now());const h=$('#pause-body');if(h)h.innerHTML=pauseBody();toast(was?'Contagem retomada':'Contagem pausada')},
   openshelf(b){S.opView={page:'contagem',kind:'shelf',shelf:b.dataset.sk};S.q.op='';draw(true);window.scrollTo(0,0)},
   openrecount(){S.rf='';S.rg='';S.opView={page:'contagem',kind:'recount',shelf:null};S.q.op='';draw(true);window.scrollTo(0,0)},
   send(){editing.clear();sendDrafts()},
