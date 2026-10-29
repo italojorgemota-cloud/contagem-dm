@@ -263,7 +263,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 29</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 30</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -1341,6 +1341,7 @@ function divRows(){
   const f=S.filter,q=(S.q.div||'').trim().toLowerCase();
   let list=divItems().filter(it=>f==='todas'||dvKey(it)===f);
   if(S.dep)list=list.filter(it=>it.sk===S.dep);
+  if(S.q.dgrp)list=list.filter(it=>dvGrp(it)===S.q.dgrp);
   if(q)list=list.filter(it=>(it.code+' '+it.desc).toLowerCase().includes(q));
   list.sort((a,b)=>(DV_ORD[dvKey(a)]-DV_ORD[dvKey(b)])||byLoc(a,b));
   if(!list.length)return'<tr><td colspan="9" class="empty">Nenhum item nesta situação.</td></tr>';
@@ -1385,13 +1386,13 @@ function vDiv(){
   const all=divItems(),f=S.filter;
   const n=k=>all.filter(it=>dvKey(it)===k).length;
   return assignBar()+'<div class="kpis">'+kpi('Divergências entre contagens',fmtN(all.length),'itens cujas contagens não bateram','r')+kpi('Aguardando 3ª',fmtN(n('rec3')),'1ª ≠ 2ª','a')+kpi('Aguardando 4ª',fmtN(n('rec4')),'3 contagens sem igualdade','a')+kpi('Sem consenso',fmtN(n('sem')),'você decide a quantidade','r')+kpi('Resolvidas',fmtN(n('res')+n('dec')),'duas contagens iguais ou decisão sua','g')+'</div>'+nfDivCard()+
-  '<div class="card"><div class="bd stack"><div class="sub">Aqui a divergência é só entre as contagens físicas (1ª a 4ª). O saldo do ERP não é usado.</div><div class="row"><div class="field" style="flex:1;min-width:200px"><label for="qdiv">BUSCAR</label><input type="search" id="qdiv" data-inp="qdiv" placeholder="Código ou descrição" value="'+esc(S.q.div)+'"></div>'+depSelect()+'<button class="btn" data-act="csv-div">⬇ Exportar CSV</button><button class="btn" data-act="xl-div">⬇ Planilha .xlsx</button></div>'+
+  '<div class="card"><div class="bd stack"><div class="sub">Aqui a divergência é só entre as contagens físicas (1ª a 4ª). O saldo do ERP não é usado.</div><div class="row"><div class="field" style="flex:1;min-width:200px"><label for="qdiv">BUSCAR</label><input type="search" id="qdiv" data-inp="qdiv" placeholder="Código ou descrição" value="'+esc(S.q.div)+'"></div>'+depSelect()+divGrpSelect()+'<button class="btn" data-act="csv-div">⬇ Exportar CSV</button><button class="btn" data-act="xl-div">⬇ Planilha .xlsx</button></div>'+
     '<div class="filters">'+[['todas','Todas'],['rec3','Aguarda 3ª'],['rec4','Aguarda 4ª'],['sem','Sem consenso'],['res','Resolvidas'],['dec','Decisão do supervisor'],['reab','Recontagem pedida']].map(([k,l])=>'<button class="btn sm" data-act="filter" data-v="'+k+'" aria-pressed="'+(f===k)+'">'+l+'</button>').join('')+'</div>'+
     '<div class="scroll"><table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th>Local</th><th>1ª</th><th>2ª</th><th>3ª</th><th>4ª</th><th>Status</th><th></th></tr></thead><tbody id="div-body">'+divRows()+'</tbody></table></div></div></div>';
 }
 function dvExportRows(){
   const L={rec3:'Aguarda 3ª contagem',rec4:'Aguarda 4ª contagem',sem:'Sem consenso',res:'Resolvida',dec:'Decisão do supervisor',reab:'Recontagem solicitada'};
-  return divItems().sort((a,b)=>(DV_ORD[dvKey(a)]-DV_ORD[dvKey(b)])||byLoc(a,b)).map(it=>{const o={codigo:it.code,desc:it.desc,un:it.un,loc:locTxt(it),sit:L[dvKey(it)],final:it.state==='closed'?it.final:null};
+  return divItems().filter(it=>!S.q.dgrp||dvGrp(it)===S.q.dgrp).sort((a,b)=>(DV_ORD[dvKey(a)]-DV_ORD[dvKey(b)])||byLoc(a,b)).map(it=>{const o={codigo:it.code,desc:it.desc,un:it.un,loc:locTxt(it),sit:L[dvKey(it)],final:it.state==='closed'?it.final:null};
     [0,1,2,3].forEach(i=>{const c=it.cnt[i];o['c'+(i+1)]=c?c.q:null;o['o'+(i+1)]=c?c.op:''});return o});
 }
 const DVCOLS=[{h:'Código',k:'codigo',w:14},{h:'Descrição',k:'desc',w:42},{h:'UN',k:'un',w:6},{h:'Local',k:'loc',w:20},
@@ -2834,7 +2835,7 @@ function relBody(ops,r2){
 }
 async function relReopen(sk,k){
   if(!confirmOnce('rro'+sk+k)){toast('Toque de novo para reabrir a prateleira de '+nameOfKey(k),4000);return}
-  await setAssignKey('ro:'+sk+':'+k,Date.now());toast('Prateleira reaberta para '+nameOfKey(k));
+  await setAssignKey('ro:'+sk+':'+k,Date.now());try{if(_ntSeen){_ntSeen.delete(sk+'|'+k);ntSave()}}catch(e){}toast('Prateleira reaberta para '+nameOfKey(k));
 }
 function blApplyRo(){
   try{pauseSync()}catch(e){}
@@ -3678,7 +3679,10 @@ function relReportPdf(sk){
   S.dl.save({filename:'Relatorio_equipe_'+R.g.sh.name.replace(/[^\w-]+/g,'_')+(R.g.sh.r2?'_2a':'_1a')+'_'+new Date().toISOString().slice(0,10)+'.pdf',data:doc.output('blob')}).then(()=>toast('Arquivo salvo')).catch(e=>{if(!e||e.code!=='declined')toast('Não foi possível salvar o arquivo')});
 }
 /* aviso na tela do gestor quando a equipe fecha a prateleira */
-let _ntSeen=null;
+let _ntSeen=null,_ntInv=null,_ntT0=0;
+const NT_KEY='ci:ntseen:';
+function ntLoad(inv){try{return new Set(JSON.parse(localStorage.getItem(NT_KEY+inv)||'[]'))}catch(e){return new Set()}}
+function ntSave(){try{if(_ntInv)localStorage.setItem(NT_KEY+_ntInv,JSON.stringify([..._ntSeen].slice(-800)))}catch(e){}}
 function ntBeep(){try{const C=window.AudioContext||window.webkitAudioContext,a=new C(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=880;g.gain.value=.15;o.start();o.stop(a.currentTime+.25);setTimeout(()=>a.close(),500)}catch(e){}try{navigator.vibrate&&navigator.vibrate(200)}catch(e){}}
 function ntShow(id,html){
   let box=document.getElementById('blnotes');
@@ -3691,10 +3695,14 @@ function ntShow(id,html){
 function blNotify(){
   if(!S.isAdmin||!S.meta)return;
   let G;try{G=relGroups()}catch(e){return}
+  const inv=S.meta.inv;
+  if(_ntSeen===null||_ntInv!==inv){_ntSeen=ntLoad(inv);_ntInv=inv;_ntT0=Date.now()}
   const cur=new Map();G.forEach(g=>g.closed.forEach(k=>cur.set(g.sh.key+'|'+k,g)));
-  if(_ntSeen===null){_ntSeen=new Set(cur.keys());return}
+  /* nos primeiros segundos após abrir o app o que já estava fechado só entra no histórico (sem aviso) */
+  if(Date.now()-_ntT0<12000){let ch=false;for(const k of cur.keys())if(!_ntSeen.has(k)){_ntSeen.add(k);ch=true}if(ch)ntSave();return}
   const fresh=[...cur.keys()].filter(x=>!_ntSeen.has(x));
-  _ntSeen=new Set(cur.keys());
+  if(!fresh.length)return;
+  fresh.forEach(x=>_ntSeen.add(x));ntSave();
   const done=new Set();
   for(const key of fresh){
     const g=cur.get(key);if(done.has(g.sh.key))continue;done.add(g.sh.key);
@@ -3703,7 +3711,7 @@ function blNotify(){
     else ntShow(g.sh.key,'🔔 <b>'+esc(who)+'</b> fechou a prateleira <b>'+esc(g.sh.name)+'</b> ('+rd+' contagem) — '+g.closed.length+' de '+g.mem.length+'. Aguardando '+esc(g.wait.map(nameOfKey).join(', '))+'.');
     ntBeep();
   }
-  if(fresh.length)toast('🔔 Prateleira fechada pela equipe',5000);
+  toast('🔔 Prateleira fechada pela equipe',5000);
 }
 
 /* ===== remover produto da contagem (enquanto a prateleira está aberta) ===== */
@@ -3821,6 +3829,15 @@ function teamBody(){
 }
 function teamCard(){
   return'<div class="card"><div class="hd"><h2>👥 Equipe</h2><button class="btn sm" data-act="tab" data-v="usuarios">👤 Cadastrar operadores e senhas</button></div><div class="bd stack"><div id="team-body">'+teamBody()+'</div></div></div>';
+}
+
+/* ===== Divergências: filtro por grupo ===== */
+const dvGrp=it=>it.grp||'(Sem grupo)';
+function divGrpSelect(){
+  const m=new Map();for(const it of divItems()){const g=dvGrp(it);m.set(g,(m.get(g)||0)+1)}
+  const l=[...m.entries()].sort((a,b)=>a[0].localeCompare(b[0],'pt',{numeric:true}));
+  if(S.q.dgrp&&!m.has(S.q.dgrp))S.q.dgrp='';
+  return'<div class="field" style="min-width:220px"><label for="dgrp">GRUPO</label><select id="dgrp" data-chg="dgrp"><option value="">Todos os grupos</option>'+l.map(([g,n])=>'<option value="'+esc(g)+'"'+(S.q.dgrp===g?' selected':'')+'>'+esc(g)+' ('+n+')</option>').join('')+'</select></div>';
 }
 
 
@@ -4389,6 +4406,7 @@ const CHG={
   indper(t){S.q.indper=t.value;draw(true)},
   assign(t){setAssignKey(t.dataset.sk,t.value)},
   dep(t){S.dep=t.value;draw(true)},
+  dgrp(t){S.q.dgrp=t.value;draw(true)},
   wh(t){if(S.meta){S.meta.wh=t.value.trim().slice(0,40);draw(true)}S.db.doc('meta/current').update({wh:t.value.trim().slice(0,40)}).then(()=>toast('Armazém salvo')).catch(()=>toast('Não foi possível salvar'))},
   cdep(t){S.dep=t.value;draw(true)},
   call(t){S.ctrlAll=t.checked;draw(true)},
