@@ -263,7 +263,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 25</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 27</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -3684,7 +3684,7 @@ let _ntSeen=null;
 function ntBeep(){try{const C=window.AudioContext||window.webkitAudioContext,a=new C(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=880;g.gain.value=.15;o.start();o.stop(a.currentTime+.25);setTimeout(()=>a.close(),500)}catch(e){}try{navigator.vibrate&&navigator.vibrate(200)}catch(e){}}
 function ntShow(id,html){
   let box=document.getElementById('blnotes');
-  if(!box){box=document.createElement('div');box.id='blnotes';box.style.cssText='position:fixed;right:12px;bottom:12px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:min(420px,calc(100vw - 24px))';document.body.appendChild(box)}
+  if(!box){box=document.createElement('div');box.id='blnotes';box.style.cssText='position:fixed;right:12px;bottom:12px;z-index:9999;display:flex;flex-direction:column;gap:8px;max-width:min(420px,calc(100vw - 24px))';document.body.appendChild(box);box.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;e.preventDefault();const n=b.closest('[id^=nt-]');if(n)n.remove();if(b.dataset.act==='ntgo'){S.tab='locais';mainMode='';draw(true);window.scrollTo(0,0);setTimeout(()=>{const c=document.getElementById('rel-closed');if(c){c.scrollIntoView({block:'start',behavior:'smooth'});c.style.transition='background .4s';c.style.background='#fff7c2';setTimeout(()=>{c.style.background=''},2500)}},350)}})}
   const old=document.getElementById('nt-'+id);if(old)old.remove();
   const d=document.createElement('div');d.id='nt-'+id;d.style.cssText='background:#fff;border:2px solid #2f7f15;border-radius:10px;padding:10px 12px;box-shadow:0 6px 20px rgba(0,0,0,.25);font-size:14px;color:#1b2b1b';
   d.innerHTML='<div>'+html+'</div><div style="display:flex;gap:8px;margin-top:8px"><button class="btn sm primary" data-act="ntgo">Ver prateleiras</button><button class="btn sm" data-act="ntx">Dispensar</button></div>';
@@ -3754,6 +3754,45 @@ function pauseSync(){
   if(on){const st=document.getElementById('pausest');if(st){const n=pendingList().length;st.textContent=n?'⏳ Enviando '+n+' contagem(ns)…':'✅ Tudo enviado ao gestor'}}
 }
 setInterval(()=>{try{pauseSync()}catch(e){}},1500);
+
+/* ===== adicionar mais grupos ao inventário em andamento (sem apagar nada) ===== */
+async function addToInv(){
+  const imp=S.imp;if(!imp||imp.busy||!S.meta)return;
+  const inv=S.meta.inv,salt=S.meta.salt;
+  const have=new Set();for(const it of S.items.values())have.add(zc(it.code));
+  const nw=imp.parsed.items.filter(x=>!have.has(zc(x.code))),dup=imp.parsed.items.length-nw.length;
+  if(!nw.length){toast('Nenhum produto novo: todos já estão no inventário atual',4500);return}
+  const grp=new Set(nw.map(x=>x.grp||'(Sem grupo)')).size;
+  if(!confirmOnce('addinv')){toast('Vão entrar '+fmtN(nw.length)+' produtos novos ('+grp+' grupos)'+(dup?'; '+fmtN(dup)+' já estavam no inventário e serão ignorados':'')+'. As contagens atuais não mudam. Toque de novo para confirmar.',7000);return}
+  imp.busy=true;imp.err=null;imp.msg='Adicionando ao inventário atual…';draw(true);
+  try{
+    let no=Math.max(0,...[...S.chunks.values()].filter(c=>c.inv===inv).map(c=>c.no));
+    const g=new Map();nw.forEach(x=>{const sk=slug(x.shelf);if(!g.has(sk))g.set(sk,{name:x.shelf,items:[]});g.get(sk).items.push(x)});
+    const keys=[...g.keys()].sort((a,b)=>g.get(a).name.localeCompare(g.get(b).name,'pt',{numeric:true}));
+    const docs=[];
+    for(const sk of keys){
+      const sh=g.get(sk);
+      sh.items.sort((a,b)=>a.sec.localeCompare(b.sec,'pt',{numeric:true})||a.code.localeCompare(b.code,'pt',{numeric:true}));
+      for(let i=0;i<sh.items.length;i+=CHUNK){
+        no++;const part=sh.items.slice(i,i+CHUNK),items=[],erp={};
+        part.forEach((x,k)=>{const id=no+'-'+k;items.push(Object.assign({i:id,c:x.code,d:x.desc,u:x.un,s:x.sec,h:hq(salt,id,x.qty)},x.wh?{w:x.wh}:{},x.grp?{g:x.grp}:{}));erp[id]=[x.qty,x.cost]});
+        docs.push({no,chunk:{inv,no,sk,shelf:sh.name,items},erp:{inv,no,items:erp}});
+      }
+    }
+    let done=0;const total=docs.length*2+1;
+    for(const d of docs){
+      await S.db.doc('chunks/'+inv+'_'+d.no).set(d.chunk);done++;imp.msg='Adicionando produtos ('+done+' de '+total+')';draw(true);
+      await S.db.doc('erp/'+inv+'_'+d.no).set(d.erp);done++;imp.msg='Guardando saldos do ERP ('+done+' de '+total+')';draw(true);
+    }
+    await writeDoc(S.db.doc('meta/current'),{total:(Number(S.meta.total)||0)+nw.length,addedAt:Date.now()});
+    S.imp=null;S.tab='dashboard';
+    toast(fmtN(nw.length)+' produtos adicionados ao inventário. As contagens atuais foram mantidas.',5000);
+  }catch(e){
+    console.error(e);imp.busy=false;imp.err='Não foi possível adicionar ('+((e&&e.code)||'erro')+'). Nada do que já foi contado foi alterado. Tente de novo.';
+  }
+  if(S.imp)S.imp.busy=false;
+  draw(true);
+}
 
 
 /* ============ Indicadores de desempenho da equipe ============ */
@@ -4067,7 +4106,7 @@ function vInv(){
     if(imp.err)h+='<div class="note bad">'+esc(imp.err)+'</div>';
     if(imp.busy)h+='<div class="note info">'+esc(imp.msg||'Publicando…')+'</div>';
     const ok=!imp.busy&&p.items.length>0&&imp.name.trim()&&(imp.demo||(imp.map.code!=null&&imp.map.qty!=null))&&(!S.meta||imp.confirm);
-    h+='<div class="row"><button class="btn primary" data-act="publish" '+(ok?'':'disabled')+'>Publicar para a equipe</button><button class="btn" data-act="cancelimp" '+(imp.busy?'disabled':'')+'>Cancelar</button></div>';
+    h+='<div class="row"><button class="btn primary" data-act="publish" '+(ok?'':'disabled')+'>Publicar para a equipe</button>'+(S.meta&&!imp.demo?'<button class="btn" data-act="addinv" '+((!imp.busy&&p.items.length>0&&imp.map.code!=null&&imp.map.qty!=null)?'':'disabled')+'>➕ Adicionar ao inventário atual (mantém as contagens)</button>':'')+'<button class="btn" data-act="cancelimp" '+(imp.busy?'disabled':'')+'>Cancelar</button></div>';
   }
   h+='</div></div>';
   return h;
@@ -4216,10 +4255,9 @@ const ACT={
   relx(b){S.relx=S.relx||new Set();const k=b.dataset.sk;if(S.relx.has(k))S.relx.delete(k);else S.relx.add(k);const h=$('#rel-closed');if(h)h.innerHTML=relClosedBody()},
   relxl(b){relReportXlsx(b.dataset.sk)},
   relpdf(b){relReportPdf(b.dataset.sk)},
-  ntx(b){const n=b.closest('[id^=nt-]');if(n)n.remove()},
-  ntgo(b){const n=b.closest('[id^=nt-]');if(n)n.remove();S.tab='locais';mainMode='';draw(true);window.scrollTo(0,0)},
   bldel(b){blDelete(b.dataset.id)},
   async pausetoggle(){const was=pauseOn();if(!confirmOnce('pausetg')){toast(was?'Toque de novo para retomar a contagem':'Toque de novo para pausar a contagem de todos',4000);return}await setAssignKey('pause',was?'':Date.now());const h=$('#pause-body');if(h)h.innerHTML=pauseBody();toast(was?'Contagem retomada':'Contagem pausada')},
+  addinv(){addToInv()},
   openshelf(b){S.opView={page:'contagem',kind:'shelf',shelf:b.dataset.sk};S.q.op='';draw(true);window.scrollTo(0,0)},
   openrecount(){S.rf='';S.rg='';S.opView={page:'contagem',kind:'recount',shelf:null};S.q.op='';draw(true);window.scrollTo(0,0)},
   send(){editing.clear();sendDrafts()},
