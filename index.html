@@ -263,7 +263,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 27</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 28</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -1449,10 +1449,7 @@ function vShelves(){
   const st=S.stats,ops=knownOps();
   const asg=(S.assign&&S.assign.inv===S.meta.inv&&S.assign.map)||{};
   const sh=[...st.shelves.values()].sort((a,b)=>a.name.localeCompare(b.name,'pt',{numeric:true}));
-  let h='<div class="grid2"><div class="card"><div class="hd"><h2>👥 Equipe</h2></div><div class="bd stack">'+
-    '<div class="row"><button class="btn" data-act="tab" data-v="usuarios">👤 Cadastrar operadores e senhas</button></div>'+
-    '<div class="sub">A 1ª contagem é liberada por prateleira (card abaixo). A 2ª contagem continua sendo atribuída por armazém, grupo ou produto.</div>'+
-    '</div></div>'+
+  let h=teamCard()+'<div class="grid2">'+
     '<div class="card"><div class="hd"><h2>Regras desta contagem</h2></div><div class="bd stack"><div class="sub">Todo item precisa de pelo menos duas contagens físicas, feitas por pessoas diferentes, mesmo que a 1ª bata com o ERP. O saldo do ERP é só referência: o item fecha quando duas contagens são iguais, e só então é comparado com o ERP. Se a 1ª e a 2ª diferirem, vem a 3ª; se ainda não houver duas iguais, vem a 4ª. Sem consenso na 4ª, você decide na aba Divergências.</div>'+
     '<div class="note info"><b>Trava:</b> a mesma pessoa nunca faz duas contagens do mesmo produto (1ª, 2ª, 3ª ou 4ª). O app esconde da pessoa os itens que ela já contou e avisa aqui quando você escolhe um responsável que já contou itens do grupo.</div></div></div></div>';
   h+=relHtml(ops)+vBusca();
@@ -2891,7 +2888,7 @@ async function setTeam(sk,k,on){
 }
 
 let _relLast='';
-function relRefresh(){const h=$('#rel-body'),h2=$('#rel-body2');if(!h||!S.meta)return;const pb=$('#pause-body');if(pb){const pt=pauseBody();if(pb.innerHTML!==pt)pb.innerHTML=pt}const a=document.activeElement;if(a&&a.closest&&(a.closest('#rel-body')||a.closest('#rel-body2')))return;const ops=knownOps(),n=relBody(ops,false),n2=relBody(ops,true),n3=relClosedBody(),h3=$('#rel-closed');if(n+'§'+n2+'§'+n3!==_relLast){_relLast=n+'§'+n2+'§'+n3;h.innerHTML=n;if(h2)h2.innerHTML=n2;if(h3)h3.innerHTML=n3}}
+function relRefresh(){const h=$('#rel-body'),h2=$('#rel-body2');if(!h||!S.meta)return;const tb=$('#team-body');if(tb){const tt=teamBody();if(tb.innerHTML!==tt)tb.innerHTML=tt}const pb=$('#pause-body');if(pb){const pt=pauseBody();if(pb.innerHTML!==pt)pb.innerHTML=pt}const a=document.activeElement;if(a&&a.closest&&(a.closest('#rel-body')||a.closest('#rel-body2')))return;const ops=knownOps(),n=relBody(ops,false),n2=relBody(ops,true),n3=relClosedBody(),h3=$('#rel-closed');if(n+'§'+n2+'§'+n3!==_relLast){_relLast=n+'§'+n2+'§'+n3;h.innerHTML=n;if(h2)h2.innerHTML=n2;if(h3)h3.innerHTML=n3}}
 
 const adm={};
 function defAddr(it){if(!it)return'';for(let i=it.cnt.length-1;i>=0;i--)if(it.cnt[i].a)return it.cnt[i].a;return addrsFor(it)[0]||''}
@@ -3792,6 +3789,37 @@ async function addToInv(){
   }
   if(S.imp)S.imp.busy=false;
   draw(true);
+}
+
+/* ===== card Equipe: quem está contando e quem está disponível ===== */
+function teamData(){
+  const now=Date.now(),shs=manualShelves(),isOp=k=>{const u=S.users&&S.users.get&&S.users.get(k);return !u||u.role==='op'};
+  const ops=knownOps().filter(o=>o.key!=='*'&&isOp(o.key)).map(o=>{const h=S.hb.get(o.key)||{};return{key:o.key,name:o.name,online:!!(h.t&&now-h.t<100000),pending:Number(h.pending)||0,bl:h.bl||{}}});
+  const byKey=new Map(ops.map(o=>[o.key,o]));
+  const going=[];
+  for(const sh of shs){
+    const tm=teamOf(sh.key).filter(k=>k!=='*');if(!tm.length)continue;
+    const mem=tm.map(k=>{const o=byKey.get(k)||{key:k,name:nameOfKey(k),online:false,pending:0,bl:{}};const x=o.bl[sh.key]||{n:0,c:0};return{o,n:x.n||0,c:!!x.c}});
+    if(mem.every(m=>m.c))continue;
+    going.push({sh,mem});
+  }
+  const busy=new Set();going.forEach(g=>g.mem.forEach(m=>{if(!m.c)busy.add(m.o.key)}));
+  const free=ops.filter(o=>!busy.has(o.key)).map(o=>({o,done:shs.filter(sh=>teamOf(sh.key).includes(o.key)&&(o.bl[sh.key]||{}).c)}));
+  return{going:going.sort((a,b)=>a.sh.name.localeCompare(b.sh.name,'pt',{numeric:true})||(a.sh.r2?1:0)-(b.sh.r2?1:0)),free:free.sort((a,b)=>(b.o.online-a.o.online)||a.o.name.localeCompare(b.o.name,'pt'))};
+}
+function teamBody(){
+  let D;try{D=teamData()}catch(e){return'<div class="sub">Sem dados da equipe ainda.</div>'}
+  const dot=o=>o.online?'<span title="online agora">🟢</span>':'<span title="sem sinal nos últimos minutos">⚪</span>';
+  const rd=sh=>sh.r2?'<span class="chip warn">2ª</span>':'<span class="chip">1ª</span>';
+  const g=D.going.length?D.going.map(x=>'<div style="padding:6px 0;border-top:1px solid var(--line,#e3e8e3)"><b>📍 '+esc(x.sh.name)+'</b> '+rd(x.sh)+' <span class="sub">'+x.mem.filter(m=>m.c).length+' de '+x.mem.length+' fecharam</span><div>'+x.mem.map(m=>'<span style="display:inline-block;margin:2px 10px 2px 0">'+(m.c?'✅':dot(m.o))+' '+esc(m.o.name)+' <span class="sub">· '+m.n+(m.c?' · fechou':(m.n?' contados':' · ainda não começou'))+(m.o.pending?' · ⏳ '+m.o.pending+' sem enviar':'')+'</span></span>').join('')+'</div></div>').join(''):'<div class="sub">Nenhuma equipe contando agora.</div>';
+  const f=D.free.length?D.free.map(x=>'<span style="display:inline-block;margin:3px 12px 3px 0">'+dot(x.o)+' <b>'+esc(x.o.name)+'</b> <span class="sub">'+(x.done.length?'· fechou '+esc(x.done.map(s=>s.name+(s.r2?' (2ª)':'')).join(', ')):'· sem prateleira')+'</span></span>').join(''):'<div class="sub">Ninguém disponível: todos estão com contagem em andamento.</div>';
+  const on=D.free.filter(x=>x.o.online).length;
+  return'<div class="row" style="gap:8px;flex-wrap:wrap"><span class="chip warn">🔄 '+D.going.length+' '+(D.going.length===1?'prateleira em contagem':'prateleiras em contagem')+'</span><span class="chip ok">✅ '+D.free.length+' '+(D.free.length===1?'pessoa disponível':'pessoas disponíveis')+(D.free.length?' ('+on+' online)':'')+'</span></div>'+
+    '<div><h3 style="margin:8px 0 2px;font-size:14px">🔄 Em contagem</h3>'+g+'</div>'+
+    '<div><h3 style="margin:8px 0 2px;font-size:14px">✅ Disponíveis para uma nova prateleira</h3><div>'+f+'</div><div class="sub">Disponível = não tem nenhuma prateleira aberta. 🟢 online agora · ⚪ sem sinal. Libere a próxima prateleira no card abaixo.</div></div>';
+}
+function teamCard(){
+  return'<div class="card"><div class="hd"><h2>👥 Equipe</h2><button class="btn sm" data-act="tab" data-v="usuarios">👤 Cadastrar operadores e senhas</button></div><div class="bd stack"><div id="team-body">'+teamBody()+'</div></div></div>';
 }
 
 
