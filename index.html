@@ -263,7 +263,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 28</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 29</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -2711,7 +2711,7 @@ function paintBlind(){
       (l.length?'<div class="card"><div class="bd feed">'+l.map(e=>{const it=blItem(e.id);return it?'<div class="ev"><div style="min-width:0"><b class="mono">'+esc(it.code)+'</b> '+esc(it.desc)+'<div class="sub">'+fmtQ(e.q)+' '+esc(it.un)+' · '+esc(e.ad||'')+'</div></div></div>':''}).join('')+'</div></div>':''):
     (l.length?'<div class="card"><div class="hd"><h2>Contagem desta prateleira</h2><span class="sub">'+l.length+' '+(l.length===1?'produto':'produtos')+' · '+(pendQ?'enviando…':'tudo enviado ao gestor')+'</span></div><div class="bd stack">'+
       '<div class="sub">Cada produto já vai para o gestor assim que você adiciona. Você ainda pode corrigir as quantidades até fechar a prateleira.</div>'+
-      l.map(e=>{const it=blItem(e.id);if(!it)return'';const m={s:blStat(e)},lock=it.state==='closed';
+      l.map(e=>{const it=blItem(e.id);if(!it)return'';const m={s:blStat(e)},lock=blLocked(it);
         return'<div class="it'+(e.mv?' has':'')+'" data-bid="'+esc(e.id)+'"><div style="min-width:0"><div class="tags"><span class="tag c">'+esc(it.code)+'</span>'+(e.mv?'<span class="tag s">⚠ informado: '+esc(e.ad||'—')+'</span>':'<span class="tag s">✓ '+esc(e.ad)+'</span>')+'</div><div class="desc">'+esc(it.desc)+'</div><div class="sub">'+(m&&m.s===1?'✓ enviado':'⏳ na fila de envio')+(lock?' · item concluído pela apuração (fale com o gestor para alterar)':'')+'</div>'+(lock?'':'<button class="lnk" type="button" data-act="bldel" data-id="'+esc(e.id)+'" style="color:#b3261e">🗑 remover da contagem</button>')+'</div>'+
         '<div class="in"><input class="qty" type="text" inputmode="decimal" autocomplete="off" data-chg="blq" data-id="'+esc(e.id)+'" value="'+esc(fmtIn(e.q))+'"'+(lock?' disabled':'')+' aria-label="Quantidade de '+esc(it.code)+'"><span class="un">'+esc(it.un)+'</span></div></div>'}).join('')+
       '<button class="btn primary" data-act="blclose" style="min-height:48px;font-size:15px">✅ Fechar prateleira ('+l.length+' '+(l.length===1?'produto':'produtos')+')</button><div class="sub">Feche só quando não houver mais nada para alterar.</div></div></div>':'');
@@ -2720,6 +2720,7 @@ const roundOfShelf=k=>String(k).endsWith('@2')?2:1;
 function blTotal(id,r){const b=blAll();let t=0;for(const k of Object.keys(b)){if(k[0]==='~'||k[0]==='!'||roundOfShelf(k)!==r)continue;const e=(b[k]||[]).find(x=>x.id===id);if(e)t+=Number(e.q)||0}return normQ(t)}
 function blAddrs(id,r){const b=blAll(),o=[];for(const k of Object.keys(b)){if(k[0]==='~'||k[0]==='!'||roundOfShelf(k)!==r)continue;const e=(b[k]||[]).find(x=>x.id===id);if(e&&e.ad&&!o.includes(e.ad))o.push(e.ad)}return o.join(' + ')}
 /* quem já contou o produto: lê os registros agrupados por rodada (cada um com 'parts') */
+const blLocked=it=>!!(it.manual||blRoundInfo(it).legacy);
 function blRoundInfo(it){
   const o={r1n:0,r2n:0,r1ok:[],legacy:false,r2:false};
   it.cnt.forEach((c,i)=>{
@@ -2757,20 +2758,20 @@ function blSearch(){
   const ex=blList(sk).find(e=>e.id===it.id);
   if(ex){res.innerHTML='<div class="note info"><b>'+esc(it.code)+' já está na lista desta prateleira.</b> Altere a quantidade lá embaixo.</div>';inp.value='';const q=$('[data-bid="'+ex.id.replace(/"/g,'')+'"] input');if(q){q.scrollIntoView({block:'center'});q.focus();q.select()}return}
   const sh0=blShelf(),rnd=sh0&&sh0.r2?2:1;
-  let extra='',need=false;
+  let extra='',need=false,pre='';
   const bl=blRoundInfo(it);   /* quem já contou este produto, por rodada */
   const mineOther=Object.keys(blAll()).find(k=>k[0]!=='~'&&k[0]!=='!'&&k!==sk&&roundOfShelf(k)===rnd&&blList(k).some(e=>e.id===it.id));
   const head='<b>'+esc(it.code)+' — '+esc(it.desc)+'</b><br>';
   if(rnd===2){
-    if(it.state==='pend'&&!bl.r2){res.innerHTML='<div class="note warn">'+head+'Este produto ainda não passou pela 1ª contagem, então não entra na 2ª. Avise o gestor se ele está nesta prateleira.</div>';return}
+    if(it.state==='pend'&&!bl.r2)pre='<div class="note warn">⚠ <b>Este produto não foi contado na 1ª contagem.</b> Conte normalmente: sua contagem será registrada e ele continuará aguardando a confirmação de outra pessoa.</div>';
     if(bl.r1ok.includes(myKey())){res.innerHTML='<div class="note warn">'+head+'Você fez a 1ª contagem deste produto, então outra pessoa precisa fazer a 2ª. Deixe este para a equipe.</div>';return}
   }
-  if(bl.legacy||['rec3','rec4','sem','closed'].includes(it.state)){res.innerHTML='<div class="note warn">'+head+'Este item já está em recontagem ou foi concluído pelo gestor'+(it.state==='closed'?' (concluído)':'')+'. Fale com o gestor antes de contar de novo.</div>';return}
+  if(blLocked(it)){res.innerHTML='<div class="note warn">'+head+'Este item já está em recontagem (3ª ou 4ª contagem) ou foi concluído pelo gestor. Fale com o gestor antes de contar de novo.</div>';return}
   if(mineOther){extra='<div class="note info">➕ <b>Você já contou este produto na prateleira '+esc(manualName(mineOther))+'.</b> Conte só o que há <b>neste local</b>: a quantidade será somada à que você já informou.</div>'}
   else if(rnd===1&&bl.r1n){extra='<div class="note warn">➕ <b>Outra pessoa já contou este produto</b> (em outro local ou nesta prateleira). Se há mais unidades aqui, conte <b>só as que você está vendo</b>: elas serão somadas.</div>';need=true}
   else if(rnd===2&&bl.r2n){extra='<div class="note warn">➕ <b>Outra pessoa já contou este produto na 2ª contagem.</b> Se há mais unidades aqui, conte <b>só as que você está vendo</b>: elas serão somadas.</div>';need=true}
   const sh=blShelf(),ads=addrsFor(it),match=ads.some(a=>addrOnShelf(a,sh?sh.name:''));
-  res.innerHTML='<div class="stack" style="gap:10px" data-bres="'+esc(it.id)+'" data-need="'+(need?1:0)+'" data-ads="'+esc(ads.join(' | '))+'">'+extra+(need?'<label style="display:flex;gap:8px;align-items:flex-start;min-height:44px"><input type="checkbox" id="blextra" style="margin-top:4px"> <span>Confirmo: são <b>unidades diferentes</b> das já contadas (outro local).</span></label>':'')+'<div class="desc"><span class="tag c">'+esc(it.code)+'</span> <b>'+esc(it.desc)+'</b></div>'+
+  res.innerHTML='<div class="stack" style="gap:10px" data-bres="'+esc(it.id)+'" data-need="'+(need?1:0)+'" data-ads="'+esc(ads.join(' | '))+'">'+pre+extra+(need?'<label style="display:flex;gap:8px;align-items:flex-start;min-height:44px"><input type="checkbox" id="blextra" style="margin-top:4px"> <span>Confirmo: são <b>unidades diferentes</b> das já contadas (outro local).</span></label>':'')+'<div class="desc"><span class="tag c">'+esc(it.code)+'</span> <b>'+esc(it.desc)+'</b></div>'+
     '<div class="sub">Unidade de medida: <b>'+esc(it.un||'—')+'</b></div>'+
     (ads.length?'<div class="note info">📍 Endereço cadastrado: <b style="font-size:17px">'+ads.map(esc).join(' | ')+'</b><br>Este produto está mesmo nesse endereço?'+'</div>':
       '<div class="note warn">📍 <b>Sem endereço cadastrado</b> para este produto. '+(S.canEdit||abHas()?'':'(A base de endereços ainda não chegou ao seu aparelho; avise o gestor.) ')+'Digite o endereço completo onde ele está (ex.: P6-A-B1).</div>')+
@@ -2805,7 +2806,7 @@ function blSetQty(id,val,el){
   const q=parseQty(val);
   if(!isFinite(q)||q<0){toast('Quantidade inválida');if(el)el.value=fmtIn(e.q);return}
   if(normQ(q)===normQ(e.q))return;
-  if(it.state==='closed'){toast('Este item já foi concluído; fale com o gestor');if(el)el.value=fmtIn(e.q);return}
+  if(blLocked(it)){toast('Este item já foi concluído ou está em recontagem; fale com o gestor');if(el)el.value=fmtIn(e.q);return}
   const t=Date.now(),old=S.local.map[id]||{};
   e.q=normQ(q);e.t=t;
   S.local.map[id]={q:blTotal(id,roundOfShelf(sk)),t,s:0,ch:it.ch,op:S.name,r:0,rd:old.rd||roundLabel(it),a:blAddrs(id,roundOfShelf(sk)),p:e.p||'',k:sk,ks:blKs(id,roundOfShelf(sk))};
@@ -3710,7 +3711,7 @@ function blDelete(id){
   const sk=S.opView.shelf,l=blList(sk),i=l.findIndex(x=>x.id===id),it=blItem(id);
   if(i<0||!it)return;
   if(blClosed(sk)){toast('Prateleira fechada: peça ao gestor para reabrir');return}
-  if(it.state==='closed'){toast('Este item já foi concluído; fale com o gestor');return}
+  if(blLocked(it)){toast('Este item já foi concluído ou está em recontagem; fale com o gestor');return}
   if(!confirmOnce('bldel'+sk+id)){toast('Toque de novo em "remover" para tirar '+it.code+' da contagem',4000);return}
   const e=l[i];l.splice(i,1);
   if(e.mv){S.fl.list=S.fl.list.filter(x=>x.id!==id);persistF()}
