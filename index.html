@@ -263,7 +263,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 32</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 33</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -1351,7 +1351,7 @@ function divRows(){
   return list.slice(0,300).map(it=>{const k=dvKey(it);
     return'<tr><td class="mono">'+esc(it.code)+'</td><td class="wc">'+esc(it.desc)+'</td><td>'+esc(locTxt(it))+'</td>'+
     [0,1,2,3].map(i=>'<td class="num">'+(it.cnt[i]?fmtQ(it.cnt[i].q)+'<div class="sub">'+esc(it.cnt[i].op)+(it.cnt[i].pend?' · no celular':'')+'</div>':'<span class="sub">—</span>')+'</td>').join('')+
-    '<td>'+divChip(it)+(k==='rec3'||k==='rec4'?assignCell(it):'')+
+    '<td>'+divChip(it)+(k==='rec3'||k==='rec4'||k==='f1'||k==='f2'?assignCell(it):'')+
     ((k==='sem'||k==='rec3'||k==='rec4')?'<div class="row" style="margin-top:6px;flex-wrap:nowrap;gap:6px"><input type="text" inputmode="decimal" style="width:84px;min-height:30px;padding:3px 8px" id="fin-'+esc(it.id)+'" placeholder="Qtd final" aria-label="Quantidade final de '+esc(it.code)+'"><button class="btn sm" data-act="setfinal" data-id="'+esc(it.id)+'">Definir</button></div>':'')+'</td>'+
     '<td>'+((k==='res'||k==='dec')?'<button class="btn sm" data-act="reopen" data-id="'+esc(it.id)+'" title="Descarta as contagens atuais deste item e recomeça da 1ª">Zerar e recontar</button>':'')+'</td></tr>'}).join('')+(list.length>300?'<tr><td colspan="9" class="sub" style="text-align:center">Mostrando 300 de '+list.length+'. A planilha traz todos.</td></tr>':'');
 }
@@ -1388,7 +1388,7 @@ function vDiv(){
   if(!S.meta)return noInv();
   const all=divItems(),f=S.filter;
   const n=k=>all.filter(it=>dvKey(it)===k).length;
-  return assignBar()+'<div class="kpis">'+kpi('Divergências entre contagens',fmtN(all.filter(it=>!/^f[12]$/.test(dvKey(it))).length),'itens cujas contagens não bateram','r')+kpi('Aguardando 3ª',fmtN(n('rec3')),'1ª ≠ 2ª','a')+kpi('Aguardando 4ª',fmtN(n('rec4')),'3 contagens sem igualdade','a')+kpi('Sem consenso',fmtN(n('sem')),'você decide a quantidade','r')+kpi('Resolvidas',fmtN(n('res')+n('dec')),'duas contagens iguais ou decisão sua','g')+'</div>'+nfDivCard()+
+  return assignBar()+faltaCard()+'<div class="kpis">'+kpi('Divergências entre contagens',fmtN(all.filter(it=>!/^f[12]$/.test(dvKey(it))).length),'itens cujas contagens não bateram','r')+kpi('Aguardando 3ª',fmtN(n('rec3')),'1ª ≠ 2ª','a')+kpi('Aguardando 4ª',fmtN(n('rec4')),'3 contagens sem igualdade','a')+kpi('Sem consenso',fmtN(n('sem')),'você decide a quantidade','r')+kpi('Resolvidas',fmtN(n('res')+n('dec')),'duas contagens iguais ou decisão sua','g')+'</div>'+nfDivCard()+
   '<div class="card"><div class="bd stack"><div class="sub">Aqui a divergência é só entre as contagens físicas (1ª a 4ª). O saldo do ERP não é usado. Itens contados só na 1ª ou só na 2ª aparecem nos filtros "Só na 1ª" e "Só na 2ª".</div><div class="row"><div class="field" style="flex:1;min-width:200px"><label for="qdiv">BUSCAR</label><input type="search" id="qdiv" data-inp="qdiv" placeholder="Código ou descrição" value="'+esc(S.q.div)+'"></div>'+depSelect()+divGrpSelect()+'<button class="btn" data-act="csv-div">⬇ Exportar CSV</button><button class="btn" data-act="xl-div">⬇ Planilha .xlsx</button></div>'+
     '<div class="filters">'+[['todas','Todas'],['rec3','Aguarda 3ª'],['rec4','Aguarda 4ª'],['sem','Sem consenso'],['f1','Só na 1ª ('+n('f1')+')'],['f2','Só na 2ª ('+n('f2')+')'],['res','Resolvidas'],['dec','Decisão do supervisor'],['reab','Recontagem pedida']].map(([k,l])=>'<button class="btn sm" data-act="filter" data-v="'+k+'" aria-pressed="'+(f===k)+'">'+l+'</button>').join('')+'</div>'+
     '<div class="scroll"><table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th>Local</th><th>1ª</th><th>2ª</th><th>3ª</th><th>4ª</th><th>Status</th><th></th></tr></thead><tbody id="div-body">'+divRows()+'</tbody></table></div></div></div>';
@@ -3846,6 +3846,23 @@ function divGrpSelect(){
   const l=[...m.entries()].sort((a,b)=>a[0].localeCompare(b[0],'pt',{numeric:true}));
   if(S.q.dgrp&&!m.has(S.q.dgrp))S.q.dgrp='';
   return'<div class="field" style="min-width:220px"><label for="dgrp">GRUPO</label><select id="dgrp" data-chg="dgrp"><option value="">Todos os grupos</option>'+l.map(([g,n])=>'<option value="'+esc(g)+'"'+(S.q.dgrp===g?' selected':'')+'>'+esc(g)+' ('+n+')</option>').join('')+'</select></div>';
+}
+
+/* ===== Divergências: quem vai fazer a contagem que falta (itens só na 1ª ou só na 2ª) ===== */
+function faltaCard(){
+  const ops=knownOps().filter(o=>S.ops.has(o.key));
+  const pend=[...S.items.values()].filter(it=>it.state==='rec2'),un=pend.filter(it=>!it.asg);
+  if(!pend.length)return'';
+  const g0=S.q.dgrp||'';
+  const grp=[...new Set(un.map(it=>it.grp||'(Sem grupo)'))].sort((a,b)=>a.localeCompare(b,'pt',{numeric:true}));
+  const by=new Map();pend.forEach(it=>{if(it.asg){const k=it.asg==='*'?'(qualquer operador)':((ops.find(o=>o.key===it.asg)||{}).name||it.asg);by.set(k,(by.get(k)||0)+1)}});
+  const n1=pend.filter(it=>dvKey(it)==='f1').length,n2=pend.filter(it=>dvKey(it)==='f2').length;
+  return'<div class="card"><div class="hd"><h2>🎯 Quem fará a contagem que falta</h2><span class="sub">'+n1+' só na 1ª · '+n2+' só na 2ª · '+un.length+' sem responsável</span></div><div class="bd stack">'+
+    '<div class="sub">Para os itens contados só uma vez (filtros "Só na 1ª" e "Só na 2ª"): escolha quem vai contar o que falta. O item aparece no celular da pessoa em <b>Contagem → recontagem</b>, e fica de fora quem já contou o item. Você também pode escolher o responsável item a item, na coluna Status.</div>'+
+    '<div class="row"><div class="field"><label for="s2op">RESPONSÁVEL</label><select id="s2op"><option value="">Escolha…</option>'+ops.map(o=>'<option value="'+esc(o.key)+'">'+esc(o.name)+'</option>').join('')+'</select></div>'+
+    '<div class="field"><label for="s2g">GRUPO</label><select id="s2g"><option value="">Todos os grupos</option>'+grp.map(g=>'<option'+(g===g0?' selected':'')+'>'+esc(g)+'</option>').join('')+'</select></div>'+
+    '<button class="btn primary" data-act="second-bulk">Atribuir os itens sem responsável</button><button class="btn" data-act="second-any">Liberar para qualquer operador elegível</button></div>'+
+    (by.size?'<div class="sub">Já atribuídos: '+[...by.entries()].map(([k,n])=>'<b>'+esc(k)+'</b> ('+n+')').join(' · ')+'</div>':'')+'</div></div>';
 }
 
 
