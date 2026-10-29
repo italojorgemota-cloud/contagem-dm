@@ -263,7 +263,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 31</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 32</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -1306,14 +1306,17 @@ function vItens(){
 /* divergência = só entre as contagens (1ª a 4ª); o saldo do ERP não entra */
 function dvKey(it){
   if(it.state==='pend')return it.reopened?'reab':null;
+  if(it.state==='rec2'){const c=it.cnt[0];return c&&c.rnd===2?'f2':'f1'}
   if(it.state==='rec3'||it.state==='rec4'||it.state==='sem')return it.state;
   if(it.state==='closed'){const q=it.cnt.map(c=>normQ(c.q));if(it.manual)return'dec';if(q.some(x=>x!==q[0]))return'res'}
   return null;
 }
 function divItems(){return[...S.items.values()].filter(it=>dvKey(it))}
-const DV_ORD={sem:0,rec4:1,rec3:2,reab:3,dec:4,res:5};
+const DV_ORD={sem:0,rec4:1,rec3:2,f1:3,f2:4,reab:5,dec:6,res:7};
 function divChip(it){
   const k=dvKey(it);
+  if(k==='f1')return'<span class="chip warn">⏳ Só na 1ª: falta a 2ª contagem</span>';
+  if(k==='f2')return'<span class="chip warn">⏳ Só na 2ª: falta a 1ª contagem</span>';
   if(k==='reab')return'<span class="chip warn">🔁 Recontagem solicitada</span>';
   if(k==='rec3')return'<span class="chip warn">⚠ Aguarda 3ª (1ª ≠ 2ª)</span>';
   if(k==='rec4')return'<span class="chip warn">⚠ Aguarda 4ª contagem</span>';
@@ -1385,13 +1388,13 @@ function vDiv(){
   if(!S.meta)return noInv();
   const all=divItems(),f=S.filter;
   const n=k=>all.filter(it=>dvKey(it)===k).length;
-  return assignBar()+'<div class="kpis">'+kpi('Divergências entre contagens',fmtN(all.length),'itens cujas contagens não bateram','r')+kpi('Aguardando 3ª',fmtN(n('rec3')),'1ª ≠ 2ª','a')+kpi('Aguardando 4ª',fmtN(n('rec4')),'3 contagens sem igualdade','a')+kpi('Sem consenso',fmtN(n('sem')),'você decide a quantidade','r')+kpi('Resolvidas',fmtN(n('res')+n('dec')),'duas contagens iguais ou decisão sua','g')+'</div>'+nfDivCard()+
-  '<div class="card"><div class="bd stack"><div class="sub">Aqui a divergência é só entre as contagens físicas (1ª a 4ª). O saldo do ERP não é usado.</div><div class="row"><div class="field" style="flex:1;min-width:200px"><label for="qdiv">BUSCAR</label><input type="search" id="qdiv" data-inp="qdiv" placeholder="Código ou descrição" value="'+esc(S.q.div)+'"></div>'+depSelect()+divGrpSelect()+'<button class="btn" data-act="csv-div">⬇ Exportar CSV</button><button class="btn" data-act="xl-div">⬇ Planilha .xlsx</button></div>'+
-    '<div class="filters">'+[['todas','Todas'],['rec3','Aguarda 3ª'],['rec4','Aguarda 4ª'],['sem','Sem consenso'],['res','Resolvidas'],['dec','Decisão do supervisor'],['reab','Recontagem pedida']].map(([k,l])=>'<button class="btn sm" data-act="filter" data-v="'+k+'" aria-pressed="'+(f===k)+'">'+l+'</button>').join('')+'</div>'+
+  return assignBar()+'<div class="kpis">'+kpi('Divergências entre contagens',fmtN(all.filter(it=>!/^f[12]$/.test(dvKey(it))).length),'itens cujas contagens não bateram','r')+kpi('Aguardando 3ª',fmtN(n('rec3')),'1ª ≠ 2ª','a')+kpi('Aguardando 4ª',fmtN(n('rec4')),'3 contagens sem igualdade','a')+kpi('Sem consenso',fmtN(n('sem')),'você decide a quantidade','r')+kpi('Resolvidas',fmtN(n('res')+n('dec')),'duas contagens iguais ou decisão sua','g')+'</div>'+nfDivCard()+
+  '<div class="card"><div class="bd stack"><div class="sub">Aqui a divergência é só entre as contagens físicas (1ª a 4ª). O saldo do ERP não é usado. Itens contados só na 1ª ou só na 2ª aparecem nos filtros "Só na 1ª" e "Só na 2ª".</div><div class="row"><div class="field" style="flex:1;min-width:200px"><label for="qdiv">BUSCAR</label><input type="search" id="qdiv" data-inp="qdiv" placeholder="Código ou descrição" value="'+esc(S.q.div)+'"></div>'+depSelect()+divGrpSelect()+'<button class="btn" data-act="csv-div">⬇ Exportar CSV</button><button class="btn" data-act="xl-div">⬇ Planilha .xlsx</button></div>'+
+    '<div class="filters">'+[['todas','Todas'],['rec3','Aguarda 3ª'],['rec4','Aguarda 4ª'],['sem','Sem consenso'],['f1','Só na 1ª ('+n('f1')+')'],['f2','Só na 2ª ('+n('f2')+')'],['res','Resolvidas'],['dec','Decisão do supervisor'],['reab','Recontagem pedida']].map(([k,l])=>'<button class="btn sm" data-act="filter" data-v="'+k+'" aria-pressed="'+(f===k)+'">'+l+'</button>').join('')+'</div>'+
     '<div class="scroll"><table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th>Local</th><th>1ª</th><th>2ª</th><th>3ª</th><th>4ª</th><th>Status</th><th></th></tr></thead><tbody id="div-body">'+divRows()+'</tbody></table></div></div></div>';
 }
 function dvExportRows(){
-  const L={rec3:'Aguarda 3ª contagem',rec4:'Aguarda 4ª contagem',sem:'Sem consenso',res:'Resolvida',dec:'Decisão do supervisor',reab:'Recontagem solicitada'};
+  const L={f1:'Contado só na 1ª (falta a 2ª)',f2:'Contado só na 2ª (falta a 1ª)',rec3:'Aguarda 3ª contagem',rec4:'Aguarda 4ª contagem',sem:'Sem consenso',res:'Resolvida',dec:'Decisão do supervisor',reab:'Recontagem solicitada'};
   return divItems().filter(it=>!S.q.dgrp||dvGrp(it)===S.q.dgrp).sort((a,b)=>(DV_ORD[dvKey(a)]-DV_ORD[dvKey(b)])||byLoc(a,b)).map(it=>{const o={codigo:it.code,desc:it.desc,un:it.un,loc:locTxt(it),sit:L[dvKey(it)],final:it.state==='closed'?it.final:null};
     [0,1,2,3].forEach(i=>{const c=it.cnt[i];o['c'+(i+1)]=c?c.q:null;o['o'+(i+1)]=c?c.op:''});return o});
 }
