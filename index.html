@@ -263,7 +263,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 30</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 31</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -2731,11 +2731,16 @@ function blRoundInfo(it){
   return o;
 }
 function blMerge(l){
-  const out=[],g={};let nk=0;
+  const out=[],g={},hasK={1:false,2:false},lg={1:false,2:false};
+  for(const c of l)if(c.k)hasK[roundOfShelf(c.k)]=true;
   for(const c of l){
     let r;
-    if(!c.k){nk++;if(nk>2){out.push(c);continue}r=nk}   /* contagens antigas (sem prateleira): 1ª e 2ª entram como partes */
-    else r=roundOfShelf(c.k);
+    if(!c.k){
+      /* sem prateleira = contagem antiga (1ª/2ª) ou recontagem (3ª/4ª): só vira parte da 1ª/2ª se essa rodada ainda não tem contagem por prateleira */
+      r=1;while(r<=2&&(hasK[r]||lg[r]))r++;
+      if(r>2){out.push(c);continue}
+      lg[r]=true;
+    }else r=roundOfShelf(c.k);
     let x=g[r];
     const part={q:c.q,t:c.t,op:c.op,a:c.a,p:c.p,k:c.k,ks:c.ks,dev:c.dev};
     if(!x){x=g[r]={q:0,t:c.t,t0:c.t,op:'',ok:c.ok,oks:[],dev:c.dev,pend:false,a:'',p:'',rnd:r,parts:[],k:c.k};out.push(x)}
