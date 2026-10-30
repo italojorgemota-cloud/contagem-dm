@@ -264,7 +264,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 35</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 39</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -700,7 +700,7 @@ function hbPayload(){return{name:S.name,pending:pendingList().length,drafts:draf
 function pushHeartbeat(force){
   if(!S.db||!S.name||!S.session)return;
   const p=hbPayload(),s=JSON.stringify(p),now=Date.now();
-  if(!force&&s===lastHb&&now-lastHbT<90000)return;
+  if(!force&&s===lastHb&&now-lastHbT<25000)return;
   lastHb=s;lastHbT=now;
   S.db.doc('ops/'+myKey()).set(Object.assign({role:'op',t:now},p)).catch(()=>{});
 }
@@ -831,7 +831,7 @@ async function init(){
   }
   S.ready=true;draw();pushPresence(true);
   setInterval(()=>{if(S.online){if(pendingList().length)flush();if(xPending().length)flushX();if(fPending().length)flushF();if(adPending().length)flushAd()}updateSync()},15000);
-  setInterval(()=>{if(!document.hidden)pushPresence(true)},120000);
+  setInterval(()=>pushPresence(true),45000);
   setInterval(()=>{if(S.isAdmin)peersChanged()},15000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){flush();flushX();flushF();flushAd();pushPresence(true)}});
 }
@@ -1347,10 +1347,11 @@ function divRows(){
   if(S.dep)list=list.filter(it=>it.sk===S.dep);
   if(S.q.dgrp)list=list.filter(it=>dvGrp(it)===S.q.dgrp);
   if(q)list=list.filter(it=>(it.code+' '+it.desc).toLowerCase().includes(q));
-  list.sort((a,b)=>(DV_ORD[dvKey(a)]-DV_ORD[dvKey(b)])||byLoc(a,b));
+  list.sort((a,b)=>dvGrp(a).localeCompare(dvGrp(b),'pt',{numeric:true})||(DV_ORD[dvKey(a)]-DV_ORD[dvKey(b)])||byLoc(a,b));
   if(!list.length)return'<tr><td colspan="9" class="empty">Nenhum item nesta situação.</td></tr>';
-  return list.slice(0,300).map(it=>{const k=dvKey(it);
-    return'<tr><td class="mono">'+esc(it.code)+'</td><td class="wc">'+esc(it.desc)+'</td><td>'+esc(locTxt(it))+'</td>'+
+  let _lg=null;
+  return list.slice(0,300).map(it=>{const k=dvKey(it);const g=dvGrp(it);let hd='';if(g!==_lg){_lg=g;const n=list.filter(x=>dvGrp(x)===g).length;hd='<tr><td colspan="9" style="background:var(--bg2,#eef2f0);font-weight:700">'+esc(g)+' · '+n+' item(ns)</td></tr>'}
+    return hd+'<tr><td class="mono">'+esc(it.code)+'</td><td class="wc">'+esc(it.desc)+'</td><td>'+esc(locTxt(it))+'</td>'+
     [0,1,2,3].map(i=>'<td class="num">'+(it.cnt[i]?fmtQ(it.cnt[i].q)+'<div class="sub">'+esc(it.cnt[i].op)+(it.cnt[i].pend?' · no celular':'')+'</div>':'<span class="sub">—</span>')+'</td>').join('')+
     '<td>'+divChip(it)+(k==='rec3'||k==='rec4'||k==='f1'||k==='f2'?assignCell(it):'')+
     ((k==='sem'||k==='rec3'||k==='rec4')?'<div class="row" style="margin-top:6px;flex-wrap:nowrap;gap:6px"><input type="text" inputmode="decimal" style="width:84px;min-height:30px;padding:3px 8px" id="fin-'+esc(it.id)+'" placeholder="Qtd final" aria-label="Quantidade final de '+esc(it.code)+'"><button class="btn sm" data-act="setfinal" data-id="'+esc(it.id)+'">Definir</button></div>':'')+'</td>'+
@@ -3236,13 +3237,15 @@ function nfLeft(){
 function nfDivCard(){
   const l=nfLeft(),cl=(S.gstat&&S.meta&&S.gstat.inv===S.meta.inv&&S.gstat.closed)||{};
   const nClosed=Object.values(cl).filter(Boolean).length,nNf=l.filter(x=>x.st==='nao').length,nOut=l.filter(x=>x.closed).length;
-  const byG=new Map();l.forEach(x=>{let o=byG.get(x.grp);if(!o){o={n:x.grp,c:x.closed,l:[]};byG.set(x.grp,o)}o.l.push(x)});
+  const byG=new Map();l.forEach(x=>{const gn=grpCanon(x.grp);let o=byG.get(gn);if(!o){o={n:gn,c:x.closed,l:[]};byG.set(gn,o)}if(x.closed)o.c=true;o.l.push(x)});
+  const nfc=S.nfc||{};
   const row=x=>'<tr><td class="mono">'+esc(x.code)+'</td><td class="wc">'+esc(x.desc)+'</td><td>'+esc(x.loc)+'</td><td><span class="chip '+B_CHIP[x.st]+'">'+B_TXT[x.st]+'</span>'+(x.op?'<div class="sub">'+esc(x.op)+' · '+fmtDT(x.t)+'</div>':'')+'</td><td style="white-space:nowrap"><button class="btn sm" data-act="nfreq" data-id="'+esc(x.it.id)+'" title="Pede para a equipe procurar este produto">🔎 '+(x.st==='busca'?'Pedir de novo':'Pedir busca')+'</button> <button class="btn sm" data-act="bzero" data-id="'+esc(x.it.id)+'">Fechar como 0</button>'+(x.st==='nao'?' <button class="btn sm" data-act="nfclear" data-id="'+esc(x.it.id)+'" data-fk="1" data-ak="" title="Tira a marcação e devolve o item para a contagem">Devolver</button>':'')+'</td></tr>';
   return'<div class="card"><div class="hd"><h2>🚫 Produtos não localizados e que ficaram de fora</h2><span class="sub">apuração após o encerramento dos grupos</span><span class="sp" style="flex:1"></span><button class="btn sm" data-act="nfxl2"'+(l.length?'':' disabled')+'>⬇ Exportar .xlsx</button></div><div class="bd stack">'+
     (l.length?'<div class="row" style="align-items:flex-end"><div class="field"><label for="nfto">PEDIR BUSCA PARA</label><select id="nfto" data-chg="nfto"><option value="*">Todos os operadores</option>'+knownOps().filter(o=>S.ops.has(o.key)).map(o=>'<option value="'+esc(o.key)+'"'+(S.q.nfto===o.key?' selected':'')+'>'+esc(o.name)+'</option>').join('')+'</select></div><button class="btn primary" data-act="nfreqall">🔎 Pedir busca de todos os da lista ('+l.filter(x=>x.st!=='busca').length+')</button><span class="sub">a equipe recebe o pedido no celular e responde "achei" ou "não encontrado"</span></div>':'')+'<div class="kpis">'+kpi('Grupos encerrados',fmtN(nClosed),'já podem ser apurados')+kpi('Ficaram de fora',fmtN(nOut),'sem contagem em grupo encerrado',nOut?'r':'g')+kpi('Não localizados',fmtN(nNf),'marcados pelo coletor',nNf?'r':'g')+'</div>'+
-    (l.length?[...byG.values()].map(o=>'<details class="lsg" open><summary><span class="chip '+(o.c?'bad':'warn')+'" style="cursor:pointer">'+esc(o.n)+' · '+o.l.length+' produto(s) '+(o.c?'· grupo encerrado':'· grupo em andamento')+' ▾</span></summary><div class="scroll"><table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th>Local</th><th>Situação</th><th></th></tr></thead><tbody>'+o.l.map(row).join('')+'</tbody></table></div></details>').join(''):'<div class="sub">'+(nClosed?'Nenhum produto ficou de fora nos grupos encerrados.':'Nenhum grupo foi encerrado ainda. Quando você encerrar um grupo (aba Dashboard, "Andamento por grupo"), os produtos que ficaram sem contagem aparecem aqui.')+'</div>')+
+    (l.length?[...byG.values()].map(o=>'<details class="lsg" data-nfg="'+esc(o.n)+'"'+(nfc[o.n]?'':' open')+'><summary><span class="chip '+(o.c?'bad':'warn')+'" style="cursor:pointer">'+esc(o.n)+' · '+o.l.length+' produto(s) '+(o.c?'· grupo encerrado':'· grupo em andamento')+' ▾</span></summary><div class="scroll"><table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th>Local</th><th>Situação</th><th></th></tr></thead><tbody>'+o.l.map(row).join('')+'</tbody></table></div></details>').join(''):'<div class="sub">'+(nClosed?'Nenhum produto ficou de fora nos grupos encerrados.':'Nenhum grupo foi encerrado ainda. Quando você encerrar um grupo (aba Dashboard, "Andamento por grupo"), os produtos que ficaram sem contagem aparecem aqui.')+'</div>')+
     '</div></div>';
 }
+document.addEventListener('toggle',e=>{const d=e.target;if(d&&d.dataset&&d.dataset.nfg!==undefined){S.nfc=S.nfc||{};S.nfc[d.dataset.nfg]=!d.open}},true);
 function exportNf2(){
   if(typeof XLSX==='undefined'){toast('Biblioteca de planilhas não carregou');return}
   const l=nfLeft();if(!l.length){toast('Nada para exportar');return}
@@ -3638,7 +3641,7 @@ function relProducts(sh){
   }
   return rows.sort((a,b)=>String(a.code).localeCompare(String(b.code),'pt',{numeric:true}));
 }
-function relClosedBody(){
+function relClosedBody0(){
   const G=relGroups();
   if(!G.length)return'<div class="empty">Nenhuma equipe fechou prateleira até agora.</div>';
   S.relx=S.relx||new Set();
@@ -3650,6 +3653,7 @@ function relClosedBody(){
       (g.done&&open?'<tr><td colspan="4"><div class="scroll"><table class="tbl"><thead><tr><th>Código / Produto</th><th>UN</th><th class="r">Qtd</th><th>Endereço</th><th>Contado por</th></tr></thead><tbody>'+(P.length?P.map(x=>'<tr><td class="wc"><span class="mono sub">'+esc(x.code)+'</span><br>'+esc(x.desc)+'</td><td>'+esc(x.un)+'</td><td class="r num">'+fmtQ(x.q)+'</td><td>'+esc(x.a)+'</td><td>'+esc(x.op)+'</td></tr>').join(''):'<tr><td colspan="5" class="sub">Sem produtos com esta prateleira registrada (contagens feitas antes desta versão não trazem o detalhe por prateleira).</td></tr>')+'</tbody></table></div></td></tr>':'');
   }).join('')+'</tbody></table></div>';
 }
+function relClosedBody(){return relClosedBody0()+relRecBody()}
 function relReportInfo(sk){
   const g=relGroups().find(x=>x.sh.key===sk);if(!g)return null;
   return{g,P:relProducts(g.sh),names:g.mem.map(nameOfKey),title:'Relatório de contagem — prateleira '+g.sh.name+' — '+(g.sh.r2?'2ª':'1ª')+' contagem'};
@@ -3841,7 +3845,16 @@ function teamCard(){
 }
 
 /* ===== Divergências: filtro por grupo ===== */
-const dvGrp=it=>it.grp||(it.xo?'(Fora do estoque)':'(Sem grupo)');
+const _gc=x=>{const g=String(x||'').trim();const m=g.match(/^(\S+)\s+[—–-]\s+/);return m?m[1]:(/^\S+$/.test(g)?g:'')};
+let _gcache={n:-1,m:null};
+function grpCanon(g){
+  if(!g)return g;
+  if(_gcache.n!==S.items.size||!_gcache.m){const m=new Map();
+    for(const it of S.items.values()){const c=_gc(it.grp);if(!c)continue;const o=m.get(c);if(!o||String(it.grp).length>o.length)m.set(c,String(it.grp).trim())}
+    _gcache={n:S.items.size,m}}
+  const c=_gc(g);return(c&&_gcache.m.get(c))||g;
+}
+const dvGrp=it=>it.grp?grpCanon(it.grp):(it.xo?'(Fora do estoque)':'(Sem grupo)');
 function divGrpSelect(){
   const m=new Map();for(const it of divItems()){const g=dvGrp(it);m.set(g,(m.get(g)||0)+1)}
   const l=[...m.entries()].sort((a,b)=>a[0].localeCompare(b[0],'pt',{numeric:true}));
@@ -3956,6 +3969,61 @@ function indExport(){
   const oc=[{h:'Colaborador',k:'name',w:22},{h:'Contagens',k:'n',w:11},{h:'1ªs contagens',k:'first',w:13},{h:'Ritmo (por hora)',k:'rate',w:14},{h:'Tempo médio entre contagens (min)',k:'avg',w:26},{h:'Tempo ativo (min)',k:'act',w:16},{h:'Concordância %',k:'ag',w:14}];
   XLSX.utils.book_append_sheet(wb,mkSheet(D.ops.map(o=>({name:o.name,n:o.n,first:o.first,rate:o.rate?Math.round(o.rate):null,avg:o.avg!=null?Math.round(o.avg*10)/10:null,act:Math.round(o.act),ag:o.agreeN?Math.round(o.agree/o.agreeN*1000)/10:null})),oc),'Colaboradores');
   saveXlsx(wb,'Indicadores_'+fileBase().slice(11)+'.xlsx');
+}
+
+/* ===== Relatório da equipe — 3ª e 4ª contagem (por rodada e por coletor) ===== */
+function relRecRows(){
+  const m=new Map(),dn=new Set();
+  try{relGroups().forEach(g=>{if(g.sh.r2&&g.done)dn.add(g.sh.name)})}catch(e){}
+  for(const it of S.items.values())it.cnt.forEach((c,i)=>{
+    if(i<1)return;
+    /* 2ª contagem feita por prateleira e já listada no card acima não repete aqui */
+    if(i===1&&c.parts&&c.parts.some(p=>dn.has(p.p||'')))return;
+    const n=i+1,k=n+'|'+c.ok;
+    let g=m.get(k);if(!g){g={key:k,n,ok:c.ok,name:c.op,rows:[],last:0};m.set(k,g)}
+    g.rows.push({code:it.code,desc:it.desc,un:it.un||'',q:normQ(c.q),a:c.a||'',sh:it.shelf||'',t:c.t});if(c.t>g.last)g.last=c.t;
+  });
+  const l=[...m.values()];l.forEach(g=>g.rows.sort((a,b)=>String(a.code).localeCompare(String(b.code),'pt',{numeric:true})));
+  return l.sort((a,b)=>a.n-b.n||String(a.name).localeCompare(String(b.name),'pt'));
+}
+function relRecBody(){
+  const L=relRecRows();
+  if(!L.length)return'';
+  S.relrx=S.relrx||new Set();
+  return'<h3 style="margin:18px 0 6px">🔁 2ª, 3ª e 4ª contagem feitas pela lista de itens</h3><div class="sub" style="margin-bottom:6px">Contagens que o gestor atribuiu item a item (e 2ª contagens não fechadas por prateleira). Aqui o relatório sai por rodada e por pessoa.</div><div class="scroll"><table class="tbl"><thead><tr><th>Rodada</th><th>Equipe</th><th class="r">Produtos</th><th>Relatório da equipe</th></tr></thead><tbody>'+L.map(g=>{
+    const open=S.relrx.has(g.key);
+    return'<tr><td><span class="chip '+(g.n>=4?'bad':'warn')+'">'+g.n+'ª contagem</span></td><td class="wc"><b>'+esc(g.name)+'</b><div class="sub">último envio '+fmtDT(g.last)+'</div></td><td class="r num">'+fmtN(g.rows.length)+'</td><td><button class="btn sm" data-act="relrx" data-k="'+esc(g.key)+'">'+(open?'▲ Ocultar':'▼ Ver')+'</button> <button class="btn sm" data-act="relrxl" data-k="'+esc(g.key)+'">⬇ XLSX</button> <button class="btn sm" data-act="relrpdf" data-k="'+esc(g.key)+'">⬇ PDF</button></td></tr>'+
+    (open?'<tr><td colspan="4"><div class="scroll"><table class="tbl"><thead><tr><th>Código / Produto</th><th>UN</th><th class="r">Qtd</th><th>Endereço</th><th>Prateleira</th></tr></thead><tbody>'+g.rows.map(x=>'<tr><td class="wc"><span class="mono sub">'+esc(x.code)+'</span><br>'+esc(x.desc)+'</td><td>'+esc(x.un)+'</td><td class="r num">'+fmtQ(x.q)+'</td><td>'+esc(x.a)+'</td><td>'+esc(x.sh)+'</td></tr>').join('')+'</tbody></table></div></td></tr>':'');
+  }).join('')+'</tbody></table></div>';
+}
+function relRecInfo(key){const g=relRecRows().find(x=>x.key===key);return g?{g,title:'Relatório de contagem — '+g.n+'ª contagem (recontagem) — '+g.name,fn:'Relatorio_'+g.n+'a_contagem_'+String(g.name).replace(/[^\w-]+/g,'_')+'_'+new Date().toISOString().slice(0,10)}:null}
+function relRecXlsx(key){
+  if(typeof XLSX==='undefined'){toast('Biblioteca de planilhas não carregou');return}
+  const R=relRecInfo(key);if(!R)return;
+  const aoa=[[R.title],['Equipe: '+R.g.name],['Gerado em: '+new Date().toLocaleString('pt-BR')],[],['Código','Descrição','UN','Quantidade','Endereço','Prateleira']];
+  R.g.rows.forEach(x=>aoa.push([x.code,x.desc,x.un,x.q,x.a,x.sh]));
+  aoa.push([],['Total de produtos: '+R.g.rows.length],[],['Assinatura:'],[],['______________________________  '+R.g.name]);
+  const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:16},{wch:50},{wch:7},{wch:12},{wch:24},{wch:24}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Relatório');saveXlsx(wb,R.fn+'.xlsx');
+}
+function relRecPdf(key){
+  const J=window.jspdf&&window.jspdf.jsPDF;
+  if(!J){toast('Biblioteca de PDF não carregou. Verifique a conexão e recarregue.',4000);return}
+  if(!S.dl){toast('Download indisponível nesta visualização');return}
+  const R=relRecInfo(key);if(!R)return;
+  const doc=new J({orientation:'portrait',unit:'mm',format:'a4'});
+  if(typeof doc.autoTable!=='function'){toast('Biblioteca de tabela do PDF não carregou.',4000);return}
+  doc.setProperties({title:R.title,author:'Italo Santos',creator:IP_TXT});
+  doc.setFontSize(14);doc.text(R.title,10,12,{maxWidth:190});
+  doc.setFontSize(8);doc.text('Gerado em '+new Date().toLocaleString('pt-BR')+' · '+R.g.rows.length+' produto(s)',10,24);
+  doc.autoTable({head:[['Código','Descrição','UN','Qtd','Endereço','Prateleira']],body:R.g.rows.map(x=>[x.code,x.desc,x.un,fmtQ(x.q),x.a,x.sh]),startY:28,margin:{left:10,right:10,bottom:14},theme:'grid',
+    styles:{fontSize:8,cellPadding:1.3,overflow:'linebreak',lineWidth:.1,lineColor:[200,205,200]},headStyles:{fillColor:[47,127,21],textColor:255,fontSize:8},
+    columnStyles:{0:{cellWidth:24},1:{cellWidth:'auto'},2:{cellWidth:10},3:{cellWidth:18,halign:'right'},4:{cellWidth:30},5:{cellWidth:28}},
+    didDrawPage:()=>{doc.setFontSize(7);doc.text(IP_TXT,10,doc.internal.pageSize.getHeight()-5);doc.text('Página '+doc.internal.getNumberOfPages(),doc.internal.pageSize.getWidth()-10,doc.internal.pageSize.getHeight()-5,{align:'right'})}});
+  let y=(doc.lastAutoTable&&doc.lastAutoTable.finalY||28)+16;const H=doc.internal.pageSize.getHeight();
+  doc.setFontSize(9);if(y+20>H-14){doc.addPage();y=20}
+  doc.text('Assinatura:',10,y);y+=14;doc.line(10,y,100,y);doc.text(R.g.name,10,y+5);doc.line(110,y,190,y);doc.text('Data',110,y+5);
+  S.dl.save({filename:R.fn+'.pdf',data:doc.output('blob')}).then(()=>toast('Arquivo salvo')).catch(e=>{if(!e||e.code!=='declined')toast('Não foi possível salvar o arquivo')});
 }
 
 /* ============ importação do ERP ============ */
@@ -4326,6 +4394,9 @@ const ACT={
   blcancel(){const r=$('#blres');if(r)r.innerHTML='';const c=$('#blcode');if(c){c.value='';c.focus()}},
   relx(b){S.relx=S.relx||new Set();const k=b.dataset.sk;if(S.relx.has(k))S.relx.delete(k);else S.relx.add(k);const h=$('#rel-closed');if(h)h.innerHTML=relClosedBody()},
   relxl(b){relReportXlsx(b.dataset.sk)},
+  relrx(b){S.relrx=S.relrx||new Set();const k=b.dataset.k;if(S.relrx.has(k))S.relrx.delete(k);else S.relrx.add(k);const h=$('#rel-closed');if(h)h.innerHTML=relClosedBody()},
+  relrxl(b){relRecXlsx(b.dataset.k)},
+  relrpdf(b){relRecPdf(b.dataset.k)},
   relpdf(b){relReportPdf(b.dataset.sk)},
   bldel(b){blDelete(b.dataset.id)},
   async pausetoggle(){const was=pauseOn();if(!confirmOnce('pausetg')){toast(was?'Toque de novo para retomar a contagem':'Toque de novo para pausar a contagem de todos',4000);return}await setAssignKey('pause',was?'':Date.now());const h=$('#pause-body');if(h)h.innerHTML=pauseBody();toast(was?'Contagem retomada':'Contagem pausada')},
