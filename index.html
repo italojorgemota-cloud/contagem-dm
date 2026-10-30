@@ -264,7 +264,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 39</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 40</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -428,6 +428,7 @@ function statusKey(it){if(it.state==='closed')return it.div?'conf':'ok';if(it.st
 const STATE_CHIP={reab:'warn',pend:'',rec2:'warn',rec3:'warn',rec4:'warn',sem:'bad',ok:'ok',conf:'bad'};
 
 /* ============ derivação ============ */
+function exKey(g){const m=String(g||'').trim().match(/^(\S+)\s+[—–-]\s+/);return m?'c:'+m[1]:(/^\S+$/.test(String(g||'').trim())?'c:'+String(g).trim():slug(g))}
 function rebuild(){
   const inv=S.meta&&S.meta.inv;
   const items=new Map(),shelves=new Map();
@@ -460,6 +461,11 @@ function rebuild(){
    for(const d of cats.values()){const id='x:'+zc(d.code);if(items.has(id))continue;
      let sh=shelves.get('xfora');if(!sh){sh={key:'xfora',name:'Fora do estoque',items:[],chunks:[]};shelves.set('xfora',sh)}
      const o={id,ch:9999,sk:'xfora',shelf:'Fora do estoque',sec:'',code:d.code,desc:d.desc,un:d.un||'',wh:'',grp:d.grp||'',h:null,erp:null,cost:null,cnt:[],xo:true};items.set(id,o);sh.items.push(o)}}
+  {const ex=(S.gstat&&S.gstat.inv===inv&&S.gstat.excl)||{};
+   if(Object.values(ex).some(Boolean)){
+    for(const [id,o] of [...items]){if(o.grp&&ex[exKey(o.grp)])items.delete(id)}
+    for(const [k,sh] of [...shelves]){sh.items=sh.items.filter(o=>items.has(o.id));if(!sh.items.length)shelves.delete(k)}
+   }}
   const rt=(S.resets&&S.resets.inv===inv&&S.resets.items)||{};
   const hist=new Map(),push=(id,c)=>{let l=hist.get(id);if(!l){l=[];hist.set(id,l)}l.push(c)};
   for(const d of S.counts.values()){
@@ -1270,8 +1276,10 @@ function vDashboard(){
     for(const it of S.items.values()){const g=it.grp||'(Sem grupo)';let o=gm.get(g);if(!o){o={n:g,tot:0,cont:0,closed:0,pend:0,busca:0};gm.set(g,o)}o.tot++;if(it.state==='pend'){o.pend++;if(it.sreq&&(!it.find||it.find.t<it.sreq.t))o.busca++}else o.cont++;if(it.state==='closed')o.closed++}
     const cl=(S.gstat&&S.gstat.inv===S.meta.inv&&S.gstat.closed)||{};
     h+='<div class="card"><div class="hd"><h2>🗂️ Andamento por grupo</h2><span class="sub">'+gm.size+' grupos</span></div><div class="bd scroll"><table class="tbl"><thead><tr><th>Grupo</th><th class="r">Itens</th><th>Andamento</th><th class="r">Contados</th><th class="r">Fechados</th><th class="r">Sem contagem</th><th class="r">Em busca</th><th></th></tr></thead><tbody>'+
-      [...gm.values()].sort((a,b)=>a.n.localeCompare(b.n,'pt',{numeric:true})).map(o=>{const k=slug(o.n),done=!!cl[k];return'<tr><td><b>'+esc(o.n)+'</b></td><td class="r num">'+o.tot+'</td><td style="min-width:120px"><div class="prog split"><b style="width:'+pct(o.closed,o.tot)+'%;background:var(--ok)"></b><b style="width:'+pct(o.cont-o.closed,o.tot)+'%;background:var(--warn)"></b></div></td><td class="r num">'+o.cont+'</td><td class="r num">'+o.closed+'</td><td class="r num">'+(o.pend?'<span class="neg">'+o.pend+'</span>':'0')+'</td><td class="r num">'+o.busca+'</td><td>'+(done?'<span class="chip ok">✓ Encerrado</span> <button class="btn sm" data-act="gclose" data-k="'+esc(k)+'" data-n="'+esc(o.n)+'" data-v="0">Reabrir</button>':'<button class="btn sm" data-act="gclose" data-k="'+esc(k)+'" data-n="'+esc(o.n)+'" data-v="1" data-open="'+(o.tot-o.closed)+'">Encerrar grupo</button>')+'</td></tr>'}).join('')+'</tbody></table></div></div>';
+      [...gm.values()].sort((a,b)=>a.n.localeCompare(b.n,'pt',{numeric:true})).map(o=>{const k=slug(o.n),done=!!cl[k];return'<tr><td><b>'+esc(o.n)+'</b></td><td class="r num">'+o.tot+'</td><td style="min-width:120px"><div class="prog split"><b style="width:'+pct(o.closed,o.tot)+'%;background:var(--ok)"></b><b style="width:'+pct(o.cont-o.closed,o.tot)+'%;background:var(--warn)"></b></div></td><td class="r num">'+o.cont+'</td><td class="r num">'+o.closed+'</td><td class="r num">'+(o.pend?'<span class="neg">'+o.pend+'</span>':'0')+'</td><td class="r num">'+o.busca+'</td><td>'+(done?'<span class="chip ok">✓ Encerrado</span> <button class="btn sm" data-act="gclose" data-k="'+esc(k)+'" data-n="'+esc(o.n)+'" data-v="0">Reabrir</button>':'<button class="btn sm" data-act="gclose" data-k="'+esc(k)+'" data-n="'+esc(o.n)+'" data-v="1" data-open="'+(o.tot-o.closed)+'">Encerrar grupo</button>')+' <button class="btn sm" data-act="gexcl" data-k="'+esc(exKey(o.n))+'" data-n="'+esc(o.n)+'" data-v="1" data-c="'+o.tot+'" title="Tira o grupo da contagem e de todos os relatórios">🗑 Excluir grupo</button></td></tr>'}).join('')+'</tbody></table></div></div>';
   }
+  {const ex=(S.gstat&&S.gstat.inv===S.meta.inv&&S.gstat.excl)||{},el=Object.entries(ex).filter(e=>e[1]);
+   if(el.length)h+='<div class="card"><div class="hd"><h2>🗑 Grupos excluídos da contagem</h2><span class="sub">não aparecem na contagem nem nos relatórios</span></div><div class="bd stack">'+el.map(([k,v])=>'<div class="row" style="align-items:center"><b>'+esc(v.n||k)+'</b><span class="sub">'+fmtDT(v.t)+'</span><button class="btn sm" data-act="gexcl" data-k="'+esc(k)+'" data-n="'+esc(v.n||k)+'" data-v="0">↩ Restaurar</button></div>').join('')+'</div></div>';}
   const ok=st.okAll,cf=st.conf,rc=st.rec2+st.rec3+st.rec4+st.sem;
   h+='<div class="card"><div class="bd stack" style="gap:8px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h2>Progresso geral da contagem</h2><span class="sub">'+fmtN(st.counted)+' de '+fmtN(st.total)+' itens receberam ao menos uma contagem</span></div><div class="prog split"><b style="width:'+pct(ok,st.total)+'%;background:var(--ok)"></b><b style="width:'+pct(cf,st.total)+'%;background:var(--bad)"></b><b style="width:'+pct(rc,st.total)+'%;background:var(--warn)"></b></div><div class="sub">Verde: conferido · Vermelho: divergência confirmada · Amarelo: aguardando recontagem</div></div></div>';
   const sh=[...st.shelves.values()].sort((a,b)=>a.name.localeCompare(b.name,'pt',{numeric:true}));
@@ -4457,6 +4465,13 @@ const ACT={
     const p=it.moved.split('/').map(x=>x.trim()),shelf=p[0],sec=p.slice(1).join(' / ');
     if(!shelf){toast('Endereço inválido');return}
     try{await addrSet(it.code,shelf,sec);toast('Endereço atualizado na base')}catch(e){toast('Não foi possível atualizar a base')}
+  },
+  async gexcl(b){
+    const k=b.dataset.k,n=b.dataset.n,v=b.dataset.v==='1',c=Number(b.dataset.c||0);
+    if(v&&!confirmOnce('gx'+k)){toast('Excluir "'+n+'" ('+c+' itens)? Some da contagem e de todos os relatórios. Toque de novo para confirmar',4500);return}
+    const cur={...((S.gstat&&S.gstat.inv===S.meta.inv&&S.gstat.excl)||{})};
+    if(v)cur[k]={n,t:Date.now()};else delete cur[k];
+    try{await writeDoc(S.db.doc('gstat/current'),{inv:S.meta.inv,excl:cur});toast(v?'Grupo excluído':'Grupo restaurado')}catch(e){toast('Não foi possível salvar')}
   },
   async gclose(b){
     const k=b.dataset.k,n=Number(b.dataset.n||0),v=b.dataset.v==='1';
