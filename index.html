@@ -218,6 +218,7 @@ if(!CFG.apiKey||/COLE/i.test(CFG.apiKey)||typeof firebase==='undefined'){
 }
 firebase.initializeApp(CFG);
 const auth=firebase.auth(),fs=firebase.firestore();
+try{fs.enablePersistence({synchronizeTabs:true}).catch(function(){})}catch(e){}
 try{fs.settings({ignoreUndefinedProperties:true,experimentalAutoDetectLongPolling:true})}catch(e){}
 const FP=firebase.firestore.FieldPath;
 const ERR={'not-found':'invalid_argument','already-exists':'invalid_argument'};
@@ -263,7 +264,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 33</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 35</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -699,7 +700,7 @@ function hbPayload(){return{name:S.name,pending:pendingList().length,drafts:draf
 function pushHeartbeat(force){
   if(!S.db||!S.name||!S.session)return;
   const p=hbPayload(),s=JSON.stringify(p),now=Date.now();
-  if(!force&&s===lastHb&&now-lastHbT<25000)return;
+  if(!force&&s===lastHb&&now-lastHbT<90000)return;
   lastHb=s;lastHbT=now;
   S.db.doc('ops/'+myKey()).set(Object.assign({role:'op',t:now},p)).catch(()=>{});
 }
@@ -830,7 +831,7 @@ async function init(){
   }
   S.ready=true;draw();pushPresence(true);
   setInterval(()=>{if(S.online){if(pendingList().length)flush();if(xPending().length)flushX();if(fPending().length)flushF();if(adPending().length)flushAd()}updateSync()},15000);
-  setInterval(()=>pushPresence(true),45000);
+  setInterval(()=>{if(!document.hidden)pushPresence(true)},120000);
   setInterval(()=>{if(S.isAdmin)peersChanged()},15000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){flush();flushX();flushF();flushAd();pushPresence(true)}});
 }
@@ -3746,7 +3747,7 @@ function blDelete(id){
 const pauseOn=()=>!!(S.meta&&S.assign&&S.assign.inv===S.meta.inv&&S.assign.map&&Number(S.assign.map.pause)>0);
 function pausePend(){
   const out=[],now=Date.now();
-  for(const [k,h] of S.hb){if(!h||!h.name||!(h.t>now-90000))continue;if(h.role==='gestor')continue;const n=Number(h.pending)||0;if(n>0)out.push(h.name+' ('+n+')')}
+  for(const [k,h] of S.hb){if(!h||!h.name||!(h.t>now-300000))continue;if(h.role==='gestor')continue;const n=Number(h.pending)||0;if(n>0)out.push(h.name+' ('+n+')')}
   return out;
 }
 function pauseBody(){
@@ -3811,7 +3812,7 @@ async function addToInv(){
 /* ===== card Equipe: quem está contando e quem está disponível ===== */
 function teamData(){
   const now=Date.now(),shs=manualShelves(),isOp=k=>{const u=S.users&&S.users.get&&S.users.get(k);return !u||u.role==='op'};
-  const ops=knownOps().filter(o=>o.key!=='*'&&isOp(o.key)).map(o=>{const h=S.hb.get(o.key)||{};return{key:o.key,name:o.name,online:!!(h.t&&now-h.t<100000),pending:Number(h.pending)||0,bl:h.bl||{}}});
+  const ops=knownOps().filter(o=>o.key!=='*'&&isOp(o.key)).map(o=>{const h=S.hb.get(o.key)||{};return{key:o.key,name:o.name,online:!!(h.t&&now-h.t<300000),pending:Number(h.pending)||0,bl:h.bl||{}}});
   const byKey=new Map(ops.map(o=>[o.key,o]));
   const going=[];
   for(const sh of shs){
@@ -3840,7 +3841,7 @@ function teamCard(){
 }
 
 /* ===== Divergências: filtro por grupo ===== */
-const dvGrp=it=>it.grp||'(Sem grupo)';
+const dvGrp=it=>it.grp||(it.xo?'(Fora do estoque)':'(Sem grupo)');
 function divGrpSelect(){
   const m=new Map();for(const it of divItems()){const g=dvGrp(it);m.set(g,(m.get(g)||0)+1)}
   const l=[...m.entries()].sort((a,b)=>a[0].localeCompare(b[0],'pt',{numeric:true}));
@@ -3854,7 +3855,7 @@ function faltaCard(){
   const pend=[...S.items.values()].filter(it=>it.state==='rec2'),un=pend.filter(it=>!it.asg);
   if(!pend.length)return'';
   const g0=S.q.dgrp||'';
-  const grp=[...new Set(un.map(it=>it.grp||'(Sem grupo)'))].sort((a,b)=>a.localeCompare(b,'pt',{numeric:true}));
+  const grp=[...new Set(un.map(it=>dvGrp(it)))].sort((a,b)=>a.localeCompare(b,'pt',{numeric:true}));
   const by=new Map();pend.forEach(it=>{if(it.asg){const k=it.asg==='*'?'(qualquer operador)':((ops.find(o=>o.key===it.asg)||{}).name||it.asg);by.set(k,(by.get(k)||0)+1)}});
   const n1=pend.filter(it=>dvKey(it)==='f1').length,n2=pend.filter(it=>dvKey(it)==='f2').length;
   return'<div class="card"><div class="hd"><h2>🎯 Quem fará a contagem que falta</h2><span class="sub">'+n1+' só na 1ª · '+n2+' só na 2ª · '+un.length+' sem responsável</span></div><div class="bd stack">'+
@@ -4215,7 +4216,7 @@ const ACT={
   async 'second-bulk'(){
     const k=($('#s2op')||{}).value,g=($('#s2g')||{}).value;if(!k){toast('Escolha o responsável');return}
     const map={};let skip=0;
-    for(const it of S.items.values())if(it.state==='rec2'&&!it.asg&&(!g||(it.grp||'(Sem grupo)')===g)){if(eligible(it,k))map[it.id]=k;else skip++}
+    for(const it of S.items.values())if(it.state==='rec2'&&!it.asg&&(!g||dvGrp(it)===g)){if(eligible(it,k))map[it.id]=k;else skip++}
     const n=await setThird(map);if(n||skip)toast(n+' atribuído(s)'+(skip?' · '+skip+' ignorado(s): a pessoa fez a 1ª contagem':''),4000)
   },
   async 'second-sel'(){
