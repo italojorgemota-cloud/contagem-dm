@@ -267,7 +267,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 53</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 54</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -2716,7 +2716,7 @@ function qCardGestor(){
 /* ============ contagem às cegas por prateleira (equipe) ============ */
 const teamOf=sk=>{const a=(S.assign&&S.meta&&S.assign.inv===S.meta.inv&&S.assign.map)||{};return String(a['s:'+sk]||'').split('|').filter(Boolean)};
 const manualShelves=()=>{const a=(S.assign&&S.meta&&S.assign.inv===S.meta.inv&&S.assign.map)||{};return Object.entries(a).filter(([k,v])=>k.startsWith('sn:')&&v).map(([k,v])=>({key:k.slice(3),name:String(v),r2:k.endsWith('@2'),items:[]})).sort((x,y)=>x.name.localeCompare(y.name,'pt',{numeric:true}))};
-const shName=s=>s.name+(s.r2?' · 2ª contagem':'');
+const shName=s=>s.name+(s.r2?' · 2ª contagem':' · 1ª contagem');
 const manualName=k=>(manualShelves().find(s=>s.key===k)||{}).name||'';
 const inTeam=(sk,k)=>{const t=teamOf(sk);return t.includes(k)||t.includes('*')};
 function blAll(){
@@ -2756,7 +2756,7 @@ function drawBlind(host,ro){
       '<div style="display:flex;align-items:center;gap:10px"><button class="back" data-act="opage" data-v="locais">‹ Locais</button><span class="sp" style="flex:1"></span></div>'+
       '<div><h1 class="hero">📍 '+esc(shName(sh))+'</h1><div class="sub" id="blteam"></div></div>'+
       '<div class="card" id="blsearch"><div class="bd stack"><div class="field"><label for="blcode">CÓDIGO DO PRODUTO</label><div class="row" style="gap:8px;flex-wrap:nowrap"><input type="text" id="blcode" autocomplete="off" autocapitalize="characters" enterkeyhint="search" placeholder="Digite o código ou leia o QR" style="flex:1"><button class="btn" id="blqrbtn" type="button" data-qrscan="1" aria-label="Ler QR code com a câmera" title="Ler QR code">📷</button><button class="btn primary" data-act="blfind">Buscar</button></div></div>'+
-      '<div class="sub">'+(blShelf()&&blShelf().r2?'<b>2ª contagem:</b> conte de novo, às cegas, tudo o que estiver nesta prateleira. ':'')+'Conte tudo o que estiver nesta prateleira, em qualquer ordem. Digite o código de cada produto para abrir a ficha dele.</div><div id="blres"></div></div></div>'+
+      '<div class="sub">'+(blShelf()&&blShelf().r2?'<b>2ª contagem:</b> conte de novo, às cegas, tudo o que estiver nesta prateleira. ':'<b>1ª contagem:</b> ')+'Conte tudo o que estiver nesta prateleira, em qualquer ordem. Digite o código de cada produto para abrir a ficha dele.</div><div id="blres"></div></div></div>'+
       '<div id="bllist"></div><div id="blsent"></div>';
   }
   paintBlind();
