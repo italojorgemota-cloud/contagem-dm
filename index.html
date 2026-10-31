@@ -183,6 +183,7 @@ body.op .main{padding-bottom:210px;max-width:640px}
 
 <div id="app"></div>
 <div id="toast" aria-live="polite"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
@@ -264,7 +265,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 40</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 44</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -463,9 +464,13 @@ function rebuild(){
      const o={id,ch:9999,sk:'xfora',shelf:'Fora do estoque',sec:'',code:d.code,desc:d.desc,un:d.un||'',wh:'',grp:d.grp||'',h:null,erp:null,cost:null,cnt:[],xo:true};items.set(id,o);sh.items.push(o)}}
   {const ex=(S.gstat&&S.gstat.inv===inv&&S.gstat.excl)||{};
    if(Object.values(ex).some(Boolean)){
-    for(const [id,o] of [...items]){if(o.grp&&ex[exKey(o.grp)])items.delete(id)}
+    for(const [id,o] of [...items]){const e=o.grp&&ex[exKey(o.grp)];if(e&&!e.off)items.delete(id)}
     for(const [k,sh] of [...shelves]){sh.items=sh.items.filter(o=>items.has(o.id));if(!sh.items.length)shelves.delete(k)}
    }}
+  {const ce=(S.gstat&&S.gstat.inv===inv&&S.gstat.cedit)||{};
+   for(const id in ce){const it=items.get(id),e=ce[id];if(!it||!e)continue;
+    if(typeof e.vu==='number'&&e.vu>=0){it.cost=e.vu;it.cedV=true}
+    if(typeof e.wh==='string'&&e.wh&&e.wh!=='-'){it.wh=e.wh;it.cedW=true}}}
   const rt=(S.resets&&S.resets.inv===inv&&S.resets.items)||{};
   const hist=new Map(),push=(id,c)=>{let l=hist.get(id);if(!l){l=[];hist.set(id,l)}l.push(c)};
   for(const d of S.counts.values()){
@@ -1140,13 +1145,15 @@ function makeRow(it){
   $('.c',el).textContent=it.code;$('.s',el).textContent=S.opView.kind==='recount'?it.shelf+(it.sec?' / '+it.sec:''):(it.sec||it.shelf);
   if(it.moved)$('.s',el).textContent='📍 '+it.moved;
   $('.desc',el).textContent=it.desc;$('.un',el).textContent=it.un;
-  {const adi=$('.adr',el);adi.addEventListener('input',()=>{adm[it.id]=adi.value.trim()});const z=document.createElement('button');z.type='button';z.className='btn sm nlz';z.hidden=true;z.style.marginTop='8px';z.textContent='Não encontrei este produto (contar 0)';z.onclick=()=>{const q=$('.qty',el);q.value='0';q.dispatchEvent(new Event('input'))};$('.adrow',el).appendChild(z);const ph=document.createElement('div');ph.className='adph';ph.style.marginTop='8px';$('.adrow',el).appendChild(ph)}
+  {const adi=$('.adr',el);adi.addEventListener('input',()=>{adm[it.id]=adi.value.trim()});const z=document.createElement('button');z.type='button';z.className='btn sm nlz';z.hidden=true;z.style.marginTop='8px';z.textContent='Não encontrei este produto (contar 0)';z.onclick=()=>{const q=$('.qty',el);q.value='0';q._zok=true;q.dispatchEvent(new Event('input'));q._zok=false};$('.adrow',el).appendChild(z);const ph=document.createElement('div');ph.className='adph';ph.style.marginTop='8px';$('.adrow',el).appendChild(ph)}
   const inp=$('input',el);inp.setAttribute('aria-label','Quantidade contada de '+it.code+' '+it.desc);
   inp.addEventListener('input',()=>{
     const s=inp.value.trim();
-    if(s===''){setDraft(it,null);el.classList.remove('has');return}
+    if(s===''){inp.style.outline='';setDraft(it,null);el.classList.remove('has');return}
     const q=parseQty(s);
     if(!isFinite(q)||q<0){el.classList.remove('has');return}
+    if(q<=0&&!inp._zok){setDraft(it,null);el.classList.remove('has');inp.style.outline='2px solid var(--bad)';toast('Quantidade precisa ser maior que zero. Se não achou o produto, use o botão "Não encontrei"',4500);return}
+    inp.style.outline='';
     setDraft(it,q,S.opView.kind==='recount'||(S.local.map[it.id]&&S.local.map[it.id].r));
     const m=S.local.map[it.id];el.classList.toggle('has',!!(m&&m.dr!=null));
   });
@@ -1278,7 +1285,7 @@ function vDashboard(){
     h+='<div class="card"><div class="hd"><h2>🗂️ Andamento por grupo</h2><span class="sub">'+gm.size+' grupos</span></div><div class="bd scroll"><table class="tbl"><thead><tr><th>Grupo</th><th class="r">Itens</th><th>Andamento</th><th class="r">Contados</th><th class="r">Fechados</th><th class="r">Sem contagem</th><th class="r">Em busca</th><th></th></tr></thead><tbody>'+
       [...gm.values()].sort((a,b)=>a.n.localeCompare(b.n,'pt',{numeric:true})).map(o=>{const k=slug(o.n),done=!!cl[k];return'<tr><td><b>'+esc(o.n)+'</b></td><td class="r num">'+o.tot+'</td><td style="min-width:120px"><div class="prog split"><b style="width:'+pct(o.closed,o.tot)+'%;background:var(--ok)"></b><b style="width:'+pct(o.cont-o.closed,o.tot)+'%;background:var(--warn)"></b></div></td><td class="r num">'+o.cont+'</td><td class="r num">'+o.closed+'</td><td class="r num">'+(o.pend?'<span class="neg">'+o.pend+'</span>':'0')+'</td><td class="r num">'+o.busca+'</td><td>'+(done?'<span class="chip ok">✓ Encerrado</span> <button class="btn sm" data-act="gclose" data-k="'+esc(k)+'" data-n="'+esc(o.n)+'" data-v="0">Reabrir</button>':'<button class="btn sm" data-act="gclose" data-k="'+esc(k)+'" data-n="'+esc(o.n)+'" data-v="1" data-open="'+(o.tot-o.closed)+'">Encerrar grupo</button>')+' <button class="btn sm" data-act="gexcl" data-k="'+esc(exKey(o.n))+'" data-n="'+esc(o.n)+'" data-v="1" data-c="'+o.tot+'" title="Tira o grupo da contagem e de todos os relatórios">🗑 Excluir grupo</button></td></tr>'}).join('')+'</tbody></table></div></div>';
   }
-  {const ex=(S.gstat&&S.gstat.inv===S.meta.inv&&S.gstat.excl)||{},el=Object.entries(ex).filter(e=>e[1]);
+  {const ex=(S.gstat&&S.gstat.inv===S.meta.inv&&S.gstat.excl)||{},el=Object.entries(ex).filter(e=>e[1]&&!e[1].off);
    if(el.length)h+='<div class="card"><div class="hd"><h2>🗑 Grupos excluídos da contagem</h2><span class="sub">não aparecem na contagem nem nos relatórios</span></div><div class="bd stack">'+el.map(([k,v])=>'<div class="row" style="align-items:center"><b>'+esc(v.n||k)+'</b><span class="sub">'+fmtDT(v.t)+'</span><button class="btn sm" data-act="gexcl" data-k="'+esc(k)+'" data-n="'+esc(v.n||k)+'" data-v="0">↩ Restaurar</button></div>').join('')+'</div></div>';}
   const ok=st.okAll,cf=st.conf,rc=st.rec2+st.rec3+st.rec4+st.sem;
   h+='<div class="card"><div class="bd stack" style="gap:8px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h2>Progresso geral da contagem</h2><span class="sub">'+fmtN(st.counted)+' de '+fmtN(st.total)+' itens receberam ao menos uma contagem</span></div><div class="prog split"><b style="width:'+pct(ok,st.total)+'%;background:var(--ok)"></b><b style="width:'+pct(cf,st.total)+'%;background:var(--bad)"></b><b style="width:'+pct(rc,st.total)+'%;background:var(--warn)"></b></div><div class="sub">Verde: conferido · Vermelho: divergência confirmada · Amarelo: aguardando recontagem</div></div></div>';
@@ -1672,14 +1679,14 @@ function ctrlRow(it){
   const qf=it.state==='closed'?it.final:(it.state==='pend'?null:it.prov);
   const c=i=>it.cnt[i]?it.cnt[i].q:null,e=i=>it.cnt[i]?it.cnt[i].op:'';
   const cost=it.cost||0;
-  return{cod:(it.cad==='solicitado'&&!it.rawCode)?'CADASTRAR PRODUTO':it.code,desc:it.desc,c1:c(0),c2:c(1),c3:c(2),c4:c(3),qf,prov:it.state!=='closed'&&it.state!=='pend',end:lastAddr(it),e1:e(0),e2:e(1),e3:e(2),e4:e(3),arm:it.wh||(S.meta&&S.meta.wh)||'',vu:it.cost==null?null:cost,vt:qf==null?null:Math.round(qf*cost*100)/100};
+  return{zs:it.state==='closed'&&!it.cnt.length&&normQ(it.final)===0&&!!it.manual,id:it.id,dv:it.state==='closed'?!!it.div:null,edV:!!it.cedV,edW:!!it.cedW,cod:(it.cad==='solicitado'&&!it.rawCode)?'CADASTRAR PRODUTO':it.code,desc:it.desc,c1:c(0),c2:c(1),c3:c(2),c4:c(3),qf,prov:it.state!=='closed'&&it.state!=='pend',end:lastAddr(it),e1:e(0),e2:e(1),e3:e(2),e4:e(3),arm:it.wh||(S.meta&&S.meta.wh)||'',vu:it.cost==null?null:cost,vt:qf==null?null:Math.round(qf*cost*100)/100};
 }
 const ctrlTotals=rows=>({n:rows.length,vt:Math.round(rows.reduce((a,r)=>a+(r.vt||0),0)*100)/100,prov:rows.filter(r=>r.prov).length});
 function ctrlTableRows(rows){
   if(!rows.length)return'<tr><td colspan="15" class="empty">Nenhum item para exibir.</td></tr>';
   const q=v=>v==null?'<span class="sub">—</span>':fmtQ(v);
-  return rows.slice(0,300).map(r=>'<tr><td class="mono">'+(r.cod==='CADASTRAR PRODUTO'?'<span class="chip warn">CADASTRAR PRODUTO</span>':esc(r.cod))+'</td><td class="wc">'+esc(r.desc)+'</td><td class="r num">'+q(r.c1)+'</td><td class="r num">'+q(r.c2)+'</td><td class="r num">'+q(r.c3)+'</td><td class="r num">'+q(r.c4)+'</td><td class="r num"><b>'+(r.qf==null?'—':fmtQ(r.qf))+'</b>'+(r.prov?'<span class="sub" title="contagem ainda não fechada"> *</span>':'')+'</td><td>'+esc(r.end)+'</td>'+
-    [r.e1,r.e2,r.e3,r.e4].map(n=>'<td>'+(n?esc(n):'<span class="sub">—</span>')+'</td>').join('')+'<td>'+esc(r.arm||'–')+'</td><td class="r num">'+(r.vu==null?'—':fmtR(r.vu))+'</td><td class="r num"><b>'+(r.vt==null?'—':fmtR(r.vt))+'</b></td></tr>').join('')+(rows.length>300?'<tr><td colspan="15" class="sub" style="text-align:center">Mostrando 300 de '+rows.length+'. A exportação traz todos.</td></tr>':'');
+  return rows.slice(0,300).map(r=>'<tr'+(r.zs?' style="background:var(--bad-soft);font-weight:700;color:var(--bad)"':'')+'><td class="mono">'+(r.cod==='CADASTRAR PRODUTO'?'<span class="chip warn">CADASTRAR PRODUTO</span>':esc(r.cod))+'</td><td class="wc">'+esc(r.desc)+'</td><td class="r num">'+q(r.c1)+'</td><td class="r num">'+q(r.c2)+'</td><td class="r num">'+q(r.c3)+'</td><td class="r num">'+q(r.c4)+'</td><td class="r num"><b'+(!r.zs&&r.qf!=null&&!r.prov&&r.dv!=null?' class="'+(r.dv?'neg':'pos')+'"':'')+'>'+(r.zs?'ZERAR SALDO':r.qf==null?'—':fmtQ(r.qf))+'</b>'+(r.prov?'<span class="sub" title="contagem ainda não fechada"> *</span>':'')+'</td><td>'+esc(r.end)+'</td>'+
+    [r.e1,r.e2,r.e3,r.e4].map(n=>'<td>'+(n?esc(n):'<span class="sub">—</span>')+'</td>').join('')+'<td><input type="text" class="cin" style="width:90px'+(r.edW?';background:var(--warn-soft)':'')+'" data-chg="cedit" data-f="wh" data-id="'+esc(r.id)+'" value="'+esc(r.arm||'')+'" placeholder="–" aria-label="Armazém"></td><td class="r num"><input type="text" inputmode="decimal" class="cin" style="width:84px;text-align:right'+(r.edV?';background:var(--warn-soft)':'')+'" data-chg="cedit" data-f="vu" data-id="'+esc(r.id)+'" value="'+(r.vu==null?'':String(r.vu).replace('.',','))+'" placeholder="informar" aria-label="Valor unitário"></td><td class="r num"><b>'+(r.vt==null?'—':fmtR(r.vt))+'</b></td></tr>').join('')+(rows.length>300?'<tr><td colspan="15" class="sub" style="text-align:center">Mostrando 300 de '+rows.length+'. A exportação traz todos.</td></tr>':'');
 }
 function vCtrl(){
   if(!S.meta)return noInv();
@@ -1692,15 +1699,65 @@ function vCtrl(){
   '<label style="display:flex;gap:8px;align-items:center;font-size:13px"><input type="checkbox" data-chg="call"'+(S.ctrlAll?' checked':'')+'> incluir itens não contados</label></div>'+
   '<div class="row"><button class="btn primary" data-act="ctrl-pdf">⬇ Exportar PDF</button><button class="btn" data-act="ctrl-xlsx">⬇ Exportar XLSX</button><span class="sub">As exportações trazem todos os itens do filtro atual, com o total no final.</span></div>'+
   '<div class="scroll"><table class="tbl"><thead><tr>'+CCOLS.map(c=>'<th'+(c.z?' class="r"':'')+'>'+esc(c.h)+'</th>').join('')+'</tr></thead><tbody id="ctrl-body">'+ctrlTableRows(rows)+'</tbody></table></div>'+
-  '<div class="sub">* Quantidade provisória: o item ainda não fechou (faltam contagens). Valor total = quantidade final × valor unitário do ERP. Equipe = quem fez cada contagem. Itens de aplicação direta (APD) ficam de fora, a menos que você marque "Enviar para a controladoria" no card Aplicação Direta (aba Fora do ERP).</div></div></div>';
+  '<div class="sub">* Quantidade provisória: o item ainda não fechou (faltam contagens). Qtd. final em verde = bate com o saldo do ERP; em vermelho = divergente. Armazém e valor unitário podem ser editados direto na tabela (fundo amarelo = informado por você); o valor total é recalculado. Equipe = quem fez cada contagem. Itens de aplicação direta (APD) ficam de fora, a menos que você marque "Enviar para a controladoria" no card Aplicação Direta (aba Fora do ERP).</div></div></div>';
 }
 const ctrlName=()=>'Controladoria_'+fileBase().slice(11);
 function exportCtrlXlsx(){
-  if(typeof XLSX==='undefined'){toast('Biblioteca de planilhas não carregou');return}
   const rows=ctrlItems().map(ctrlRow),t=ctrlTotals(rows);
-  const out=rows.map(r=>Object.assign({},r)).concat([{cod:'TOTAL',desc:t.n+' itens',vt:t.vt}]);
-  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,mkSheet(out,CCOLS),'Controladoria');
-  saveXlsx(wb,ctrlName()+'.xlsx');
+  if(typeof ExcelJS==='undefined'){
+    if(typeof XLSX==='undefined'){toast('Biblioteca de planilhas não carregou');return}
+    const out=rows.map(r=>Object.assign({},r)).concat([{cod:'TOTAL',desc:t.n+' itens',vt:t.vt}]);
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,mkSheet(out,CCOLS),'Controladoria');
+    saveXlsx(wb,ctrlName()+'.xlsx');return;
+  }
+  if(!S.dl){toast('Download indisponível nesta visualização');return}
+  const GR='FF1C5A0D',GR2='FF2F7F15',SOFT='FFE6F0E2',ZEB='FFF5F9F3',OKC='FF1E7A12',BADC='FFC0352B',WARN='FFFBEFD2',LN='FFC8D2C4';
+  const wb=new ExcelJS.Workbook();wb.creator='Italo Santos';wb.company='Propriedade intelectual: Italo Santos';wb.created=new Date();
+  const ws=wb.addWorksheet('Controladoria',{views:[{state:'frozen',ySplit:4,xSplit:2,showGridLines:false}],pageSetup:{orientation:'landscape',paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:0,margins:{left:.3,right:.3,top:.4,bottom:.5,header:.2,footer:.2}}});
+  const nc=CCOLS.length,lastCol=nc;
+  ws.columns=CCOLS.map(c=>({width:c.w||14}));
+  ws.mergeCells(1,1,1,nc);const c1=ws.getCell(1,1);c1.value='Controladoria — '+S.meta.name;
+  c1.font={name:'Calibri',size:16,bold:true,color:{argb:'FFFFFFFF'}};c1.fill={type:'pattern',pattern:'solid',fgColor:{argb:GR}};c1.alignment={vertical:'middle',indent:1};ws.getRow(1).height=30;
+  ws.mergeCells(2,1,2,nc);const c2=ws.getCell(2,1);
+  c2.value='Gerado em '+new Date().toLocaleString('pt-BR')+' · '+t.n+' itens · Valor total '+fmtR(t.vt)+(t.prov?' · * quantidade provisória (item não fechado)':'');
+  c2.font={name:'Calibri',size:10,color:{argb:'FF3A4A36'}};c2.fill={type:'pattern',pattern:'solid',fgColor:{argb:SOFT}};c2.alignment={vertical:'middle',indent:1};ws.getRow(2).height=18;
+  ws.mergeCells(3,1,3,nc);const c3=ws.getCell(3,1);
+  c3.value='ZERAR SALDO (linha vermelha) = item que estava no saldo e não foi encontrado nem na busca · Qtd. final: verde = bate com o saldo do ERP · vermelho = divergente · amarelo = armazém / valor unitário informado manualmente';
+  c3.font={name:'Calibri',size:9,italic:true,color:{argb:'FF5A6A56'}};c3.alignment={vertical:'middle',indent:1};ws.getRow(3).height=16;
+  const hr=ws.getRow(4);hr.height=30;
+  CCOLS.forEach((c,j)=>{const x=hr.getCell(j+1);x.value=c.h;x.font={name:'Calibri',size:10,bold:true,color:{argb:'FFFFFFFF'}};x.fill={type:'pattern',pattern:'solid',fgColor:{argb:GR2}};x.alignment={vertical:'middle',horizontal:c.z?'right':'left',wrapText:true};x.border={bottom:{style:'medium',color:{argb:GR}}}});
+  const bd={top:{style:'thin',color:{argb:LN}},bottom:{style:'thin',color:{argb:LN}},left:{style:'thin',color:{argb:LN}},right:{style:'thin',color:{argb:LN}}};
+  rows.forEach((r,i)=>{
+    const rn=5+i,row=ws.getRow(rn);
+    CCOLS.forEach((c,j)=>{
+      const x=row.getCell(j+1);let v=r[c.k];
+      if(c.k==='qf'&&r.zs)v='ZERAR SALDO';
+      if(c.k==='vt'&&!r.zs&&r.qf!=null&&r.vu!=null)v={formula:'G'+rn+'*N'+rn,result:r.vt};
+      x.value=v==null?null:v;
+      x.font={name:'Calibri',size:10,color:{argb:'FF1B2A18'}};
+      x.alignment={vertical:'middle',horizontal:c.z?'right':'left',wrapText:c.k==='desc'};
+      x.border=bd;if(i%2)x.fill={type:'pattern',pattern:'solid',fgColor:{argb:ZEB}};
+      if(c.z)x.numFmt=c.k==='vu'||c.k==='vt'?'"R$" #,##0.00':'#,##0.000';
+      if(c.k==='cod'&&r.cod==='CADASTRAR PRODUTO')x.font={name:'Calibri',size:10,bold:true,color:{argb:'FFB3741B'}};
+      if(c.k==='qf'&&r.qf!=null){
+        if(r.prov){x.font={name:'Calibri',size:10,bold:true,color:{argb:'FF5A6A56'}};x.numFmt='#,##0.000" *"'}
+        else{const bad=r.dv===true;x.font={name:'Calibri',size:10,bold:true,color:{argb:bad?BADC:OKC}};x.fill={type:'pattern',pattern:'solid',fgColor:{argb:bad?'FFFBE1DD':'FFE0F4D9'}}}
+      }
+      if(c.k==='arm'&&r.edW)x.fill={type:'pattern',pattern:'solid',fgColor:{argb:WARN}};
+      if(c.k==='vu'&&r.edV)x.fill={type:'pattern',pattern:'solid',fgColor:{argb:WARN}};
+      if(c.k==='vt')x.font={name:'Calibri',size:10,bold:true,color:{argb:'FF1B2A18'}};
+      if(r.zs){x.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFBE1DD'}};x.font={name:'Calibri',size:10,bold:true,color:{argb:BADC}}}
+    });
+    row.height=r.desc&&String(r.desc).length>46?28:18;
+  });
+  const tr=ws.getRow(5+rows.length);tr.height=22;
+  CCOLS.forEach((c,j)=>{const x=tr.getCell(j+1);x.fill={type:'pattern',pattern:'solid',fgColor:{argb:SOFT}};x.font={name:'Calibri',size:11,bold:true,color:{argb:GR}};x.border={top:{style:'medium',color:{argb:GR}}};
+    if(c.k==='cod')x.value='TOTAL';if(c.k==='desc')x.value=t.n+' itens';
+    if(c.k==='vt'){x.value=rows.length?{formula:'SUM(O5:O'+(4+rows.length)+')',result:t.vt}:t.vt;x.numFmt='"R$" #,##0.00';x.alignment={horizontal:'right',vertical:'middle'}}});
+  if(rows.length)ws.autoFilter={from:{row:4,column:1},to:{row:4+rows.length,column:nc}};
+  ws.headerFooter={oddFooter:'&L&8'+IP_TXT+'&R&8Página &P de &N'};
+  ws.getRow(6+rows.length).getCell(1).value=IP_TXT;ws.getRow(6+rows.length).getCell(1).font={name:'Calibri',size:8,italic:true,color:{argb:'FF7A8A76'}};
+  wb.xlsx.writeBuffer().then(buf=>S.dl.save({filename:ctrlName()+'.xlsx',data:new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})})).then(()=>toast('Arquivo salvo')).catch(e=>{if(!e||e.code!=='declined')toast('Não foi possível salvar o arquivo')});
 }
 function exportCtrlPdf(){
   const J=window.jspdf&&window.jspdf.jsPDF;
@@ -1713,7 +1770,8 @@ function exportCtrlPdf(){
   doc.setFontSize(14);doc.text('Controladoria — '+S.meta.name,10,12);
   doc.setFontSize(8);doc.text('Gerado em '+new Date().toLocaleString('pt-BR')+' · '+t.n+' itens · Valor total '+fmtR(t.vt)+(t.prov?' · * quantidade provisória (item não fechado)':'')+' · '+IP_TXT,10,17);
   const q=v=>v==null?'':fmtQ(v);
-  const body=rows.map(r=>[r.cod,r.desc,q(r.c1),q(r.c2),q(r.c3),q(r.c4),(r.qf==null?'':fmtQ(r.qf))+(r.prov?' *':''),r.end,r.e1,r.e2,r.e3,r.e4,r.arm,r.vu==null?'':fmtR(r.vu),r.vt==null?'':fmtR(r.vt)]);
+  const RR=rows;
+  const body=rows.map(r=>[r.cod,r.desc,q(r.c1),q(r.c2),q(r.c3),q(r.c4),(r.zs?'ZERAR SALDO':(r.qf==null?'':fmtQ(r.qf))+(r.prov?' *':'')),r.end,r.e1,r.e2,r.e3,r.e4,r.arm,r.vu==null?'':fmtR(r.vu),r.vt==null?'':fmtR(r.vt)]);
   const num={halign:'right'};
   doc.autoTable({
     head:[CCOLS.map(c=>c.h.replace(' (R$)','').replace(' contagem',' cont.'))],body,foot:[['TOTAL',t.n+' itens','','','','','','','','','','','','',fmtR(t.vt)]],showFoot:'lastPage',
@@ -1721,6 +1779,7 @@ function exportCtrlPdf(){
     styles:{fontSize:6.2,cellPadding:1,overflow:'linebreak',lineWidth:.1,lineColor:[200,205,200]},
     headStyles:{fillColor:[47,127,21],textColor:255,fontSize:6.2,halign:'center'},footStyles:{fillColor:[230,240,226],textColor:20,fontStyle:'bold'},
     columnStyles:{0:{cellWidth:17},1:{cellWidth:46},2:Object.assign({cellWidth:11},num),3:Object.assign({cellWidth:11},num),4:Object.assign({cellWidth:11},num),5:Object.assign({cellWidth:11},num),6:Object.assign({cellWidth:12,fontStyle:'bold'},num),7:{cellWidth:20},8:{cellWidth:19},9:{cellWidth:19},10:{cellWidth:19},11:{cellWidth:19},12:{cellWidth:14},13:Object.assign({cellWidth:15},num),14:Object.assign({cellWidth:17,fontStyle:'bold'},num)},
+    didParseCell:h=>{if(h.section==='body'&&RR[h.row.index]&&RR[h.row.index].zs){h.cell.styles.fillColor=[251,225,221];h.cell.styles.textColor=[192,53,43];h.cell.styles.fontStyle='bold'}else if(h.section==='body'&&h.column.index===6){const r=RR[h.row.index];if(r&&r.qf!=null&&!r.prov&&r.dv!=null){h.cell.styles.textColor=r.dv?[192,53,43]:[30,122,18];h.cell.styles.fontStyle='bold'}}},
     didDrawPage:d=>{doc.setFontSize(7);doc.text(IP_TXT,8,doc.internal.pageSize.getHeight()-5);doc.text('Página '+doc.internal.getNumberOfPages(),doc.internal.pageSize.getWidth()-8,doc.internal.pageSize.getHeight()-5,{align:'right'})}
   });
   S.dl.save({filename:ctrlName()+'.pdf',data:doc.output('blob')}).then(()=>toast('Arquivo salvo')).catch(e=>{if(!e||e.code!=='declined')toast('Não foi possível salvar o arquivo')});
@@ -2803,7 +2862,7 @@ function blAdd(mode){
   const sk=S.opView.shelf,box=$('[data-bres]');if(!box)return;
   let it=blItem(box.dataset.bres);if(!it)return;
   const q=parseQty($('#blqty').value);
-  if(!isFinite(q)||q<0){toast('Informe a quantidade (use vírgula para decimais)');$('#blqty').focus();return}
+  if(!isFinite(q)||q<=0){toast(q===0||q<0?'Quantidade precisa ser maior que zero':'Informe a quantidade (use vírgula para decimais)',4000);$('#blqty').focus();return}
   if(box.dataset.need==='1'&&!($('#blextra')||{}).checked){toast('Marque a confirmação: são unidades diferentes das já contadas',4000);return}
   const ads=(box.dataset.ads||'').split(' | ').filter(Boolean),oth=$('#blother');
   let ad,mv;
@@ -2823,7 +2882,7 @@ function blOther(){const o=$('#blother');if(!o)return;o.hidden=false;const b=$('
 function blSetQty(id,val,el){
   const sk=S.opView.shelf,e=blList(sk).find(x=>x.id===id),it=blItem(id);if(!e||!it)return;
   const q=parseQty(val);
-  if(!isFinite(q)||q<0){toast('Quantidade inválida');if(el)el.value=fmtIn(e.q);return}
+  if(!isFinite(q)||q<=0){toast('Quantidade precisa ser maior que zero');if(el)el.value=fmtIn(e.q);return}
   if(normQ(q)===normQ(e.q))return;
   if(blLocked(it)){toast('Este item já foi concluído ou está em recontagem; fale com o gestor');if(el)el.value=fmtIn(e.q);return}
   const t=Date.now(),old=S.local.map[id]||{};
@@ -4470,7 +4529,7 @@ const ACT={
     const k=b.dataset.k,n=b.dataset.n,v=b.dataset.v==='1',c=Number(b.dataset.c||0);
     if(v&&!confirmOnce('gx'+k)){toast('Excluir "'+n+'" ('+c+' itens)? Some da contagem e de todos os relatórios. Toque de novo para confirmar',4500);return}
     const cur={...((S.gstat&&S.gstat.inv===S.meta.inv&&S.gstat.excl)||{})};
-    if(v)cur[k]={n,t:Date.now()};else delete cur[k];
+    cur[k]=v?{n,t:Date.now(),off:false}:{n,t:Date.now(),off:true};
     try{await writeDoc(S.db.doc('gstat/current'),{inv:S.meta.inv,excl:cur});toast(v?'Grupo excluído':'Grupo restaurado')}catch(e){toast('Não foi possível salvar')}
   },
   async gclose(b){
@@ -4484,7 +4543,7 @@ const ACT={
   fok(b){
     const id=b.dataset.id,it=S.items.get(id);if(!it)return;
     const q=parseQty(($('#fq-'+CSS.escape(id))||{}).value||''),ad=(($('#fa-'+CSS.escape(id))||{}).value||'').trim();
-    if(!isFinite(q)||q<0){toast('Digite a quantidade encontrada');return}
+    if(!isFinite(q)||q<=0){toast('Digite a quantidade encontrada (maior que zero)');return}
     if(!ad){toast('Digite o endereço onde achou');return}
     foundOpen.delete(id);answerFind(it,'achou',q,ad);toast('Registrado. O item foi enviado para contagem');
   },
@@ -4519,6 +4578,14 @@ const CHG={
   assign(t){setAssignKey(t.dataset.sk,t.value)},
   dep(t){S.dep=t.value;draw(true)},
   dgrp(t){S.q.dgrp=t.value;draw(true)},
+  async cedit(t){
+    const id=t.dataset.id,f=t.dataset.f;if(!S.meta||!id)return;let v=t.value.trim(),val;
+    if(f==='vu'){
+      if(!v)val=-1;else{v=v.replace(/R\$|\s/g,'');v=v.indexOf(',')>=0?v.replace(/\./g,'').replace(',','.'):v;const n=Number(v);if(!isFinite(n)||n<0){toast('Valor inválido');draw(true);return}val=Math.round(n*10000)/10000}
+    }else val=v?v.slice(0,40):'-';
+    const data={inv:S.meta.inv,cedit:{[id]:{[f]:val}}};
+    try{try{await writeDoc(S.db.doc('gstat/current'),data)}catch(e){await S.db.doc('gstat/current').set(data)}toast(f==='vu'?'Valor unitário salvo':'Armazém salvo')}catch(e){toast('Não foi possível salvar')}
+  },
   wh(t){if(S.meta){S.meta.wh=t.value.trim().slice(0,40);draw(true)}S.db.doc('meta/current').update({wh:t.value.trim().slice(0,40)}).then(()=>toast('Armazém salvo')).catch(()=>toast('Não foi possível salvar'))},
   cdep(t){S.dep=t.value;draw(true)},
   call(t){S.ctrlAll=t.checked;draw(true)},
