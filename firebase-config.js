@@ -1,6 +1,6 @@
 window.FIREBASE_CONFIG = {
-  apiKey: "AIzaSyAow3xOSF4GwUaIvuf_t4yOnhhK2kAFaBI",
-  authDomain: "contagem-aw.firebaseapp.com",
-  projectId: "contagem-aw",
-  appId: "1:544936965336:web:3643b9338ee8a0d423d3ad"
+  apiKey: "AIzaSyBeRxnZxZvbsyRBVYqPq0UQjWjle3Zhr00",
+  authDomain: "contagem-dm.firebaseapp.com",
+  projectId: "contagem-dm",
+  appId: "1:888236029276:web:d24220a1d64b2f86d1fd99"
 };
