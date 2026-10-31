@@ -265,7 +265,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 46</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 47</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -2830,11 +2830,21 @@ function blMerge(l){
   }}
   return out;
 }
+/* trava de grupo: produto do cadastro (fora da importação) cujo grupo não está entre os grupos do inventário */
+function blGroupLock(it){
+  if(!it||!it.grp)return null;
+  const cat=it.x||(it.xo&&String(it.id).startsWith('x:'));if(!cat)return null;
+  const keys=new Set(),names=new Map();
+  for(const o of S.items.values()){if(o.xo||!o.grp)continue;const k=exKey(o.grp);keys.add(k);if(!names.has(k))names.set(k,grpCanon(o.grp))}
+  if(!keys.size||keys.has(exKey(it.grp)))return null;
+  return{grp:grpCanon(it.grp),list:[...names.values()].sort((a,b)=>a.localeCompare(b,'pt',{numeric:true}))};
+}
 function blSearch(){
   const sk=S.opView.shelf,inp=$('#blcode'),res=$('#blres');if(!inp||!res)return;
   const code=inp.value.trim();if(!code)return;
   const it=blFindCode(code);
   if(!it){res.innerHTML='<div class="note bad"><b>Código "'+esc(code)+'" não encontrado.</b> Confira o código. Se o material não está no ERP, use <button class="lnk" data-act="opage" data-v="novo">Item fora do ERP</button>.</div>';return}
+  {const lk=blGroupLock(it);if(lk){res.innerHTML='<div class="note bad"><b>🚫 Produto de outro grupo — não conte.</b><br><span class="mono">'+esc(it.code)+'</span> '+esc(it.desc)+'<br>Ele é do grupo <b>'+esc(lk.grp)+'</b>, que não faz parte deste inventário.<br><span class="sub">Grupos deste inventário: '+lk.list.map(esc).join(' · ')+'</span><br>Se acha que isso é engano, avise o gestor.</div>';inp.value='';try{if(navigator.vibrate)navigator.vibrate([200,80,200])}catch(e){}return}}
   const ex=blList(sk).find(e=>e.id===it.id);
   if(ex){res.innerHTML='<div class="note info"><b>'+esc(it.code)+' já está na lista desta prateleira.</b> Altere a quantidade lá embaixo.</div>';inp.value='';const q=$('[data-bid="'+ex.id.replace(/"/g,'')+'"] input');if(q){q.scrollIntoView({block:'center'});q.focus();q.select()}return}
   const sh0=blShelf(),rnd=sh0&&sh0.r2?2:1;
