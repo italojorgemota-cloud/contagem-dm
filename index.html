@@ -266,7 +266,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 48</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 50</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -2916,7 +2916,7 @@ function blReopen(){const sk=S.opView.shelf;delete S.bl['!'+sk];blSave();$('#bll
 const r1Block=(sk2,k)=>{const base=sk2.slice(0,-2),n=((((S.hb.get(k)||{}).bl)||{})[base]||{}).n||0;return n>0||teamOf(base).includes(k)};
 function relBody(ops,r2){
   r2=!!r2;const sh=manualShelves().filter(s=>!!s.r2===r2);
-  if(!sh.length)return'<div class="empty">'+(r2?'Nenhuma prateleira liberada para a 2ª contagem ainda. Digite o nome da prateleira acima e toque em Adicionar.':'Nenhuma prateleira liberada ainda. Digite o nome da prateleira acima e toque em Adicionar.')+'</div>';
+  if(!sh.length)return'<div class="empty">'+(r2?'Nenhum grupo liberado para a 2ª contagem ainda. Digite o nome do grupo acima e toque em Adicionar.':'Nenhum grupo liberado ainda. Toque em "Trazer os grupos do inventário" ou digite o nome do grupo e toque em Adicionar.')+'</div>';
   return sh.map(s=>{const tm=teamOf(s.key).filter(k=>k!=='*'),base=r2?s.key.slice(0,-2):'';
     const st=tm.map(k=>{const d=(S.hb.get(k)||{}).bl;const x=d&&d[s.key];return x?{k,n:x.n,c:x.c}:{k,n:0,c:0}});
     const tot=st.reduce((a,x)=>a+x.n,0),cl=st.filter(x=>x.c).length;
@@ -2938,23 +2938,37 @@ function blApplyRo(){
   }
   if(ch){blSave();try{const h=$('#bllist');if(h)h.dataset.sig=''}catch(e){}try{pushPresence(true)}catch(e){}toast('O gestor reabriu uma prateleira para você alterar',4000)}
 }
+/* nomes de prateleira = grupos do inventário (um por grupo, nome mais completo) */
+function grpShelfNames(list){
+  const m=new Map();
+  for(const x of list){const g=String(x.grp||x.g||'').trim();if(!g)continue;const k=exKey(g),o=m.get(k);if(!o||g.length>o.length)m.set(k,g)}
+  return [...m.values()].map(g=>g.slice(0,30)).sort((a,b)=>a.localeCompare(b,'pt',{numeric:true}));
+}
+async function relGrp(){
+  if(!S.meta)return;
+  const names=grpShelfNames([...S.items.values()].filter(o=>!o.xo)),have=new Set(manualShelves().map(s=>s.key)),map={};let n=0;
+  names.forEach(nm=>{const k='m'+slug(nm);if(!have.has(k)){map['sn:'+k]=nm;n++}if(!have.has(k+'@2'))map['sn:'+k+'@2']=nm});
+  if(!Object.keys(map).length){toast('Todos os grupos já estão na lista');return}
+  try{await writeDoc(S.db.doc('assign/current'),{inv:S.meta.inv,map});toast(n+' grupo(s) adicionado(s)')}catch(e){toast('Não foi possível salvar')}
+}
 function relHtml(ops){
   const n1=manualShelves().filter(s=>!s.r2).map(s=>'<option value="'+esc(s.name)+'">').join('');
-  return pauseCard()+'<div class="card"><div class="hd"><h2>📍 Liberar prateleiras para a equipe (1ª contagem)</h2></div><div class="bd stack">'+
-    '<div class="sub">Digite o nome da prateleira (ex.: P05) e adicione; ela também entra sozinha na lista da 2ª contagem. Depois marque quem vai contar. A contagem é às cegas: o colaborador digita o código de cada produto, o app mostra o endereço do cadastro e ele confirma. Mais de uma pessoa por prateleira: cada um conta o que encontrar.</div>'+
-    '<div class="row" style="gap:8px;flex-wrap:nowrap"><input type="text" id="relname" autocomplete="off" placeholder="Nome da prateleira, ex.: P05" style="flex:1"><button class="btn primary" data-act="reladd" data-r="1">Adicionar</button></div>'+
+  return pauseCard()+'<div class="card"><div class="hd"><h2>📍 Liberar grupos para a equipe (1ª contagem)</h2></div><div class="bd stack">'+
+    '<div class="sub">Os grupos do inventário já entram aqui sozinhos após a importação (ex.: 7702 — ABRASIVOS); eles também entram na lista da 2ª contagem. Se preferir, digite um nome e adicione manualmente. Depois marque quem vai contar. A contagem é às cegas: o colaborador digita o código de cada produto, o app mostra o endereço do cadastro e ele confirma. Mais de uma pessoa por prateleira: cada um conta o que encontrar.</div>'+
+    '<div class="row" style="gap:8px;flex-wrap:nowrap"><input type="text" id="relname" autocomplete="off" placeholder="Nome do grupo, ex.: 7702 — ABRASIVOS" style="flex:1"><button class="btn primary" data-act="reladd" data-r="1">Adicionar</button></div>'+
+    '<div class="row"><button class="btn sm" data-act="relgrp">⇣ Trazer os grupos do inventário</button><span class="sub">Use se algum grupo não apareceu ou se você removeu e quer de volta.</span></div>'+
     '<div id="rel-body">'+relBody(ops,false)+'</div></div></div>'+
-    '<div class="card"><div class="hd"><h2>📍 Liberar prateleiras para a equipe (2ª contagem)</h2></div><div class="bd stack">'+
-    '<div class="sub">Mesmo formato da 1ª: libere a prateleira para <b>outra equipe</b>, que conta de novo às cegas. Quem fez a 1ª contagem de um produto não consegue fazer a 2ª dele. A 3ª e a 4ª continuam por item divergente, na aba Divergências.</div>'+
-    '<div class="row" style="gap:8px;flex-wrap:nowrap"><input type="text" id="relname2" list="relnames2" autocomplete="off" placeholder="Nome da prateleira, ex.: P05" style="flex:1"><datalist id="relnames2">'+n1+'</datalist><button class="btn primary" data-act="reladd" data-r="2">Adicionar</button></div>'+
-    '<div class="row"><button class="btn sm" data-act="relsync2">⇣ Trazer todas as prateleiras da 1ª contagem</button><span class="sub">As prateleiras que você cadastra na 1ª já entram aqui sozinhas, sem equipe. Basta marcar quem vai contar.</span></div>'+
+    '<div class="card"><div class="hd"><h2>📍 Liberar grupos para a equipe (2ª contagem)</h2></div><div class="bd stack">'+
+    '<div class="sub">Mesmo formato da 1ª: libere o grupo para <b>outra equipe</b>, que conta de novo às cegas. Quem fez a 1ª contagem de um produto não consegue fazer a 2ª dele. A 3ª e a 4ª continuam por item divergente, na aba Divergências.</div>'+
+    '<div class="row" style="gap:8px;flex-wrap:nowrap"><input type="text" id="relname2" list="relnames2" autocomplete="off" placeholder="Nome do grupo, ex.: 7702 — ABRASIVOS" style="flex:1"><datalist id="relnames2">'+n1+'</datalist><button class="btn primary" data-act="reladd" data-r="2">Adicionar</button></div>'+
+    '<div class="row"><button class="btn sm" data-act="relsync2">⇣ Trazer todos os grupos da 1ª contagem</button><span class="sub">Os grupos da 1ª já entram aqui sozinhos, sem equipe. Basta marcar quem vai contar.</span></div>'+
     '<div id="rel-body2">'+relBody(ops,true)+'</div></div></div>'+
     '<div class="card"><div class="hd"><h2>↺ Prateleiras fechadas pelos coletores</h2></div><div class="bd stack">'+
     '<div class="sub">Quando o coletor fecha a prateleira, ela fica travada para ele. Se precisar corrigir algo, reabra aqui: ele volta a poder alterar as quantidades e fecha de novo. A 1ª e a 2ª contagem são independentes: reabrir uma não mexe na outra.</div>'+
     '<div id="rel-closed">'+relClosedBody()+'</div></div></div>';
 }
 async function relAdd(r){
-  const r2=String(r)==='2',i=$(r2?'#relname2':'#relname');const name=(i&&i.value||'').trim().slice(0,30);if(!name){toast('Digite o nome da prateleira');return}
+  const r2=String(r)==='2',i=$(r2?'#relname2':'#relname');const name=(i&&i.value||'').trim().slice(0,30);if(!name){toast('Digite o nome do grupo');return}
   const key='m'+slug(name)+(r2?'@2':'');
   if(manualShelves().some(s=>s.key===key)){toast('Essa prateleira já está na lista');return}
   await setAssignKey('sn:'+key,name);
@@ -4056,9 +4070,7 @@ function relRecRows(){
   const m=new Map(),dn=new Set();
   try{relGroups().forEach(g=>{if(g.sh.r2&&g.done)dn.add(g.sh.name)})}catch(e){}
   for(const it of S.items.values())it.cnt.forEach((c,i)=>{
-    if(i<1)return;
-    /* 2ª contagem feita por prateleira e já listada no card acima não repete aqui */
-    if(i===1&&c.parts&&c.parts.some(p=>dn.has(p.p||'')))return;
+    if(i<2)return;
     const n=i+1,k=n+'|'+c.ok;
     let g=m.get(k);if(!g){g={key:k,n,ok:c.ok,name:c.op,rows:[],last:0};m.set(k,g)}
     g.rows.push({code:it.code,desc:it.desc,un:it.un||'',q:normQ(c.q),a:c.a||'',sh:it.shelf||'',t:c.t});if(c.t>g.last)g.last=c.t;
@@ -4070,7 +4082,7 @@ function relRecBody(){
   const L=relRecRows();
   if(!L.length)return'';
   S.relrx=S.relrx||new Set();
-  return'<h3 style="margin:18px 0 6px">🔁 2ª, 3ª e 4ª contagem feitas pela lista de itens</h3><div class="sub" style="margin-bottom:6px">Contagens que o gestor atribuiu item a item (e 2ª contagens não fechadas por prateleira). Aqui o relatório sai por rodada e por pessoa.</div><div class="scroll"><table class="tbl"><thead><tr><th>Rodada</th><th>Equipe</th><th class="r">Produtos</th><th>Relatório da equipe</th></tr></thead><tbody>'+L.map(g=>{
+  return'<h3 style="margin:18px 0 6px">🔁 3ª, 4ª e 5ª contagem feitas pela lista de itens</h3><div class="sub" style="margin-bottom:6px">Contagens que o gestor atribuiu item a item (recontagens de itens divergentes). Aqui o relatório sai por rodada e por pessoa.</div><div class="scroll"><table class="tbl"><thead><tr><th>Rodada</th><th>Equipe</th><th class="r">Produtos</th><th>Relatório da equipe</th></tr></thead><tbody>'+L.map(g=>{
     const open=S.relrx.has(g.key);
     return'<tr><td><span class="chip '+(g.n>=4?'bad':'warn')+'">'+g.n+'ª contagem</span></td><td class="wc"><b>'+esc(g.name)+'</b><div class="sub">último envio '+fmtDT(g.last)+'</div></td><td class="r num">'+fmtN(g.rows.length)+'</td><td><button class="btn sm" data-act="relrx" data-k="'+esc(g.key)+'">'+(open?'▲ Ocultar':'▼ Ver')+'</button> <button class="btn sm" data-act="relrxl" data-k="'+esc(g.key)+'">⬇ XLSX</button> <button class="btn sm" data-act="relrpdf" data-k="'+esc(g.key)+'">⬇ PDF</button></td></tr>'+
     (open?'<tr><td colspan="4"><div class="scroll"><table class="tbl"><thead><tr><th>Código / Produto</th><th>UN</th><th class="r">Qtd</th><th>Endereço</th><th>Prateleira</th></tr></thead><tbody>'+g.rows.map(x=>'<tr><td class="wc"><span class="mono sub">'+esc(x.code)+'</span><br>'+esc(x.desc)+'</td><td>'+esc(x.un)+'</td><td class="r num">'+fmtQ(x.q)+'</td><td>'+esc(x.a)+'</td><td>'+esc(x.sh)+'</td></tr>').join('')+'</tbody></table></div></td></tr>':'');
@@ -4255,7 +4267,8 @@ async function publishInv(){
       await S.db.doc('chunks/'+inv+'_'+d.no).set(d.chunk);step('Publicando a lista');
       await S.db.doc('erp/'+inv+'_'+d.no).set(d.erp);step('Guardando saldos do ERP');
     }
-    await S.db.doc('assign/current').set({inv,map:{}});step('Preparando equipe');
+    {const map={};grpShelfNames(imp.parsed.items).forEach(n=>{const k='m'+slug(n);map['sn:'+k]=n;map['sn:'+k+'@2']=n});
+     await S.db.doc('assign/current').set({inv,map});step('Preparando equipe')}
     await S.db.doc('third/current').set({inv,items:{}});
     await S.db.doc('search/current').set({inv,items:{}});
     await S.db.doc('gstat/current').set({inv,closed:{}});
@@ -4467,6 +4480,7 @@ const ACT={
   blother(){blOther()},
   reladd(b){relAdd(b.dataset.r)},
   relsync2(){relSync2()},
+  relgrp(){relGrp()},
   absync(){abSync(true)},
   relreopen(b){relReopen(b.dataset.sk,b.dataset.k)},
   relrm(b){relRm(b.dataset.sk)},
