@@ -265,7 +265,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 44</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 46</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -1672,6 +1672,7 @@ function ctrlItems(){
   l=l.filter(it=>!it.apd||it.ctrl);
   if(!S.ctrlAll)l=l.filter(it=>it.state!=='pend');
   if(S.dep)l=l.filter(it=>it.sk===S.dep);
+  if(S.ctrlVu==='sem')l=l.filter(it=>!(it.cost>0));else if(S.ctrlVu==='com')l=l.filter(it=>it.cost>0);
   if(q)l=l.filter(it=>(it.code+' '+it.desc).toLowerCase().includes(q));
   return l.sort(byLoc);
 }
@@ -1679,14 +1680,14 @@ function ctrlRow(it){
   const qf=it.state==='closed'?it.final:(it.state==='pend'?null:it.prov);
   const c=i=>it.cnt[i]?it.cnt[i].q:null,e=i=>it.cnt[i]?it.cnt[i].op:'';
   const cost=it.cost||0;
-  return{zs:it.state==='closed'&&!it.cnt.length&&normQ(it.final)===0&&!!it.manual,id:it.id,dv:it.state==='closed'?!!it.div:null,edV:!!it.cedV,edW:!!it.cedW,cod:(it.cad==='solicitado'&&!it.rawCode)?'CADASTRAR PRODUTO':it.code,desc:it.desc,c1:c(0),c2:c(1),c3:c(2),c4:c(3),qf,prov:it.state!=='closed'&&it.state!=='pend',end:lastAddr(it),e1:e(0),e2:e(1),e3:e(2),e4:e(3),arm:it.wh||(S.meta&&S.meta.wh)||'',vu:it.cost==null?null:cost,vt:qf==null?null:Math.round(qf*cost*100)/100};
+  return{zs:it.state==='closed'&&!it.cnt.length&&normQ(it.final)===0&&!!it.manual,id:it.id,dv:it.state==='closed'?!!it.div:null,edV:!!it.cedV,edW:!!(S.meta&&S.meta.whAll),cod:(it.cad==='solicitado'&&!it.rawCode)?'CADASTRAR PRODUTO':it.code,desc:it.desc,c1:c(0),c2:c(1),c3:c(2),c4:c(3),qf,prov:it.state!=='closed'&&it.state!=='pend',end:lastAddr(it),e1:e(0),e2:e(1),e3:e(2),e4:e(3),arm:(S.meta&&S.meta.whAll)||it.wh||(S.meta&&S.meta.wh)||'',vu:it.cost==null?null:cost,vt:qf==null?null:Math.round(qf*cost*100)/100};
 }
 const ctrlTotals=rows=>({n:rows.length,vt:Math.round(rows.reduce((a,r)=>a+(r.vt||0),0)*100)/100,prov:rows.filter(r=>r.prov).length});
 function ctrlTableRows(rows){
   if(!rows.length)return'<tr><td colspan="15" class="empty">Nenhum item para exibir.</td></tr>';
   const q=v=>v==null?'<span class="sub">—</span>':fmtQ(v);
-  return rows.slice(0,300).map(r=>'<tr'+(r.zs?' style="background:var(--bad-soft);font-weight:700;color:var(--bad)"':'')+'><td class="mono">'+(r.cod==='CADASTRAR PRODUTO'?'<span class="chip warn">CADASTRAR PRODUTO</span>':esc(r.cod))+'</td><td class="wc">'+esc(r.desc)+'</td><td class="r num">'+q(r.c1)+'</td><td class="r num">'+q(r.c2)+'</td><td class="r num">'+q(r.c3)+'</td><td class="r num">'+q(r.c4)+'</td><td class="r num"><b'+(!r.zs&&r.qf!=null&&!r.prov&&r.dv!=null?' class="'+(r.dv?'neg':'pos')+'"':'')+'>'+(r.zs?'ZERAR SALDO':r.qf==null?'—':fmtQ(r.qf))+'</b>'+(r.prov?'<span class="sub" title="contagem ainda não fechada"> *</span>':'')+'</td><td>'+esc(r.end)+'</td>'+
-    [r.e1,r.e2,r.e3,r.e4].map(n=>'<td>'+(n?esc(n):'<span class="sub">—</span>')+'</td>').join('')+'<td><input type="text" class="cin" style="width:90px'+(r.edW?';background:var(--warn-soft)':'')+'" data-chg="cedit" data-f="wh" data-id="'+esc(r.id)+'" value="'+esc(r.arm||'')+'" placeholder="–" aria-label="Armazém"></td><td class="r num"><input type="text" inputmode="decimal" class="cin" style="width:84px;text-align:right'+(r.edV?';background:var(--warn-soft)':'')+'" data-chg="cedit" data-f="vu" data-id="'+esc(r.id)+'" value="'+(r.vu==null?'':String(r.vu).replace('.',','))+'" placeholder="informar" aria-label="Valor unitário"></td><td class="r num"><b>'+(r.vt==null?'—':fmtR(r.vt))+'</b></td></tr>').join('')+(rows.length>300?'<tr><td colspan="15" class="sub" style="text-align:center">Mostrando 300 de '+rows.length+'. A exportação traz todos.</td></tr>':'');
+  return rows.slice(0,300).map(r=>'<tr'+(r.zs?' style="background:var(--bad-soft);font-weight:700;color:var(--bad)"':'')+'><td class="mono">'+(r.cod==='CADASTRAR PRODUTO'?'<span class="chip warn">CADASTRAR PRODUTO</span>':esc(r.cod))+'</td><td class="wc">'+esc(r.desc)+'</td><td class="r num">'+q(r.c1)+'</td><td class="r num">'+q(r.c2)+'</td><td class="r num">'+q(r.c3)+'</td><td class="r num">'+q(r.c4)+'</td><td class="r num"><b'+(!r.zs&&r.qf!=null?' class="'+(r.prov?'neg':'pos')+'"':'')+'>'+(r.zs?'ZERAR SALDO':r.qf==null?'—':fmtQ(r.qf))+'</b>'+(r.prov?'<span class="sub" title="contagem ainda não fechada"> *</span>':'')+'</td><td>'+esc(r.end)+'</td>'+
+    [r.e1,r.e2,r.e3,r.e4].map(n=>'<td>'+(n?esc(n):'<span class="sub">—</span>')+'</td>').join('')+'<td'+(r.edW?' style="background:var(--warn-soft)"':'')+'>'+esc(r.arm||'–')+'</td><td class="r num"><input type="text" inputmode="decimal" class="cin" style="width:84px;text-align:right'+(r.edV?';background:var(--warn-soft)':'')+'" data-chg="cedit" data-f="vu" data-id="'+esc(r.id)+'" value="'+(r.vu==null?'':String(r.vu).replace('.',','))+'" placeholder="informar" aria-label="Valor unitário"></td><td class="r num"><b>'+(r.vt==null?'—':fmtR(r.vt))+'</b></td></tr>').join('')+(rows.length>300?'<tr><td colspan="15" class="sub" style="text-align:center">Mostrando 300 de '+rows.length+'. A exportação traz todos.</td></tr>':'');
 }
 function vCtrl(){
   if(!S.meta)return noInv();
@@ -1695,11 +1696,12 @@ function vCtrl(){
   '<div class="card"><div class="hd"><h2>🧾 Controladoria</h2><span class="sub">'+esc(S.meta.name)+'</span></div><div class="bd stack">'+
   '<div class="row"><div class="field" style="flex:1;min-width:200px"><label for="qctrl">BUSCAR</label><input type="search" id="qctrl" data-inp="qctrl" placeholder="Código ou descrição" value="'+esc(S.q.ctrl)+'"></div>'+
   '<div class="field"><label for="cdep">ENDEREÇO</label><select id="cdep" data-chg="cdep"><option value="">Todos</option>'+[...S.shelves.values()].sort((a,b)=>a.name.localeCompare(b.name,'pt',{numeric:true})).map(s=>'<option value="'+esc(s.key)+'"'+(S.dep===s.key?' selected':'')+'>'+esc(s.name)+'</option>').join('')+'</select></div>'+
-  '<div class="field"><label for="whin">ARMAZÉM PADRÃO</label><input type="text" id="whin" data-chg="wh" value="'+esc(S.meta.wh||'')+'" placeholder="Se a planilha não tiver" style="width:170px"></div>'+
+  '<div class="field"><label for="whin">ARMAZÉM (vale para toda a lista)</label><input type="text" id="whin" data-chg="wh" value="'+esc(S.meta.whAll||'')+'" placeholder="Ex.: 01 — troca em todos" style="width:190px"></div>'+
+  '<div class="field"><label for="cvu">VALOR UNITÁRIO</label><select id="cvu" data-chg="cvu"><option value="">Todos</option><option value="sem"'+(S.ctrlVu==='sem'?' selected':'')+'>Sem valor (zerado)</option><option value="com"'+(S.ctrlVu==='com'?' selected':'')+'>Com valor</option></select></div>'+
   '<label style="display:flex;gap:8px;align-items:center;font-size:13px"><input type="checkbox" data-chg="call"'+(S.ctrlAll?' checked':'')+'> incluir itens não contados</label></div>'+
   '<div class="row"><button class="btn primary" data-act="ctrl-pdf">⬇ Exportar PDF</button><button class="btn" data-act="ctrl-xlsx">⬇ Exportar XLSX</button><span class="sub">As exportações trazem todos os itens do filtro atual, com o total no final.</span></div>'+
   '<div class="scroll"><table class="tbl"><thead><tr>'+CCOLS.map(c=>'<th'+(c.z?' class="r"':'')+'>'+esc(c.h)+'</th>').join('')+'</tr></thead><tbody id="ctrl-body">'+ctrlTableRows(rows)+'</tbody></table></div>'+
-  '<div class="sub">* Quantidade provisória: o item ainda não fechou (faltam contagens). Qtd. final em verde = bate com o saldo do ERP; em vermelho = divergente. Armazém e valor unitário podem ser editados direto na tabela (fundo amarelo = informado por você); o valor total é recalculado. Equipe = quem fez cada contagem. Itens de aplicação direta (APD) ficam de fora, a menos que você marque "Enviar para a controladoria" no card Aplicação Direta (aba Fora do ERP).</div></div></div>';
+  '<div class="sub">* Quantidade provisória: o item ainda não fechou (faltam contagens). Qtd. final em verde = contagem fechada; em vermelho com * = contagem ainda em aberto. Armazém e valor unitário podem ser editados direto na tabela (fundo amarelo = informado por você); o valor total é recalculado. Equipe = quem fez cada contagem. Itens de aplicação direta (APD) ficam de fora, a menos que você marque "Enviar para a controladoria" no card Aplicação Direta (aba Fora do ERP).</div></div></div>';
 }
 const ctrlName=()=>'Controladoria_'+fileBase().slice(11);
 function exportCtrlXlsx(){
@@ -1722,7 +1724,7 @@ function exportCtrlXlsx(){
   c2.value='Gerado em '+new Date().toLocaleString('pt-BR')+' · '+t.n+' itens · Valor total '+fmtR(t.vt)+(t.prov?' · * quantidade provisória (item não fechado)':'');
   c2.font={name:'Calibri',size:10,color:{argb:'FF3A4A36'}};c2.fill={type:'pattern',pattern:'solid',fgColor:{argb:SOFT}};c2.alignment={vertical:'middle',indent:1};ws.getRow(2).height=18;
   ws.mergeCells(3,1,3,nc);const c3=ws.getCell(3,1);
-  c3.value='ZERAR SALDO (linha vermelha) = item que estava no saldo e não foi encontrado nem na busca · Qtd. final: verde = bate com o saldo do ERP · vermelho = divergente · amarelo = armazém / valor unitário informado manualmente';
+  c3.value='ZERAR SALDO (linha vermelha) = item que estava no saldo e não foi encontrado nem na busca · Qtd. final: verde = contagem fechada · vermelho com * = contagem ainda em aberto (provisória) · amarelo = armazém / valor unitário informado manualmente';
   c3.font={name:'Calibri',size:9,italic:true,color:{argb:'FF5A6A56'}};c3.alignment={vertical:'middle',indent:1};ws.getRow(3).height=16;
   const hr=ws.getRow(4);hr.height=30;
   CCOLS.forEach((c,j)=>{const x=hr.getCell(j+1);x.value=c.h;x.font={name:'Calibri',size:10,bold:true,color:{argb:'FFFFFFFF'}};x.fill={type:'pattern',pattern:'solid',fgColor:{argb:GR2}};x.alignment={vertical:'middle',horizontal:c.z?'right':'left',wrapText:true};x.border={bottom:{style:'medium',color:{argb:GR}}}});
@@ -1740,8 +1742,8 @@ function exportCtrlXlsx(){
       if(c.z)x.numFmt=c.k==='vu'||c.k==='vt'?'"R$" #,##0.00':'#,##0.000';
       if(c.k==='cod'&&r.cod==='CADASTRAR PRODUTO')x.font={name:'Calibri',size:10,bold:true,color:{argb:'FFB3741B'}};
       if(c.k==='qf'&&r.qf!=null){
-        if(r.prov){x.font={name:'Calibri',size:10,bold:true,color:{argb:'FF5A6A56'}};x.numFmt='#,##0.000" *"'}
-        else{const bad=r.dv===true;x.font={name:'Calibri',size:10,bold:true,color:{argb:bad?BADC:OKC}};x.fill={type:'pattern',pattern:'solid',fgColor:{argb:bad?'FFFBE1DD':'FFE0F4D9'}}}
+        if(r.prov){x.numFmt='#,##0.000" *"'}
+        {const bad=!!r.prov;x.font={name:'Calibri',size:10,bold:true,color:{argb:bad?BADC:OKC}};x.fill={type:'pattern',pattern:'solid',fgColor:{argb:bad?'FFFBE1DD':'FFE0F4D9'}}}
       }
       if(c.k==='arm'&&r.edW)x.fill={type:'pattern',pattern:'solid',fgColor:{argb:WARN}};
       if(c.k==='vu'&&r.edV)x.fill={type:'pattern',pattern:'solid',fgColor:{argb:WARN}};
@@ -1779,7 +1781,7 @@ function exportCtrlPdf(){
     styles:{fontSize:6.2,cellPadding:1,overflow:'linebreak',lineWidth:.1,lineColor:[200,205,200]},
     headStyles:{fillColor:[47,127,21],textColor:255,fontSize:6.2,halign:'center'},footStyles:{fillColor:[230,240,226],textColor:20,fontStyle:'bold'},
     columnStyles:{0:{cellWidth:17},1:{cellWidth:46},2:Object.assign({cellWidth:11},num),3:Object.assign({cellWidth:11},num),4:Object.assign({cellWidth:11},num),5:Object.assign({cellWidth:11},num),6:Object.assign({cellWidth:12,fontStyle:'bold'},num),7:{cellWidth:20},8:{cellWidth:19},9:{cellWidth:19},10:{cellWidth:19},11:{cellWidth:19},12:{cellWidth:14},13:Object.assign({cellWidth:15},num),14:Object.assign({cellWidth:17,fontStyle:'bold'},num)},
-    didParseCell:h=>{if(h.section==='body'&&RR[h.row.index]&&RR[h.row.index].zs){h.cell.styles.fillColor=[251,225,221];h.cell.styles.textColor=[192,53,43];h.cell.styles.fontStyle='bold'}else if(h.section==='body'&&h.column.index===6){const r=RR[h.row.index];if(r&&r.qf!=null&&!r.prov&&r.dv!=null){h.cell.styles.textColor=r.dv?[192,53,43]:[30,122,18];h.cell.styles.fontStyle='bold'}}},
+    didParseCell:h=>{if(h.section==='body'&&RR[h.row.index]&&RR[h.row.index].zs){h.cell.styles.fillColor=[251,225,221];h.cell.styles.textColor=[192,53,43];h.cell.styles.fontStyle='bold'}else if(h.section==='body'&&h.column.index===6){const r=RR[h.row.index];if(r&&r.qf!=null){h.cell.styles.textColor=r.prov?[192,53,43]:[30,122,18];h.cell.styles.fontStyle='bold'}}},
     didDrawPage:d=>{doc.setFontSize(7);doc.text(IP_TXT,8,doc.internal.pageSize.getHeight()-5);doc.text('Página '+doc.internal.getNumberOfPages(),doc.internal.pageSize.getWidth()-8,doc.internal.pageSize.getHeight()-5,{align:'right'})}
   });
   S.dl.save({filename:ctrlName()+'.pdf',data:doc.output('blob')}).then(()=>toast('Arquivo salvo')).catch(e=>{if(!e||e.code!=='declined')toast('Não foi possível salvar o arquivo')});
@@ -4586,7 +4588,8 @@ const CHG={
     const data={inv:S.meta.inv,cedit:{[id]:{[f]:val}}};
     try{try{await writeDoc(S.db.doc('gstat/current'),data)}catch(e){await S.db.doc('gstat/current').set(data)}toast(f==='vu'?'Valor unitário salvo':'Armazém salvo')}catch(e){toast('Não foi possível salvar')}
   },
-  wh(t){if(S.meta){S.meta.wh=t.value.trim().slice(0,40);draw(true)}S.db.doc('meta/current').update({wh:t.value.trim().slice(0,40)}).then(()=>toast('Armazém salvo')).catch(()=>toast('Não foi possível salvar'))},
+  wh(t){const v=t.value.trim().slice(0,40);if(S.meta){S.meta.whAll=v;draw(true)}S.db.doc('meta/current').update({whAll:v||''}).then(()=>toast(v?'Armazém aplicado a toda a lista':'Armazém da lista removido')).catch(()=>toast('Não foi possível salvar'))},
+  cvu(t){S.ctrlVu=t.value;draw(true)},
   cdep(t){S.dep=t.value;draw(true)},
   call(t){S.ctrlAll=t.checked;draw(true)},
   evsel(t){S.q.ev=t.value;draw(true)},
