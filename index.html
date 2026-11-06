@@ -267,7 +267,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 56</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 57</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -1972,15 +1972,25 @@ function stockBase(){
   if(S.meta&&S.items.size)return[...S.items.values()].map(it=>({c:it.code,d:it.desc,g:it.grp||'',q:it.erp==null?null:it.erp,u:it.un}));
   return[];
 }
+const sbMeta=()=>{const m=S.atask.get('smeta');return m&&m.on?m:null};
+let _sb=null;
+function endBase(){
+  if(!sbMeta())return stockBase();
+  if(_sb&&_sb.k===S.atask)return _sb.l;
+  const l=[];
+  [...S.atask.entries()].filter(([k])=>/^s\d+$/.test(k)).sort((a,b)=>a[0]<b[0]?-1:1).forEach(([,d])=>(d.rows||[]).forEach(r=>l.push({c:String(r[0]),d:r[1]||'',g:r[2]||'',q:r[3]==null||r[3]===''?null:Number(r[3]),u:r[4]||''})));
+  _sb={k:S.atask,l};return l;
+}
+const endSrc=()=>sbMeta()?'base de estoque do endereçamento':stockSrc();
 const stockSrc=()=>S.imp&&S.imp.all&&S.imp.all.length?'produtos do arquivo em Importar':'produtos do inventário publicado';
 function endRows(){
   const out={sem:[],com:[],orf:[]},seen=new Set();
-  for(const x of stockBase()){
+  for(const x of endBase()){
     seen.add(x.c);const a=S.addr.get(x.c);
     if(a)out.com.push({c:x.c,d:x.d,g:x.g,q:x.q,end:addrTxt(a),u:x.u});
     else if(x.q==null||x.q>0)out.sem.push({c:x.c,d:x.d,g:x.g,q:x.q,end:'',u:x.u});
   }
-  if(stockBase().length)for(const [c,a] of S.addr)if(!seen.has(c)){const cp=cpIndex().get(zc(c))||{};out.orf.push({c,d:cp.desc||'',g:cp.grp||'',q:null,end:addrTxt(a),u:cp.un||''})}
+  if(endBase().length)for(const [c,a] of S.addr)if(!seen.has(c)){const cp=cpIndex().get(zc(c))||{};out.orf.push({c,d:cp.desc||'',g:cp.grp||'',q:null,end:addrTxt(a),u:cp.un||''})}
   return out;
 }
 function endFiltered(){
@@ -2012,13 +2022,13 @@ function vEnd0(){
   if(!S.addr.size){
     return vScan()+'<div class="card"><div class="hd"><h2>📍 Endereçamento</h2></div><div class="bd stack"><div class="drop stack" style="align-items:center"><div>Envie a planilha com os endereços (código do produto + endereço/prateleira, e seção se tiver).<br><span class="sub">É uma base separada do estoque do ERP. O app cruza as duas para mostrar o que já tem endereço e o que ainda precisa ser endereçado.</span></div><input type="file" id="afile" accept=".xlsx,.xls,.csv,.txt" data-chg="afile"></div></div></div>';
   }
-  const r=endRows(),has=stockBase().length;
+  const r=endRows(),has=endBase().length;
   h+=vScan();
   h+='<div class="card"><div class="hd"><h2>📍 Endereçamento</h2><span class="sub">'+esc(meta?meta.file+' · '+fmtDT(meta.t):'')+'</span></div><div class="bd stack"><div class="row"><label class="btn">Trocar base de endereços<input type="file" id="afile" accept=".xlsx,.xls,.csv,.txt" data-chg="afile" style="display:none"></label>'+(has?'<button class="btn primary" data-act="axl">⬇ Exportar XLSX</button>':'')+'<button class="btn danger" data-act="adelbase">Excluir base de endereços</button></div></div></div>';
-  h+='<div class="kpis">'+kpi('Códigos endereçados',fmtN(S.addr.size),'na base de endereços')+(has?kpi('Estoque do ERP',fmtN(stockBase().length),stockSrc())+kpi('Com endereço',fmtN(r.com.length),'estoque já endereçado','g')+kpi('Sem endereço',fmtN(r.sem.length),'com estoque, para endereçar','r')+kpi('Endereços sem ERP',fmtN(r.orf.length),'códigos fora do arquivo do ERP','a'):'')+'</div>';
+  h+='<div class="kpis">'+kpi('Códigos endereçados',fmtN(S.addr.size),'na base de endereços')+(has?kpi('Estoque do ERP',fmtN(endBase().length),endSrc())+kpi('Com endereço',fmtN(r.com.length),'estoque já endereçado','g')+kpi('Sem endereço',fmtN(r.sem.length),'com estoque, para endereçar','r')+kpi('Endereços sem ERP',fmtN(r.orf.length),'códigos fora do arquivo do ERP','a'):'')+'</div>';
   h+=qCardGestor();
   if(!has){h+='<div class="note info">Para cruzar com o estoque, envie o arquivo do ERP na aba <b>Importar</b> (não precisa publicar) ou publique um inventário.</div>';return h}
-  const gs=[...new Set(stockBase().map(x=>x.g))].sort((x,y)=>x.localeCompare(y,'pt',{numeric:true}));
+  const gs=[...new Set(endBase().map(x=>x.g))].sort((x,y)=>x.localeCompare(y,'pt',{numeric:true}));
   h+='<div class="card"><div class="bd stack"><div class="row"><div class="field"><label for="ef">MOSTRAR</label><select id="ef" data-chg="ef"><option value="sem"'+((S.q.ef||'sem')==='sem'?' selected':'')+'>Sem endereço (para endereçar)</option><option value="com"'+(S.q.ef==='com'?' selected':'')+'>Com endereço</option><option value="orf"'+(S.q.ef==='orf'?' selected':'')+'>Endereços sem produto no ERP</option><option value="todos"'+(S.q.ef==='todos'?' selected':'')+'>Todos do ERP</option></select></div>'+
     '<div class="field"><label for="eg">GRUPO</label><select id="eg" data-chg="eg"><option value="">Todos</option>'+gs.map(g=>'<option'+(S.q.eg===g?' selected':'')+'>'+esc(g)+'</option>').join('')+'</select></div>'+
     '<div class="field" style="flex:1;min-width:200px"><label for="eq">BUSCAR</label><input type="search" id="eq" data-inp="eq" placeholder="Código, descrição ou endereço" value="'+esc(S.q.eq||'')+'"></div></div>'+
@@ -2500,8 +2510,8 @@ function adCollTable(st){
 function vScan(){
   const m=adMeta();
   if(!m){
-    const sem=stockBase().length?endRows().sem.filter(x=>!adDone().has(x.c)).length:0;
-    return'<div class="card"><div class="hd"><h2>🏷️ Varredura de endereçamento</h2></div><div class="bd stack"><div class="sub">Libere para os coletores a lista de produtos sem endereço. Eles percorrem o almoxarifado e informam onde cada item está; você acompanha o ritmo de cada um aqui.</div><div class="row"><button class="btn primary" data-act="adrelease" '+(sem?'':'disabled')+'>Liberar para os coletores'+(sem?' ('+fmtN(sem)+' produtos)':'')+'</button></div>'+(stockBase().length?'':'<div class="note info">Envie o arquivo do ERP na aba <b>Importar</b> (não precisa publicar) para montar a lista de produtos sem endereço.</div>')+'</div></div>';
+    const sem=endBase().length?endRows().sem.filter(x=>!adDone().has(x.c)).length:0;
+    return'<div class="card"><div class="hd"><h2>🏷️ Varredura de endereçamento</h2></div><div class="bd stack"><div class="sub">Libere para os coletores a lista de produtos sem endereço. Eles percorrem o almoxarifado e informam onde cada item está; você acompanha o ritmo de cada um aqui.</div><div class="row"><button class="btn primary" data-act="adrelease" '+(sem?'':'disabled')+'>Liberar para os coletores'+(sem?' ('+fmtN(sem)+' produtos)':'')+'</button></div>'+(endBase().length?'':'<div class="note info">Envie o arquivo do ERP na aba <b>Importar</b> (não precisa publicar) para montar a lista de produtos sem endereço.</div>')+'</div></div>';
   }
   const st=adStats(),rest=Math.max(0,st.total-st.done-st.nf),pct=st.total?st.done/st.total*100:0;
   if(!clOpen('scan'))return'<div class="card"><div class="hd">'+clBtn('scan')+'<h2>🏷️ Varredura de endereçamento</h2><span class="chip ok">liberada</span><span class="sub">'+fmtN(st.done)+' de '+fmtN(st.total)+' endereçados · '+fmtP(pct)+'</span></div></div>';
@@ -2518,7 +2528,7 @@ function vScan(){
   return h+'</div></div>';
 }
 async function adRelease(){
-  if(!stockBase().length){toast('Envie o arquivo do ERP na aba Importar primeiro',3500);return}
+  if(!endBase().length){toast('Carregue a base de estoque do endereçamento primeiro',3500);return}
   const done=adDone(),running=!!adMeta(),prev=running?adRows():[],have=new Set(prev.map(r=>r[0]));
   /* varredura em andamento: mantém a lista atual (inclusive o que já foi endereçado) e só acrescenta produtos novos */
   const add=endRows().sem.filter(x=>!done.has(x.c)&&!have.has(x.c)).map(x=>[String(x.c).slice(0,30),String(x.d||'').slice(0,70),String(x.g||'').slice(0,40),String(x.u||'').slice(0,8)]);
@@ -2595,7 +2605,7 @@ const clBtn=k=>'<button class="btn sm" data-act="cltog" data-k="'+k+'" aria-expa
 function adEntryMap(){const m=new Map();for(const d of S.anew.values())m.set(d.code,d);return m}
 function adProdRows(x,em){
   const f=S.q.adps||'',qm=new Map();
-  stockBase().forEach(b=>qm.set(String(b.c),b.q));
+  endBase().forEach(b=>qm.set(String(b.c),b.q));
   let l=x.rows.map(r=>({r,e:em.get(r[0])}));
   if(f==='ok')l=l.filter(y=>y.e);else if(f==='pend')l=l.filter(y=>!y.e);
   const more=l.length>300;
@@ -2627,13 +2637,13 @@ const qn=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 const qc=s=>qn(s).replace(/[^a-z0-9]/g,'');
 function qBuild(){
   const seen=new Set(),out=[];
-  for(const x of stockBase()){seen.add(x.c);const a=S.addr.get(x.c);out.push([String(x.c).slice(0,30),String(x.d||'').slice(0,90),String(x.g||'').slice(0,40),a?addrTxt(a).slice(0,100):''])}
+  for(const x of endBase()){seen.add(x.c);const a=S.addr.get(x.c);out.push([String(x.c).slice(0,30),String(x.d||'').slice(0,90),String(x.g||'').slice(0,40),a?addrTxt(a).slice(0,100):''])}
   for(const [c,a] of S.addr)if(!seen.has(c))out.push([String(c).slice(0,30),'','',addrTxt(a).slice(0,100)]);
   return out;
 }
 let _qi=null;
 function qIndex(){
-  const local=S.canEdit&&S.addr.size&&stockBase().length;
+  const local=S.canEdit&&S.addr.size&&endBase().length;
   const sig=[S.atask,S.anew,local?S.addr:null,local?S.items.size:0,local&&S.imp?S.imp.all:null];
   if(_qi&&_qi.sig.every((v,i)=>v===sig[i]))return _qi.list;
   let rows=[];
@@ -2647,6 +2657,7 @@ function qIndex(){
     if(e){if(!e.end||d.mv)e.end=d.shelf||''}else m.set(String(d.code),{c:String(d.code),d:d.desc||'',g:d.grp||'',end:d.shelf||''});
   }
   const cz=new Map();for(const e of m.values())cz.set(zc(e.c),e);
+  if(sbMeta())for(const x of endBase()){const z=zc(x.c),e=cz.get(z);if(e){if(!e.d||e.d===e.c)e.d=x.d||e.d;if(!e.g)e.g=x.g||'';if(!e.un)e.un=x.u||''}else{const n={c:x.c,d:x.d||x.c,g:x.g||'',end:'',un:x.u||''};m.set(x.c,n);cz.set(z,n)}}
   for(const [z,r] of cpIndex()){
     const e=cz.get(z);
     if(e){if(!e.d||e.d===e.c)e.d=r.desc||e.d;if(!e.g)e.g=r.grp||'';e.un=r.un||''}
@@ -2686,14 +2697,14 @@ function qRender(){
 function drawConsultaPage(host,ro){
   if(opMode!=='consulta'||!$('#cres')){
     opMode='consulta';lastListKey='';
-    const m=qMeta();
+    const m=qMeta()||sbMeta();
     host.innerHTML=opNav('consulta')+(ro||'')+'<div><h1 class="hero">📍 Endereçamento</h1><div class="sub">Digite o nome, ou parte do nome, do produto (ou leia o QR) para ver onde ele está guardado. Daqui você também vincula o produto a um endereço e redistribui entre endereços. <span id="cinfo"></span></div></div>'+
-      (m||S.canEdit?'<div class="field"><label for="cq">PRODUTO</label><div class="row" style="gap:8px;flex-wrap:nowrap"><input type="search" id="cq" data-inp="cq" class="search" style="flex:1" autocomplete="off" autocapitalize="none" enterkeyhint="search" placeholder="Ex.: anel oring ou código" value="'+esc(S.q.cq||'')+'"><button class="btn" type="button" data-qrscan="ah" aria-label="Ler QR code" title="Ler QR code">📷</button></div></div><div class="row" style="gap:8px"><button class="btn sm" data-act="ahnew">🆕 Cadastrar produto novo</button><button class="btn sm" data-act="ahhist">🕒 Histórico</button></div><div id="ahpanel"></div><div id="cres" class="stack"></div><div id="ahhist"></div>':'<div class="card"><div class="empty">A consulta de endereços ainda não foi liberada pelo gestor.<br>Esta tela atualiza sozinha.</div></div>');
+      (m||S.canEdit?'<div class="field"><label for="cq">PRODUTO</label><div class="row" style="gap:8px;flex-wrap:nowrap"><input type="search" id="cq" data-inp="cq" class="search" style="flex:1" autocomplete="off" autocapitalize="none" enterkeyhint="search" placeholder="Ex.: anel oring ou código" value="'+esc(S.q.cq||'')+'"><button class="btn" type="button" data-qrscan="ah" aria-label="Ler QR code" title="Ler QR code">📷</button></div></div><div class="row" style="gap:8px"><button class="btn sm" data-act="ahnew">🆕 Cadastrar produto novo</button><button class="btn sm" data-act="ahhist">🕒 Histórico</button>'+(sbMeta()?'<button class="btn sm" data-act="ahpend">📋 Sem endereço ('+fmtN(ahPending().length)+')</button>':'')+'</div><div id="ahpanel"></div><div id="ahpend"></div><div id="cres" class="stack"></div><div id="ahhist"></div>':'<div class="card"><div class="empty">A consulta de endereços ainda não foi liberada pelo gestor.<br>Esta tela atualiza sozinha.</div></div>');
   }
-  qRender();ahRenderHist();
+  qRender();ahRenderHist();ahRenderPend();
 }
 async function qRelease(){
-  if(!S.addr.size||!stockBase().length){toast('Carregue a base de endereços e o arquivo do ERP (aba Importar) ou publique um inventário',4500);return}
+  if(!S.addr.size||!endBase().length){toast('Carregue a base de endereços e a base de estoque do endereçamento',4500);return}
   const rows=qBuild();
   try{
     const ids=new Set();
@@ -2712,7 +2723,7 @@ async function qOff(){
   }catch(e){toast('Não foi possível desligar')}
 }
 function qCardGestor(){
-  const m=qMeta(),can=S.addr.size&&stockBase().length;
+  const m=qMeta(),can=S.addr.size&&endBase().length;
   const rows=can?qBuild():[],com=rows.filter(r=>r[3]).length;
   return'<div class="card"><div class="hd"><h2>🔎 Consulta de endereços para os coletores</h2>'+(m?'<span class="chip ok">liberada</span><span class="sub">'+fmtN(m.count||0)+' produtos · atualizada '+fmtDT(m.t)+' · '+esc(m.by||'')+'</span>':'<span class="chip">desligada</span>')+'</div><div class="bd stack">'+
     '<div class="sub">Libera a aba <b>Endereços</b> no celular dos coletores. Eles digitam o nome (ou parte do nome) do produto e veem em que endereço ele está. Depois de trocar a base de endereços, toque em Atualizar para a consulta refletir a mudança (endereços novos coletados na varredura entram sozinhos).</div>'+
@@ -3316,7 +3327,7 @@ function abCard(){
   return'<div class="card"><div class="hd"><h2>📲 Endereços para a contagem dos coletores</h2>'+(ok?'<span class="chip ok">enviada</span><span class="sub">'+fmtN(m.count)+' códigos · '+fmtDT(m.t)+'</span>':'<span class="chip warn">pendente</span>')+'</div><div class="bd stack"><div class="sub">É a base de endereços acima que aparece para o coletor, <b>só depois que ele digita o código</b> na contagem (para ele confirmar onde o produto está). Não tem relação com a Consulta de endereços: ela pode continuar desligada. O envio é automático quando a base muda.</div>'+
     '<div class="row"><button class="btn sm" data-act="absync">↻ Enviar agora aos coletores</button>'+(ok?'':'<span class="sub">Ainda não chegou aos aparelhos. Toque em "Enviar agora".</span>')+'</div></div></div>';
 }
-function vEnd(){const h=vEnd0();return h+abCard()+ahCardGestor()+locSumCard()}
+function vEnd(){const h=vEnd0();return sbCard()+h+abCard()+ahCardGestor()+locSumCard()}
 
 /* apuração de não localizados / itens que ficaram de fora dos grupos encerrados */
 function nfLeft(){
@@ -4246,6 +4257,81 @@ function ahExportBase(){
   saveXlsx(wb,'Base_enderecamento_atualizada_'+new Date().toISOString().slice(0,10)+'.xlsx');
 }
 
+/* ---- produtos do estoque sem endereço: lista para os coletores procurarem ---- */
+S.ahp=false;
+function ahPending(){
+  if(!sbMeta())return[];
+  const idx=new Map(qIndex().map(e=>[zc(e.c),e])),nf=new Set([...S.anew.values()].filter(d=>d.nf).map(d=>zc(d.code)));
+  return endBase().filter(x=>(x.q==null||x.q>0)&&!nf.has(zc(x.c))&&!((idx.get(zc(x.c))||{}).end));
+}
+function ahRenderPend(){
+  const host=$('#ahpend');if(!host)return;
+  if(!S.ahp){host.innerHTML='';return}
+  const all=ahPending(),q=qn(S.q.apq2||''),g=S.q.apg2||'';
+  const gs=[...new Set(all.map(x=>x.g||''))].sort((a,b)=>a.localeCompare(b,'pt',{numeric:true}));
+  let l=all;if(g)l=l.filter(x=>(x.g||'')===g);if(q)l=l.filter(x=>qn(x.d+' '+x.c).includes(q));
+  host.innerHTML='<div class="card"><div class="hd"><h2>📋 Produtos sem endereço</h2><span class="sub">'+fmtN(all.length)+' no total · procure no almoxarifado e vincule o endereço</span></div><div class="bd stack">'+
+    '<div class="row" style="gap:8px"><input type="search" id="apq2" data-inp="apq2" class="search" style="flex:1;min-width:140px" autocomplete="off" placeholder="Filtrar por nome ou código" value="'+esc(S.q.apq2||'')+'"><select id="apg2" data-chg="apg2" aria-label="Grupo"><option value="">Todos os grupos</option>'+gs.map(x=>'<option value="'+esc(x)+'"'+(x===g?' selected':'')+'>'+esc(x||'(sem grupo)')+'</option>').join('')+'</select></div>'+
+    '<div id="ahpl">'+ahPendList(l)+'</div></div></div>';
+}
+function ahPendList(l){
+  if(!l.length)return'<div class="empty">Nenhum produto sem endereço nesta seleção.</div>';
+  return'<div class="sub">'+fmtN(l.length)+' produto(s)'+(l.length>40?' · mostrando 40, filtre para refinar':'')+'</div>'+l.slice(0,40).map(x=>'<div class="card" style="box-shadow:none"><div class="bd stack" style="gap:6px"><div><span class="tag c">'+esc(x.c)+'</span>'+(x.g?' <span class="sub">'+esc(x.g)+'</span>':'')+(x.u?' <span class="sub">· '+esc(x.u)+'</span>':'')+'</div><div class="desc"><b>'+esc(x.d||'(sem descrição)')+'</b></div><div class="row" style="gap:8px"><button class="btn primary sm" data-act="ahlink" data-c="'+esc(x.c)+'">📍 Vincular endereço</button><button class="btn sm" data-act="ahnf" data-c="'+esc(x.c)+'">Não encontrei</button></div></div></div>').join('');
+}
+function ahPendRefresh(){const b=$('#ahpl');if(!b)return;const all=ahPending(),q=qn(S.q.apq2||''),g=S.q.apg2||'';let l=all;if(g)l=l.filter(x=>(x.g||'')===g);if(q)l=l.filter(x=>qn(x.d+' '+x.c).includes(q));b.innerHTML=ahPendList(l)}
+async function ahNotFound(c){
+  const x=endBase().find(y=>y.c===c);if(!x||!S.db)return;
+  if(!confirmOnce('ahnf'+c)){toast('Toque de novo para confirmar que não encontrou',3500);return}
+  try{await withTimeout(S.db.doc('addrnew/'+adId(c)).set({code:c,desc:x.d||'',grp:x.g||'',shelf:'',nf:true,op:S.name,ok:myKey(),t:Date.now()}),20000);toast('Marcado como não encontrado');scheduleRebuild();ahRenderPend()}catch(e){toast('Não foi possível salvar',3500)}
+}
+
+/* ---- base de estoque independente do endereçamento (gestor) ---- */
+let S_sb=null;
+async function sbParse(f){
+  const sheets=await loadWorkbook(f);
+  const names=Object.keys(sheets).filter(n=>sheets[n].length>1);
+  if(!names.length){toast('A planilha está vazia');return}
+  const aoa=sheets[names[0]],hdr=detectHeader(aoa),map=autoMap(aoa[hdr]||[]);
+  if(map.code==null){toast('Não achei a coluna de código do produto',4000);return}
+  const cell=(row,i)=>i==null?'':(row[i]==null?'':row[i]);
+  const seen=new Set(),rows=[];let semQ=0,zero=0;
+  for(let r=hdr+1;r<aoa.length;r++){
+    const row=aoa[r]||[],code=String(cell(row,map.code)).trim();if(!code||seen.has(zc(code)))continue;seen.add(zc(code));
+    const desc=String(cell(row,map.desc)).trim()||code,un=String(cell(row,map.un)).trim().slice(0,6);
+    const gc=String(cell(row,map.grp)).trim(),gd=String(cell(row,map.gdesc)).trim();
+    let q=map.qty!=null?toNum(cell(row,map.qty)):NaN;if(!isFinite(q)){q=null;semQ++}else if(q<=0)zero++;
+    rows.push([code.slice(0,30),desc.slice(0,90),((gc&&gd&&gc!==gd?gc+' — '+gd:(gd||gc))||'').slice(0,40),q,un]);
+  }
+  if(!rows.length){toast('Nenhum produto encontrado na planilha');return}
+  S_sb={name:f.name,rows,semQ,zero,hasQty:map.qty!=null};
+}
+async function sbSave(){
+  if(!S_sb)return;const rows=S_sb.rows;
+  try{
+    const ids=new Set();
+    for(let i=0,n=0;i<rows.length;i+=400,n++){const id='s'+String(n).padStart(3,'0');ids.add(id);await S.db.doc('addrtask/'+id).set({no:n,rows:rows.slice(i,i+400)})}
+    for(const id of [...S.atask.keys()])if(/^s\d+$/.test(id)&&!ids.has(id))await S.db.doc('addrtask/'+id).delete();
+    await S.db.doc('addrtask/smeta').set({on:true,t:Date.now(),count:rows.length,file:S_sb.name,by:S.name});
+    toast('Base de estoque salva: '+fmtN(rows.length)+' produtos');S_sb=null;draw(true);
+  }catch(e){console.error(e);toast('Não foi possível salvar a base ('+((e&&e.code)||'erro')+')',4000)}
+}
+async function sbOff(){
+  if(!confirmOnce('sboff')){toast('Toque de novo para excluir a base de estoque',3500);return}
+  try{for(const id of [...S.atask.keys()])if(/^s\d+$/.test(id)||id==='smeta')await S.db.doc('addrtask/'+id).delete();toast('Base de estoque excluída')}catch(e){toast('Não foi possível excluir')}
+}
+function sbCard(){
+  const m=sbMeta();let h='<div class="card"><div class="hd"><h2>📦 Base de estoque do endereçamento</h2>'+(m?'<span class="chip ok">ativa · '+fmtN(m.count)+' produtos</span>':'<span class="chip">não carregada</span>')+'</div><div class="bd stack">'+
+    '<div class="sub">Base própria do endereçamento, independente do inventário e da aba Importar. Carregue o estoque do ERP (código, descrição, grupo, unidade e saldo). Os produtos com saldo que ainda não têm endereço aparecem para os coletores procurarem, em <b>Endereços › Sem endereço</b>. Trocar esta base não mexe em nenhuma contagem nem no histórico do inventário.</div>'+
+    (m?'<div class="sub">Arquivo: <b>'+esc(m.file||'')+'</b> · salvo em '+fmtDT(m.t)+' · '+fmtN(ahPending().length)+' sem endereço</div>':'');
+  if(S_sb){
+    h+='<div class="note info"><b>'+fmtN(S_sb.rows.length)+' produtos lidos de '+esc(S_sb.name)+'.</b>'+(S_sb.hasQty?'':' Não achei a coluna de saldo: todos serão tratados como com saldo.')+(S_sb.zero?' '+S_sb.zero+' com saldo zero (não entram na lista de procura).':'')+'</div>'+
+      '<div class="row"><button class="btn primary" data-act="sbsave">'+(m?'Substituir a base atual':'Salvar base de estoque')+'</button><button class="btn" data-act="sbcancel">Cancelar</button></div>';
+  }else{
+    h+='<div class="row"><label class="btn" style="cursor:pointer">'+(m?'Trocar planilha':'Escolher planilha')+'<input type="file" accept=".xlsx,.xls,.csv,.txt" data-chg="sbfile" hidden></label>'+(m?'<button class="btn danger sm" data-act="sboff">Excluir base</button>':'')+'</div>';
+  }
+  return h+'</div></div>';
+}
+
 /* ============ importação do ERP ============ */
 const normH=s=>String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
 const FIELDS=[['code','Código do material'],['desc','Descrição'],['un','Unidade'],['qty','Saldo do ERP'],['cost','Custo unitário'],['shelf','Prateleira / endereço'],['sec','Seção'],['wh','Cód. armazém (opcional)'],['grp','Grupo (opcional)'],['gdesc','Descrição do grupo (opcional)']];
@@ -4618,6 +4704,11 @@ const ACT={
   ahphoto(b){ahShowPhoto(b.dataset.id,Number(b.dataset.i))},
   ahxl(){ahExportXlsx()},
   ahbase(){ahExportBase()},
+  ahpend(){S.ahp=!S.ahp;ahRenderPend()},
+  ahnf(b){ahNotFound(b.dataset.c)},
+  sbsave(){sbSave()},
+  sbcancel(){S_sb=null;draw(true)},
+  sboff(){sbOff()},
   relgrp(){relGrp()},
   absync(){abSync(true)},
   relreopen(b){relReopen(b.dataset.sk,b.dataset.k)},
@@ -4737,6 +4828,8 @@ const CHG={
   },
   async cpfile(t){const f=t.files&&t.files[0];if(!f)return;if(typeof XLSX==='undefined'){toast('A biblioteca de planilhas não carregou. Verifique a conexão e recarregue.',4000);return}try{await cpParse(f)}catch(e){console.error(e);toast('Não consegui ler esse arquivo',3500)}draw(true)},
   ahcode(t){ahCodeFill()},
+  apg2(t){S.q.apg2=t.value;ahRenderPend()},
+  async sbfile(t){const f=t.files&&t.files[0];if(!f)return;if(typeof XLSX==='undefined'){toast('A biblioteca de planilhas não carregou. Verifique a conexão e recarregue.',4000);return}try{await sbParse(f)}catch(e){console.error(e);toast('Não consegui ler esse arquivo',3500)}draw(true)},
   async ahph(t){const f=t.files&&t.files[0];if(!f)return;try{AHP[Number(t.dataset.i)]=await compressImg(f,640,0.5)}catch(e){toast('Não consegui ler a foto')}ahDrawPh()},
   async xph(t){const f=t.files&&t.files[0];if(!f)return;try{XPH[Number(t.dataset.i)]=await compressImg(f)}catch(e){toast('Não consegui ler a foto')}drawPh()},
   lst(t){S.q.lst=t.value;draw(true)},
@@ -4817,6 +4910,7 @@ root.addEventListener('input',e=>{
   else if(k==='adgq'){S.q.adgq=t.value;const b=$('#adg-body');if(b)b.innerHTML=adGroupsBody()}
   else if(k==='aq'){S.q.aq=t.value;adRender(true)}
   else if(k==='cq'){S.q.cq=t.value;qRender()}
+  else if(k==='apq2'){S.q.apq2=t.value;ahPendRefresh()}
   else if(k==='eq'){S.q.eq=t.value;$('#end-body').innerHTML=endBody()}
   else if(k==='bq'){S.q.bq=t.value;$('#busca-body').innerHTML=bBody()}
   else if(k==='qctrl'){S.q.ctrl=t.value;$('#ctrl-body').innerHTML=ctrlTableRows(ctrlItems().map(ctrlRow))}
