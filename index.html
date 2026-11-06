@@ -267,7 +267,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 54</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 55</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -629,7 +629,7 @@ const addrId=n=>'c'+String(n).padStart(3,'0');
 function rebuildAddr(){
   const m=new Map();
   [...S.addrDocs.entries()].filter(([k])=>k!=='meta').sort((a,b)=>a[0]<b[0]?-1:1).forEach(([,d])=>(d.rows||[]).forEach(r=>{if(!m.has(r[0]))m.set(r[0],{shelf:r[1],sec:r[2]||''})}));
-  if(S.canEdit&&S.addrDocs.size)for(const d of S.anew.values())if(!d.nf&&!m.has(d.code))m.set(d.code,{shelf:d.shelf,sec:'',by:d.op});
+  if(S.canEdit&&S.addrDocs.size)for(const d of S.anew.values())if(!d.nf&&(!m.has(d.code)||d.mv))m.set(d.code,{shelf:d.shelf,sec:'',by:d.op});
   S.addr=m;
 }
 /* ---- atribuição da 3ª/4ª contagem ---- */
@@ -2643,7 +2643,7 @@ function qIndex(){
   if(!local)for(const d of S.anew.values()){
     if(d.nf)continue;
     const e=m.get(String(d.code));
-    if(e){if(!e.end)e.end=d.shelf||''}else m.set(String(d.code),{c:String(d.code),d:d.desc||'',g:d.grp||'',end:d.shelf||''});
+    if(e){if(!e.end||d.mv)e.end=d.shelf||''}else m.set(String(d.code),{c:String(d.code),d:d.desc||'',g:d.grp||'',end:d.shelf||''});
   }
   const list=[...m.values()].map(e=>Object.assign(e,{n:qn(e.d),k:qc(e.d),nc:qn(e.c)}));
   _qi={sig,list};return list;
@@ -2666,7 +2666,7 @@ function qSearch(text){
 function qCard1(e){
   const ends=String(e.end||'').split(' | ').map(x=>x.trim()).filter(Boolean);
   return'<div class="card"><div class="bd stack" style="gap:8px"><div><span class="tag c">'+esc(e.c)+'</span>'+(e.g?' <span class="sub">'+esc(e.g)+'</span>':'')+'</div><div class="desc"><b>'+esc(e.d||'(sem descrição)')+'</b></div>'+
-    (ends.length?'<div class="row" style="gap:8px">'+ends.map(x=>'<span class="chip ok" style="font-size:16px;padding:6px 14px">📍 '+esc(x)+'</span>').join('')+'</div>':'<div><span class="chip warn">sem endereço cadastrado</span></div>')+'</div></div>';
+    (ends.length?'<div class="row" style="gap:8px">'+ends.map(x=>'<span class="chip ok" style="font-size:16px;padding:6px 14px">📍 '+esc(x)+'</span>').join('')+'</div>':'<div><span class="chip warn">sem endereço cadastrado</span></div>')+'<div class="row" style="gap:8px">'+(ends.length?'<button class="btn sm" data-act="ahmove" data-c="'+esc(e.c)+'">🔄 Redistribuir</button><button class="btn sm" data-act="ahlink" data-c="'+esc(e.c)+'">➕ Outro endereço</button>':'<button class="btn primary sm" data-act="ahlink" data-c="'+esc(e.c)+'">📍 Vincular endereço</button>')+'</div></div></div>';
 }
 function qRender(){
   const host=$('#cres');if(!host)return;
@@ -2680,10 +2680,10 @@ function drawConsultaPage(host,ro){
   if(opMode!=='consulta'||!$('#cres')){
     opMode='consulta';lastListKey='';
     const m=qMeta();
-    host.innerHTML=opNav('consulta')+(ro||'')+'<div><h1 class="hero">📍 Endereçamento</h1><div class="sub">Digite o nome, ou parte do nome, do produto para ver onde ele está guardado. <span id="cinfo"></span></div></div>'+
-      (m||S.canEdit?'<div class="field"><label for="cq">PRODUTO</label><input type="search" id="cq" data-inp="cq" class="search" autocomplete="off" autocapitalize="none" enterkeyhint="search" placeholder="Ex.: anel oring" value="'+esc(S.q.cq||'')+'"></div><div id="cres" class="stack"></div>':'<div class="card"><div class="empty">A consulta de endereços ainda não foi liberada pelo gestor.<br>Esta tela atualiza sozinha.</div></div>');
+    host.innerHTML=opNav('consulta')+(ro||'')+'<div><h1 class="hero">📍 Endereçamento</h1><div class="sub">Digite o nome, ou parte do nome, do produto (ou leia o QR) para ver onde ele está guardado. Daqui você também vincula o produto a um endereço e redistribui entre endereços. <span id="cinfo"></span></div></div>'+
+      (m||S.canEdit?'<div class="field"><label for="cq">PRODUTO</label><div class="row" style="gap:8px;flex-wrap:nowrap"><input type="search" id="cq" data-inp="cq" class="search" style="flex:1" autocomplete="off" autocapitalize="none" enterkeyhint="search" placeholder="Ex.: anel oring ou código" value="'+esc(S.q.cq||'')+'"><button class="btn" type="button" data-qrscan="ah" aria-label="Ler QR code" title="Ler QR code">📷</button></div></div><div class="row" style="gap:8px"><button class="btn sm" data-act="ahnew">🆕 Cadastrar produto novo</button><button class="btn sm" data-act="ahhist">🕒 Histórico</button></div><div id="ahpanel"></div><div id="cres" class="stack"></div><div id="ahhist"></div>':'<div class="card"><div class="empty">A consulta de endereços ainda não foi liberada pelo gestor.<br>Esta tela atualiza sozinha.</div></div>');
   }
-  qRender();
+  qRender();ahRenderHist();
 }
 async function qRelease(){
   if(!S.addr.size||!stockBase().length){toast('Carregue a base de endereços e o arquivo do ERP (aba Importar) ou publique um inventário',4500);return}
@@ -3309,7 +3309,7 @@ function abCard(){
   return'<div class="card"><div class="hd"><h2>📲 Endereços para a contagem dos coletores</h2>'+(ok?'<span class="chip ok">enviada</span><span class="sub">'+fmtN(m.count)+' códigos · '+fmtDT(m.t)+'</span>':'<span class="chip warn">pendente</span>')+'</div><div class="bd stack"><div class="sub">É a base de endereços acima que aparece para o coletor, <b>só depois que ele digita o código</b> na contagem (para ele confirmar onde o produto está). Não tem relação com a Consulta de endereços: ela pode continuar desligada. O envio é automático quando a base muda.</div>'+
     '<div class="row"><button class="btn sm" data-act="absync">↻ Enviar agora aos coletores</button>'+(ok?'':'<span class="sub">Ainda não chegou aos aparelhos. Toque em "Enviar agora".</span>')+'</div></div></div>';
 }
-function vEnd(){const h=vEnd0();return h+abCard()+locSumCard()}
+function vEnd(){const h=vEnd0();return h+abCard()+ahCardGestor()+locSumCard()}
 
 /* apuração de não localizados / itens que ficaram de fora dos grupos encerrados */
 function nfLeft(){
@@ -3360,11 +3360,12 @@ function qSigOf(rows){let h=5381;const t=rows.map(r=>r.join('\t')).join('\n');fo
 const abRows=()=>[...S.addr].map(([c,a])=>[String(c).slice(0,30),addrTxt(a).slice(0,100)]);
 let _ab=null;
 function abIndex(){
-  const local=S.canEdit&&S.addr.size,sig=[local?S.addr:null,S.atask];
+  const local=S.canEdit&&S.addr.size,sig=[local?S.addr:null,S.atask,S.anew];
   if(_ab&&_ab.sig.every((v,i)=>v===sig[i]))return _ab.m;
   const m=new Map();
   if(local){for(const [c,a] of S.addr)m.set(zc(c),addrTxt(a))}
   else[...S.atask.entries()].filter(([k])=>/^a\d+$/.test(k)).forEach(([,d])=>(d.rows||[]).forEach(r=>m.set(zc(r[0]),r[1]||'')));
+  if(!local)for(const d of S.anew.values())if(d.mv&&!d.nf&&d.shelf)m.set(zc(d.code),d.shelf);
   _ab={sig,m};return m;
 }
 const abHas=()=>abIndex().size>0;
@@ -3607,6 +3608,7 @@ function qrStop(){
 }
 function qrDone(text){
   qrStop();
+  if(QRS.target==='ah'){QRS.target='';return ahQrDone(text)}
   const inp=$('#blcode'),res=$('#blres');if(!inp)return;
   const hit=qrResolve(text);
   if(hit){inp.value=hit.code;blSearch();toast('QR lido: '+hit.code)}
@@ -3672,7 +3674,7 @@ async function qrOpen(){
   '#blqrbtn{min-width:52px;font-size:22px;padding:0 10px}';
   document.head.appendChild(st);
 })();
-document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-qrscan]');if(b){e.preventDefault();qrOpen()}});
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-qrscan]');if(b){e.preventDefault();QRS.target=b.dataset.qrscan==='ah'?'ah':'';qrOpen()}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#qrov'))qrStop()});
 
 /* ===== Indicadores: produtos contados em 2+ locais ===== */
@@ -4112,6 +4114,110 @@ function relRecPdf(key){
   S.dl.save({filename:R.fn+'.pdf',data:doc.output('blob')}).then(()=>toast('Arquivo salvo')).catch(e=>{if(!e||e.code!=='declined')toast('Não foi possível salvar o arquivo')});
 }
 
+/* ============ Endereçamento contínuo: vincular produto a endereço, redistribuir e histórico ============ */
+const AHP=[null,null];
+S.ah=null;S.ahh=false;
+const ahList=()=>[...S.extras.values()].filter(d=>d&&d.kind==='ahist').sort((a,b)=>(b.t||0)-(a.t||0));
+const ahEnds=e=>String(e&&e.end||'').split(' | ').map(x=>x.trim()).filter(Boolean);
+const AH_T={link:['📍 Vinculado','ok'],move:['🔄 Redistribuído','warn'],new:['🆕 Produto novo','info']};
+function ahDrawPh(){
+  for(let i=0;i<2;i++){const el=$('#ahp'+i);if(!el)continue;
+    el.innerHTML=AHP[i]?'<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start"><img src="'+AHP[i]+'" alt="Foto '+(i+1)+'" style="height:90px;border-radius:10px;border:1px solid var(--line)"><button class="lnk" type="button" data-act="ahphrm" data-i="'+i+'">remover foto '+(i+1)+'</button></div>':
+      '<label class="btn sm" style="cursor:pointer;min-height:44px">📷 Foto '+(i+1)+' (opcional)<input type="file" accept="image/*" capture="environment" data-chg="ahph" data-i="'+i+'" hidden></label>'}
+}
+function ahOpen(mode,code,pre){
+  const host=$('#ahpanel');if(!host)return;
+  AHP[0]=null;AHP[1]=null;
+  let e=null;
+  if(mode!=='new'){e=qIndex().find(x=>x.c===code);if(!e){toast('Produto não encontrado');return}}
+  S.ah={mode,code:e?e.c:'',desc:e?e.d:'',grp:e?e.g:'',ends:e?ahEnds(e):[]};
+  const all=new Set();for(const x of qIndex())ahEnds(x).forEach(a=>all.add(a));
+  const dl='<datalist id="ahdl">'+[...all].sort().slice(0,500).map(a=>'<option value="'+esc(a)+'">').join('')+'</datalist>';
+  const title=mode==='move'?'🔄 Redistribuir produto':mode==='new'?'🆕 Cadastrar produto novo':'📍 Vincular endereço';
+  host.innerHTML='<div class="card" id="ahcard"><div class="hd"><h2>'+title+'</h2><span class="sp" style="flex:1"></span><button class="lnk" data-act="ahclose">fechar</button></div><div class="bd stack">'+
+    (mode==='new'?
+      '<div class="field"><label for="ahdesc">NOME DO PRODUTO *</label><input type="text" id="ahdesc" autocomplete="off" maxlength="120" placeholder="Ex.: Luva de raspa cano longo"></div><div class="row" style="gap:8px"><div class="field" style="flex:1"><label for="ahcode">CÓDIGO (se tiver)</label><input type="text" id="ahcode" autocomplete="off" autocapitalize="characters" maxlength="30" value="'+esc(pre||'')+'"></div><div class="field" style="width:90px"><label for="ahun">UN</label><input type="text" id="ahun" autocomplete="off" autocapitalize="characters" maxlength="8" placeholder="UN"></div></div>':
+      '<div><span class="tag c">'+esc(e.c)+'</span>'+(e.g?' <span class="sub">'+esc(e.g)+'</span>':'')+'<div class="desc"><b>'+esc(e.d||'(sem descrição)')+'</b></div></div>')+
+    (mode==='move'?'<div class="field"><label for="ahfrom">ENDEREÇO DE ORIGEM (de onde sai)</label><select id="ahfrom">'+(S.ah.ends.length>1?'<option value="">Escolha…</option>':'')+S.ah.ends.map(a=>'<option value="'+esc(a)+'">'+esc(a)+'</option>').join('')+'</select></div>':
+      (S.ah.ends.length?'<div class="sub">Endereço atual: <b>'+S.ah.ends.map(esc).join(' | ')+'</b>. O novo endereço será somado a ele.</div>':''))+
+    '<div class="field"><label for="ahto">'+(mode==='move'?'ENDEREÇO DE DESTINO (para onde vai) *':'ENDEREÇO *')+'</label><input type="text" id="ahto" list="ahdl" autocomplete="off" autocapitalize="characters" maxlength="60" placeholder="Ex.: P6-A-B1">'+dl+'</div>'+
+    '<div class="field"><label for="ahnote">OBSERVAÇÃO (opcional)</label><input type="text" id="ahnote" autocomplete="off" maxlength="120" placeholder="Ex.: espaço liberado na prateleira"></div>'+
+    '<div class="row" style="gap:10px;flex-wrap:wrap"><div id="ahp0"></div><div id="ahp1"></div></div><div class="sub">As fotos são opcionais.</div>'+
+    '<div class="row"><button class="btn primary" data-act="ahsave" id="ahsave">'+(mode==='move'?'Confirmar redistribuição':'Salvar endereço')+'</button><button class="btn" data-act="ahclose">Cancelar</button></div></div></div>';
+  ahDrawPh();
+  const c=$('#ahcard');if(c)c.scrollIntoView({block:'start',behavior:'smooth'});
+  const f=$(mode==='new'?'#ahdesc':(mode==='move'&&S.ah.ends.length>1?'#ahfrom':'#ahto'));if(f)setTimeout(()=>f.focus(),250);
+}
+function ahClose(){const h=$('#ahpanel');if(h)h.innerHTML='';S.ah=null;AHP[0]=null;AHP[1]=null}
+async function ahSave(){
+  const s=S.ah;if(!s||!S.db)return;
+  const val=id=>(($('#'+id)||{}).value||'').trim();
+  const to=val('ahto').toUpperCase().replace(/\s+/g,' ').slice(0,60);
+  if(to.length<2){toast('Informe o endereço');const f=$('#ahto');if(f)f.focus();return}
+  let code=s.code,desc=s.desc,grp=s.grp||'',un='',cur=s.ends.slice(),from='',type=s.mode==='move'?'move':'link';
+  if(s.mode==='new'){
+    desc=val('ahdesc').slice(0,120);if(desc.length<3){toast('Informe o nome do produto');const f=$('#ahdesc');if(f)f.focus();return}
+    code=val('ahcode').toUpperCase().slice(0,30);un=val('ahun').toUpperCase().slice(0,8);type='new';
+    if(!code)code='SC'+Date.now().toString(36).toUpperCase();
+    else{const ex=qIndex().find(x=>zc(x.c)===zc(code));if(ex){code=ex.c;desc=ex.d||desc;grp=ex.g||'';cur=ahEnds(ex);type='link'}}
+  }
+  if(s.mode==='move'){
+    from=val('ahfrom');if(!from){toast('Escolha o endereço de origem');return}
+    if(from.toUpperCase()===to){toast('Origem e destino são iguais');return}
+  }
+  if(s.mode!=='move'&&cur.some(a=>a.toUpperCase()===to)){toast('Esse produto já está nesse endereço');return}
+  const next=(s.mode==='move'?cur.filter(a=>a!==from):cur).filter(a=>a.toUpperCase()!==to).concat([to]);
+  const note=val('ahnote').slice(0,120),photos=AHP.filter(Boolean),t=Date.now(),id='h'+t.toString(36)+Math.random().toString(36).slice(2,6);
+  const b=$('#ahsave');if(b){b.disabled=true;b.textContent='Salvando…'}
+  try{
+    await withTimeout(S.db.doc('extras/'+id).set({kind:'ahist',id,type,code,desc,grp,un,from,to,note,photos,op:S.name,ok:myKey(),t}),20000);
+    await withTimeout(S.db.doc('addrnew/'+adId(code)).set({code,desc,grp,shelf:next.join(' | ').slice(0,100),nf:false,op:S.name,ok:myKey(),t,mv:1}),20000);
+    toast(type==='move'?'Redistribuição registrada':type==='new'?'Produto cadastrado e endereçado':'Endereço vinculado',3000);
+    ahClose();try{pushPresence()}catch(e){}
+    scheduleRebuild();qRender();
+  }catch(err){
+    console.error(err);toast('Não foi possível salvar. Confira a internet e tente de novo.',4000);
+    const b2=$('#ahsave');if(b2){b2.disabled=false;b2.textContent=s.mode==='move'?'Confirmar redistribuição':'Salvar endereço'}
+  }
+}
+function ahShowPhoto(id,i){
+  const x=S.extras.get(id),s=x&&x.photos&&x.photos[i];if(!s)return;
+  const o=document.createElement('div');o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px;cursor:zoom-out';
+  const im=document.createElement('img');im.src=s;im.style.cssText='max-width:100%;max-height:100%;border-radius:10px';o.appendChild(im);o.onclick=()=>o.remove();document.body.appendChild(o);
+}
+function ahQrDone(text){
+  const cands=qrCandidates(text),idx=qIndex();let hit=null;
+  for(const c of cands){hit=idx.find(x=>zc(x.c)===zc(c));if(hit)break}
+  if(hit){S.q.cq=hit.c;const i=$('#cq');if(i)i.value=hit.c;qRender();toast('QR lido: '+hit.c);return}
+  const run=(String(text).match(/\d{4,}/g)||[]).sort((a,b)=>b.length-a.length)[0]||'';
+  toast('Li o QR, mas esse produto não está na lista. Cadastre como produto novo.',4500);
+  ahOpen('new','',run);
+}
+function ahHistRows(l,who){
+  return l.map(x=>{const tp=AH_T[x.type]||AH_T.link;
+    return'<tr><td class="sub" style="white-space:nowrap">'+fmtDT(x.t)+'</td><td class="wc"><span class="mono sub">'+esc(x.code)+'</span><br>'+esc(x.desc)+'</td><td><span class="chip '+tp[1]+'">'+tp[0]+'</span></td><td>'+(x.type==='move'?esc(x.from||'—')+' → ':'')+'<b>'+esc(x.to)+'</b>'+(x.note?'<div class="sub">'+esc(x.note)+'</div>':'')+'</td>'+(who?'<td>'+esc(x.op||'')+'</td>':'')+'<td>'+((x.photos||[]).map((s,i)=>'<img src="'+s+'" alt="Foto '+(i+1)+'" data-act="ahphoto" data-id="'+esc(x.id)+'" data-i="'+i+'" style="height:40px;border-radius:6px;margin-right:4px;cursor:zoom-in;border:1px solid var(--line)">').join(''))+'</td></tr>'}).join('');
+}
+function ahRenderHist(){
+  const host=$('#ahhist');if(!host)return;
+  if(!S.ahh){host.innerHTML='';return}
+  const l=ahList().slice(0,40);
+  host.innerHTML='<div class="card"><div class="hd"><h2>🕒 Histórico de endereçamento</h2><span class="sub">últimos '+l.length+'</span></div><div class="bd scroll">'+(l.length?'<table class="tbl"><thead><tr><th>Quando</th><th>Produto</th><th>Tipo</th><th>Origem → Destino</th><th>Por</th><th>Fotos</th></tr></thead><tbody>'+ahHistRows(l,true)+'</tbody></table>':'<div class="empty">Nenhum vínculo ou redistribuição registrado ainda.</div>')+'</div></div>';
+}
+function ahCardGestor(){
+  const l=ahList(),mv=l.filter(x=>x.type==='move').length,nw=l.filter(x=>x.type==='new').length;
+  return'<div class="card"><div class="hd"><h2>🔄 Histórico de endereçamento (vínculos e redistribuições)</h2><span class="sub">'+fmtN(l.length)+' registro(s) · '+fmtN(mv)+' redistribuição(ões) · '+fmtN(nw)+' produto(s) novo(s)</span><span class="sp" style="flex:1"></span><button class="btn sm" data-act="ahxl"'+(l.length?'':' disabled')+'>⬇ Exportar .xlsx</button></div><div class="bd scroll">'+
+    (l.length?'<table class="tbl"><thead><tr><th>Quando</th><th>Produto</th><th>Tipo</th><th>Origem → Destino</th><th>Por</th><th>Fotos</th></tr></thead><tbody>'+ahHistRows(l.slice(0,100),true)+'</tbody></table>'+(l.length>100?'<div class="sub">Mostrando 100 de '+fmtN(l.length)+'. A planilha traz todos.</div>':''):'<div class="sub">Os coletores registram aqui, pela aba Endereços do celular, produtos vinculados a endereços e redistribuições entre endereços. Nada foi registrado ainda.</div>')+'</div></div>';
+}
+function ahExportXlsx(){
+  if(typeof XLSX==='undefined'){toast('Biblioteca de planilhas não carregou');return}
+  const l=ahList();if(!l.length){toast('Nada para exportar');return}
+  const TN={link:'Vinculado',move:'Redistribuído',new:'Produto novo'};
+  const cols=[{h:'Data',k:'d',w:18},{h:'Código',k:'c',w:16},{h:'Descrição',k:'ds',w:44},{h:'Tipo',k:'tp',w:16},{h:'Origem',k:'f',w:18},{h:'Destino',k:'to',w:18},{h:'Responsável',k:'op',w:20},{h:'Observação',k:'n',w:30},{h:'Fotos',k:'ph',w:8}];
+  const rows=l.map(x=>({d:new Date(x.t).toLocaleString('pt-BR'),c:x.code,ds:x.desc,tp:TN[x.type]||x.type,f:x.from||'',to:x.to,op:x.op||'',n:x.note||'',ph:(x.photos||[]).length}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,mkSheet(rows,cols),'Historico');
+  saveXlsx(wb,'Historico_enderecamento_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
 /* ============ importação do ERP ============ */
 const normH=s=>String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
 const FIELDS=[['code','Código do material'],['desc','Descrição'],['un','Unidade'],['qty','Saldo do ERP'],['cost','Custo unitário'],['shelf','Prateleira / endereço'],['sec','Seção'],['wh','Cód. armazém (opcional)'],['grp','Grupo (opcional)'],['gdesc','Descrição do grupo (opcional)']];
@@ -4234,7 +4340,7 @@ function demoItems(){
 async function purge(keepInv){
   for(const col of ['chunks','erp','counts','extras','finds']){
     const snap=await S.db.collection(col).get();
-    for(const d of snap.docs){if((d.data()||{}).inv!==keepInv)await S.db.doc(col+'/'+d.id).delete()}
+    for(const d of snap.docs){const x=d.data()||{};if(x.kind!=='ahist'&&x.inv!==keepInv)await S.db.doc(col+'/'+d.id).delete()}
   }
 }
 async function publishInv(){
@@ -4474,6 +4580,15 @@ const ACT={
   blother(){blOther()},
   reladd(b){relAdd(b.dataset.r)},
   relsync2(){relSync2()},
+  ahmove(b){ahOpen('move',b.dataset.c)},
+  ahlink(b){ahOpen('link',b.dataset.c)},
+  ahnew(){ahOpen('new','')},
+  ahclose(){ahClose()},
+  ahsave(){ahSave()},
+  ahphrm(b){AHP[Number(b.dataset.i)]=null;ahDrawPh()},
+  ahhist(){S.ahh=!S.ahh;ahRenderHist()},
+  ahphoto(b){ahShowPhoto(b.dataset.id,Number(b.dataset.i))},
+  ahxl(){ahExportXlsx()},
   relgrp(){relGrp()},
   absync(){abSync(true)},
   relreopen(b){relReopen(b.dataset.sk,b.dataset.k)},
@@ -4592,6 +4707,7 @@ const CHG={
     draw(true);
   },
   async cpfile(t){const f=t.files&&t.files[0];if(!f)return;if(typeof XLSX==='undefined'){toast('A biblioteca de planilhas não carregou. Verifique a conexão e recarregue.',4000);return}try{await cpParse(f)}catch(e){console.error(e);toast('Não consegui ler esse arquivo',3500)}draw(true)},
+  async ahph(t){const f=t.files&&t.files[0];if(!f)return;try{AHP[Number(t.dataset.i)]=await compressImg(f,640,0.5)}catch(e){toast('Não consegui ler a foto')}ahDrawPh()},
   async xph(t){const f=t.files&&t.files[0];if(!f)return;try{XPH[Number(t.dataset.i)]=await compressImg(f)}catch(e){toast('Não consegui ler a foto')}drawPh()},
   lst(t){S.q.lst=t.value;draw(true)},
   indsh(t){S.q.indsh=t.value;draw(true)},
