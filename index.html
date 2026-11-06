@@ -267,7 +267,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 55</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 56</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -1258,8 +1258,9 @@ function vDashboard(){
   const list=people.map(p=>({p,o:st.ops.get(p.key)||{n:0,m15:0,last:null,c1n:0,c1ok:0},pe:peersBy.get(p.key)}))
     .sort((a,b)=>(!!b.pe-!!a.pe)||(b.o.n-a.o.n));
   const onl=list.filter(x=>x.pe).length+1;
-  let h=st.unasg2?'<div class="note warn"><b>'+st.unasg2+' '+(st.unasg2===1?'item aguarda':'itens aguardam')+' responsável pela 2ª contagem.</b> Os operadores só veem a 2ª contagem depois que você atribuir. <button class="btn sm" data-act="goto2">Atribuir agora</button></div>':'';
-  h+=st.unasg?'<div class="note warn"><b>'+st.unasg+' '+(st.unasg===1?'item aguarda':'itens aguardam')+' responsável pela 3ª/4ª contagem.</b> Os operadores só veem esses itens depois que você atribuir. <button class="btn sm" data-act="goto3">Atribuir agora</button></div>':'';
+  const encl=S.meta&&S.meta.status==='encerrado';
+  let h=st.unasg2&&!encl?'<div class="note warn"><b>'+st.unasg2+' '+(st.unasg2===1?'item aguarda':'itens aguardam')+' responsável pela 2ª contagem.</b> Os operadores só veem a 2ª contagem depois que você atribuir. <button class="btn sm" data-act="goto2">Atribuir agora</button></div>':'';
+  h+=st.unasg&&!encl?'<div class="note warn"><b>'+st.unasg+' '+(st.unasg===1?'item aguarda':'itens aguardam')+' responsável pela 3ª/4ª contagem.</b> Os operadores só veem esses itens depois que você atribuir. <button class="btn sm" data-act="goto3">Atribuir agora</button></div>':'';
   h+='<div class="grid2">';
   h+='<div class="card"><div class="hd"><h2><span class="pill" style="padding:0;background:none">🟢</span> Equipe ao vivo</h2></div><div class="bd stack" style="gap:8px"><div class="sub">'+onl+' '+(onl===1?'pessoa conectada':'pessoas conectadas')+' agora · atualiza sozinho</div>'+
     list.map(({p,o,pe})=>'<div class="person'+(pe?' on':'')+'"><span class="pav">'+esc(ini(p.name))+'</span><div style="min-width:0"><div class="nm">'+esc(p.name)+'</div><div class="sub">'+(pe?'🟢 online':'○ offline')+(o.last?' · última contagem '+fmtT(o.last):'')+(pe&&pe.shelf?' · '+esc(pe.shelf):(!pe&&shelfOf(p.key).length?' · '+esc(shelfOf(p.key).join(', ')):''))+(pe&&(pe.pend||pe.drafts)?'<br><span style="color:var(--warn);font-weight:700">'+(pe.drafts?pe.drafts+' para enviar':'')+(pe.drafts&&pe.pend?' · ':'')+(pe.pend?pe.pend+' sem conexão':'')+'</span>':'')+'</div></div><div class="big"><b class="num">'+o.n+'</b><span class="sub">contagens</span>'+(o.m15?'<span class="g">'+o.m15+' nos últimos 15 min</span>':'')+'</div></div>').join('')+
@@ -1979,7 +1980,7 @@ function endRows(){
     if(a)out.com.push({c:x.c,d:x.d,g:x.g,q:x.q,end:addrTxt(a),u:x.u});
     else if(x.q==null||x.q>0)out.sem.push({c:x.c,d:x.d,g:x.g,q:x.q,end:'',u:x.u});
   }
-  if(stockBase().length)for(const [c,a] of S.addr)if(!seen.has(c))out.orf.push({c,d:'',g:'',q:null,end:addrTxt(a),u:''});
+  if(stockBase().length)for(const [c,a] of S.addr)if(!seen.has(c)){const cp=cpIndex().get(zc(c))||{};out.orf.push({c,d:cp.desc||'',g:cp.grp||'',q:null,end:addrTxt(a),u:cp.un||''})}
   return out;
 }
 function endFiltered(){
@@ -2644,6 +2645,12 @@ function qIndex(){
     if(d.nf)continue;
     const e=m.get(String(d.code));
     if(e){if(!e.end||d.mv)e.end=d.shelf||''}else m.set(String(d.code),{c:String(d.code),d:d.desc||'',g:d.grp||'',end:d.shelf||''});
+  }
+  const cz=new Map();for(const e of m.values())cz.set(zc(e.c),e);
+  for(const [z,r] of cpIndex()){
+    const e=cz.get(z);
+    if(e){if(!e.d||e.d===e.c)e.d=r.desc||e.d;if(!e.g)e.g=r.grp||'';e.un=r.un||''}
+    else{const n={c:r.code,d:r.desc,g:r.grp||'',end:'',un:r.un||''};m.set(r.code,n);cz.set(z,n)}
   }
   const list=[...m.values()].map(e=>Object.assign(e,{n:qn(e.d),k:qc(e.d),nc:qn(e.c)}));
   _qi={sig,list};return list;
@@ -4130,16 +4137,17 @@ function ahOpen(mode,code,pre){
   AHP[0]=null;AHP[1]=null;
   let e=null;
   if(mode!=='new'){e=qIndex().find(x=>x.c===code);if(!e){toast('Produto não encontrado');return}}
-  S.ah={mode,code:e?e.c:'',desc:e?e.d:'',grp:e?e.g:'',ends:e?ahEnds(e):[]};
+  S.ah={mode,code:e?e.c:'',desc:e?e.d:'',grp:e?e.g:'',un:e?(e.un||''):'',ends:e?ahEnds(e):[]};
   const all=new Set();for(const x of qIndex())ahEnds(x).forEach(a=>all.add(a));
   const dl='<datalist id="ahdl">'+[...all].sort().slice(0,500).map(a=>'<option value="'+esc(a)+'">').join('')+'</datalist>';
   const title=mode==='move'?'🔄 Redistribuir produto':mode==='new'?'🆕 Cadastrar produto novo':'📍 Vincular endereço';
   host.innerHTML='<div class="card" id="ahcard"><div class="hd"><h2>'+title+'</h2><span class="sp" style="flex:1"></span><button class="lnk" data-act="ahclose">fechar</button></div><div class="bd stack">'+
     (mode==='new'?
-      '<div class="field"><label for="ahdesc">NOME DO PRODUTO *</label><input type="text" id="ahdesc" autocomplete="off" maxlength="120" placeholder="Ex.: Luva de raspa cano longo"></div><div class="row" style="gap:8px"><div class="field" style="flex:1"><label for="ahcode">CÓDIGO (se tiver)</label><input type="text" id="ahcode" autocomplete="off" autocapitalize="characters" maxlength="30" value="'+esc(pre||'')+'"></div><div class="field" style="width:90px"><label for="ahun">UN</label><input type="text" id="ahun" autocomplete="off" autocapitalize="characters" maxlength="8" placeholder="UN"></div></div>':
-      '<div><span class="tag c">'+esc(e.c)+'</span>'+(e.g?' <span class="sub">'+esc(e.g)+'</span>':'')+'<div class="desc"><b>'+esc(e.d||'(sem descrição)')+'</b></div></div>')+
+      '<div class="field"><label for="ahdesc">NOME DO PRODUTO *</label><input type="text" id="ahdesc" autocomplete="off" maxlength="120" placeholder="Ex.: Luva de raspa cano longo"></div><div class="row" style="gap:8px"><div class="field" style="flex:1"><label for="ahcode">CÓDIGO (se tiver)</label><input type="text" id="ahcode" data-chg="ahcode" autocomplete="off" autocapitalize="characters" maxlength="30" value="'+esc(pre||'')+'"></div><div class="field" style="width:90px"><label for="ahun">UN</label><input type="text" id="ahun" autocomplete="off" autocapitalize="characters" maxlength="8" placeholder="UN"></div></div>':
+      '<div><span class="tag c">'+esc(e.c)+'</span>'+(e.g?' <span class="sub">'+esc(e.g)+'</span>':'')+(e.un?' <span class="sub">· '+esc(e.un)+'</span>':'')+'<div class="desc"><b>'+esc(e.d||'(sem descrição)')+'</b></div></div>')+
     (mode==='move'?'<div class="field"><label for="ahfrom">ENDEREÇO DE ORIGEM (de onde sai)</label><select id="ahfrom">'+(S.ah.ends.length>1?'<option value="">Escolha…</option>':'')+S.ah.ends.map(a=>'<option value="'+esc(a)+'">'+esc(a)+'</option>').join('')+'</select></div>':
       (S.ah.ends.length?'<div class="sub">Endereço atual: <b>'+S.ah.ends.map(esc).join(' | ')+'</b>. O novo endereço será somado a ele.</div>':''))+
+    '<div class="field"><label for="ahqty">QUANTIDADE'+(mode==='move'?' (opcional)':' *')+'</label><input type="text" id="ahqty" inputmode="decimal" autocomplete="off" maxlength="12" placeholder="Ex.: 12"></div>'+
     '<div class="field"><label for="ahto">'+(mode==='move'?'ENDEREÇO DE DESTINO (para onde vai) *':'ENDEREÇO *')+'</label><input type="text" id="ahto" list="ahdl" autocomplete="off" autocapitalize="characters" maxlength="60" placeholder="Ex.: P6-A-B1">'+dl+'</div>'+
     '<div class="field"><label for="ahnote">OBSERVAÇÃO (opcional)</label><input type="text" id="ahnote" autocomplete="off" maxlength="120" placeholder="Ex.: espaço liberado na prateleira"></div>'+
     '<div class="row" style="gap:10px;flex-wrap:wrap"><div id="ahp0"></div><div id="ahp1"></div></div><div class="sub">As fotos são opcionais.</div>'+
@@ -4154,13 +4162,16 @@ async function ahSave(){
   const val=id=>(($('#'+id)||{}).value||'').trim();
   const to=val('ahto').toUpperCase().replace(/\s+/g,' ').slice(0,60);
   if(to.length<2){toast('Informe o endereço');const f=$('#ahto');if(f)f.focus();return}
-  let code=s.code,desc=s.desc,grp=s.grp||'',un='',cur=s.ends.slice(),from='',type=s.mode==='move'?'move':'link';
+  let code=s.code,desc=s.desc,grp=s.grp||'',un=s.un||'',cur=s.ends.slice(),from='',type=s.mode==='move'?'move':'link';
   if(s.mode==='new'){
     desc=val('ahdesc').slice(0,120);if(desc.length<3){toast('Informe o nome do produto');const f=$('#ahdesc');if(f)f.focus();return}
     code=val('ahcode').toUpperCase().slice(0,30);un=val('ahun').toUpperCase().slice(0,8);type='new';
     if(!code)code='SC'+Date.now().toString(36).toUpperCase();
-    else{const ex=qIndex().find(x=>zc(x.c)===zc(code));if(ex){code=ex.c;desc=ex.d||desc;grp=ex.g||'';cur=ahEnds(ex);type='link'}}
+    else{const ex=qIndex().find(x=>zc(x.c)===zc(code));if(ex){code=ex.c;desc=ex.d&&ex.d!==ex.c?ex.d:desc;grp=ex.g||'';un=ex.un||un;cur=ahEnds(ex);type='link'}}
   }
+  const qtxt=val('ahqty').replace(',','.'),qty=qtxt===''?null:Number(qtxt);
+  if(qtxt!==''&&!(qty>0)){toast('Quantidade inválida');const f=$('#ahqty');if(f)f.focus();return}
+  if(s.mode!=='move'&&qty==null){toast('Informe a quantidade');const f=$('#ahqty');if(f)f.focus();return}
   if(s.mode==='move'){
     from=val('ahfrom');if(!from){toast('Escolha o endereço de origem');return}
     if(from.toUpperCase()===to){toast('Origem e destino são iguais');return}
@@ -4170,7 +4181,7 @@ async function ahSave(){
   const note=val('ahnote').slice(0,120),photos=AHP.filter(Boolean),t=Date.now(),id='h'+t.toString(36)+Math.random().toString(36).slice(2,6);
   const b=$('#ahsave');if(b){b.disabled=true;b.textContent='Salvando…'}
   try{
-    await withTimeout(S.db.doc('extras/'+id).set({kind:'ahist',id,type,code,desc,grp,un,from,to,note,photos,op:S.name,ok:myKey(),t}),20000);
+    await withTimeout(S.db.doc('extras/'+id).set({kind:'ahist',id,type,code,desc,grp,un,qty,from,to,note,photos,op:S.name,ok:myKey(),t}),20000);
     await withTimeout(S.db.doc('addrnew/'+adId(code)).set({code,desc,grp,shelf:next.join(' | ').slice(0,100),nf:false,op:S.name,ok:myKey(),t,mv:1}),20000);
     toast(type==='move'?'Redistribuição registrada':type==='new'?'Produto cadastrado e endereçado':'Endereço vinculado',3000);
     ahClose();try{pushPresence()}catch(e){}
@@ -4188,14 +4199,14 @@ function ahShowPhoto(id,i){
 function ahQrDone(text){
   const cands=qrCandidates(text),idx=qIndex();let hit=null;
   for(const c of cands){hit=idx.find(x=>zc(x.c)===zc(c));if(hit)break}
-  if(hit){S.q.cq=hit.c;const i=$('#cq');if(i)i.value=hit.c;qRender();toast('QR lido: '+hit.c);return}
+  if(hit){S.q.cq=hit.c;const i=$('#cq');if(i)i.value=hit.c;qRender();toast('QR lido: '+hit.c);ahOpen('link',hit.c);return}
   const run=(String(text).match(/\d{4,}/g)||[]).sort((a,b)=>b.length-a.length)[0]||'';
   toast('Li o QR, mas esse produto não está na lista. Cadastre como produto novo.',4500);
-  ahOpen('new','',run);
+  ahOpen('new','',run);setTimeout(ahCodeFill,300);
 }
 function ahHistRows(l,who){
   return l.map(x=>{const tp=AH_T[x.type]||AH_T.link;
-    return'<tr><td class="sub" style="white-space:nowrap">'+fmtDT(x.t)+'</td><td class="wc"><span class="mono sub">'+esc(x.code)+'</span><br>'+esc(x.desc)+'</td><td><span class="chip '+tp[1]+'">'+tp[0]+'</span></td><td>'+(x.type==='move'?esc(x.from||'—')+' → ':'')+'<b>'+esc(x.to)+'</b>'+(x.note?'<div class="sub">'+esc(x.note)+'</div>':'')+'</td>'+(who?'<td>'+esc(x.op||'')+'</td>':'')+'<td>'+((x.photos||[]).map((s,i)=>'<img src="'+s+'" alt="Foto '+(i+1)+'" data-act="ahphoto" data-id="'+esc(x.id)+'" data-i="'+i+'" style="height:40px;border-radius:6px;margin-right:4px;cursor:zoom-in;border:1px solid var(--line)">').join(''))+'</td></tr>'}).join('');
+    return'<tr><td class="sub" style="white-space:nowrap">'+fmtDT(x.t)+'</td><td class="wc"><span class="mono sub">'+esc(x.code)+'</span><br>'+esc(x.desc)+'</td><td><span class="chip '+tp[1]+'">'+tp[0]+'</span></td><td>'+(x.type==='move'?esc(x.from||'—')+' → ':'')+'<b>'+esc(x.to)+'</b>'+(x.qty!=null?'<div class="sub">Qtd: '+fmtQ(x.qty)+(x.un?' '+esc(x.un):'')+'</div>':'')+(x.note?'<div class="sub">'+esc(x.note)+'</div>':'')+'</td>'+(who?'<td>'+esc(x.op||'')+'</td>':'')+'<td>'+((x.photos||[]).map((s,i)=>'<img src="'+s+'" alt="Foto '+(i+1)+'" data-act="ahphoto" data-id="'+esc(x.id)+'" data-i="'+i+'" style="height:40px;border-radius:6px;margin-right:4px;cursor:zoom-in;border:1px solid var(--line)">').join(''))+'</td></tr>'}).join('');
 }
 function ahRenderHist(){
   const host=$('#ahhist');if(!host)return;
@@ -4205,17 +4216,34 @@ function ahRenderHist(){
 }
 function ahCardGestor(){
   const l=ahList(),mv=l.filter(x=>x.type==='move').length,nw=l.filter(x=>x.type==='new').length;
-  return'<div class="card"><div class="hd"><h2>🔄 Histórico de endereçamento (vínculos e redistribuições)</h2><span class="sub">'+fmtN(l.length)+' registro(s) · '+fmtN(mv)+' redistribuição(ões) · '+fmtN(nw)+' produto(s) novo(s)</span><span class="sp" style="flex:1"></span><button class="btn sm" data-act="ahxl"'+(l.length?'':' disabled')+'>⬇ Exportar .xlsx</button></div><div class="bd scroll">'+
-    (l.length?'<table class="tbl"><thead><tr><th>Quando</th><th>Produto</th><th>Tipo</th><th>Origem → Destino</th><th>Por</th><th>Fotos</th></tr></thead><tbody>'+ahHistRows(l.slice(0,100),true)+'</tbody></table>'+(l.length>100?'<div class="sub">Mostrando 100 de '+fmtN(l.length)+'. A planilha traz todos.</div>':''):'<div class="sub">Os coletores registram aqui, pela aba Endereços do celular, produtos vinculados a endereços e redistribuições entre endereços. Nada foi registrado ainda.</div>')+'</div></div>';
+  return'<div class="card"><div class="hd"><h2>🔄 Histórico de endereçamento (vínculos e redistribuições)</h2><span class="sub">'+fmtN(l.length)+' registro(s) · '+fmtN(mv)+' redistribuição(ões) · '+fmtN(nw)+' produto(s) novo(s)</span><span class="sp" style="flex:1"></span><button class="btn sm" data-act="ahxl"'+(l.length?'':' disabled')+'>⬇ Histórico .xlsx</button><button class="btn sm" data-act="ahbase">⬇ Base de endereços atualizada</button></div><div class="bd scroll">'+
+    (l.length?'<table class="tbl"><thead><tr><th>Quando</th><th>Produto</th><th>Tipo</th><th>Origem → Destino</th><th>Por</th><th>Fotos</th></tr></thead><tbody>'+ahHistRows(l.slice(0,100),true)+'</tbody></table>'+(l.length>100?'<div class="sub">Mostrando 100 de '+fmtN(l.length)+'. A planilha traz todos.</div>':''):'<div class="sub">Os endereços lançados pelos coletores entram sozinhos na base de endereços do app (Locais e consulta). Os coletores registram aqui, pela aba Endereços do celular, produtos vinculados a endereços e redistribuições entre endereços. Nada foi registrado ainda.</div>')+'</div></div>';
 }
 function ahExportXlsx(){
   if(typeof XLSX==='undefined'){toast('Biblioteca de planilhas não carregou');return}
   const l=ahList();if(!l.length){toast('Nada para exportar');return}
   const TN={link:'Vinculado',move:'Redistribuído',new:'Produto novo'};
-  const cols=[{h:'Data',k:'d',w:18},{h:'Código',k:'c',w:16},{h:'Descrição',k:'ds',w:44},{h:'Tipo',k:'tp',w:16},{h:'Origem',k:'f',w:18},{h:'Destino',k:'to',w:18},{h:'Responsável',k:'op',w:20},{h:'Observação',k:'n',w:30},{h:'Fotos',k:'ph',w:8}];
-  const rows=l.map(x=>({d:new Date(x.t).toLocaleString('pt-BR'),c:x.code,ds:x.desc,tp:TN[x.type]||x.type,f:x.from||'',to:x.to,op:x.op||'',n:x.note||'',ph:(x.photos||[]).length}));
+  const cols=[{h:'Data',k:'d',w:18},{h:'Código',k:'c',w:16},{h:'Descrição',k:'ds',w:44},{h:'Tipo',k:'tp',w:16},{h:'Qtd',k:'q',w:10},{h:'UN',k:'un',w:8},{h:'Origem',k:'f',w:18},{h:'Destino',k:'to',w:18},{h:'Responsável',k:'op',w:20},{h:'Observação',k:'n',w:30},{h:'Fotos',k:'ph',w:8}];
+  const rows=l.map(x=>({d:new Date(x.t).toLocaleString('pt-BR'),c:x.code,ds:x.desc,tp:TN[x.type]||x.type,q:x.qty==null?'':x.qty,un:x.un||'',f:x.from||'',to:x.to,op:x.op||'',n:x.note||'',ph:(x.photos||[]).length}));
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,mkSheet(rows,cols),'Historico');
   saveXlsx(wb,'Historico_enderecamento_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
+function ahCodeFill(){
+  const c=$('#ahcode');if(!c||!S.ah||S.ah.mode!=='new')return;
+  const v=c.value.trim();if(!v)return;
+  const r=qIndex().find(x=>zc(x.c)===zc(v));if(!r||!r.d||r.d===r.c)return;
+  const d=$('#ahdesc'),u=$('#ahun');
+  if(d&&!d.value)d.value=r.d;if(u&&!u.value&&r.un)u.value=r.un;
+  toast('Produto encontrado na base: '+r.d,3000);
+}
+function ahExportBase(){
+  if(typeof XLSX==='undefined'){toast('Biblioteca de planilhas não carregou');return}
+  if(!S.addr.size){toast('Carregue a base de endereços primeiro');return}
+  const cols=[{h:'Código',k:'c',w:16},{h:'Descrição',k:'d',w:46},{h:'UN',k:'u',w:8},{h:'Endereço',k:'e',w:26},{h:'Seção',k:'s',w:14},{h:'Origem',k:'o',w:14}];
+  const rows=[...S.addr.entries()].map(([c,a])=>{const r=cpIndex().get(zc(c))||{};return{c,d:r.desc||'',u:r.un||'',e:addrTxt(a),s:a.sec||'',o:a.by?'Coletor':'Planilha'}});
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,mkSheet(rows,cols),'Enderecos');
+  saveXlsx(wb,'Base_enderecamento_atualizada_'+new Date().toISOString().slice(0,10)+'.xlsx');
 }
 
 /* ============ importação do ERP ============ */
@@ -4589,6 +4617,7 @@ const ACT={
   ahhist(){S.ahh=!S.ahh;ahRenderHist()},
   ahphoto(b){ahShowPhoto(b.dataset.id,Number(b.dataset.i))},
   ahxl(){ahExportXlsx()},
+  ahbase(){ahExportBase()},
   relgrp(){relGrp()},
   absync(){abSync(true)},
   relreopen(b){relReopen(b.dataset.sk,b.dataset.k)},
@@ -4707,6 +4736,7 @@ const CHG={
     draw(true);
   },
   async cpfile(t){const f=t.files&&t.files[0];if(!f)return;if(typeof XLSX==='undefined'){toast('A biblioteca de planilhas não carregou. Verifique a conexão e recarregue.',4000);return}try{await cpParse(f)}catch(e){console.error(e);toast('Não consegui ler esse arquivo',3500)}draw(true)},
+  ahcode(t){ahCodeFill()},
   async ahph(t){const f=t.files&&t.files[0];if(!f)return;try{AHP[Number(t.dataset.i)]=await compressImg(f,640,0.5)}catch(e){toast('Não consegui ler a foto')}ahDrawPh()},
   async xph(t){const f=t.files&&t.files[0];if(!f)return;try{XPH[Number(t.dataset.i)]=await compressImg(f)}catch(e){toast('Não consegui ler a foto')}drawPh()},
   lst(t){S.q.lst=t.value;draw(true)},
