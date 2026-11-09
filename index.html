@@ -267,7 +267,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 57</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 58</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -1657,7 +1657,7 @@ function vUsers(){
 
 /* ============ Controladoria ============ */
 const CCOLS=[
-  {h:'Código',k:'cod',w:14},{h:'Descrição',k:'desc',w:42},
+  {h:'Código',k:'cod',w:14},{h:'Descrição',k:'desc',w:42},{h:'Grupo',k:'grp',w:26},
   {h:'1ª contagem',k:'c1',w:11,z:'#,##0.000'},{h:'2ª contagem',k:'c2',w:11,z:'#,##0.000'},{h:'3ª contagem',k:'c3',w:11,z:'#,##0.000'},{h:'4ª contagem',k:'c4',w:11,z:'#,##0.000'},
   {h:'Qtd. final',k:'qf',w:11,z:'#,##0.000'},{h:'Endereço',k:'end',w:20},
   {h:'1ª equipe',k:'e1',w:20},{h:'2ª equipe',k:'e2',w:20},{h:'3ª equipe',k:'e3',w:20},{h:'4ª equipe',k:'e4',w:20},
@@ -1677,14 +1677,14 @@ function ctrlRow(it){
   const qf=it.state==='closed'?it.final:(it.state==='pend'?null:it.prov);
   const c=i=>it.cnt[i]?it.cnt[i].q:null,e=i=>it.cnt[i]?it.cnt[i].op:'';
   const cost=it.cost||0;
-  return{zs:it.state==='closed'&&!it.cnt.length&&normQ(it.final)===0&&!!it.manual,id:it.id,dv:it.state==='closed'?!!it.div:null,edV:!!it.cedV,edW:!!(S.meta&&S.meta.whAll),cod:(it.cad==='solicitado'&&!it.rawCode)?'CADASTRAR PRODUTO':it.code,desc:it.desc,c1:c(0),c2:c(1),c3:c(2),c4:c(3),qf,prov:it.state!=='closed'&&it.state!=='pend',end:lastAddr(it),e1:e(0),e2:e(1),e3:e(2),e4:e(3),arm:(S.meta&&S.meta.whAll)||it.wh||(S.meta&&S.meta.wh)||'',vu:it.cost==null?null:cost,vt:qf==null?null:Math.round(qf*cost*100)/100};
+  return{zs:it.state==='closed'&&!it.cnt.length&&normQ(it.final)===0&&!!it.manual,id:it.id,dv:it.state==='closed'?!!it.div:null,edV:!!it.cedV,edW:!!(S.meta&&S.meta.whAll),cod:(it.cad==='solicitado'&&!it.rawCode)?'CADASTRAR PRODUTO':it.code,desc:it.desc,grp:it.grp?String(grpCanon(it.grp)).replace(/\s+[—–]\s+/,' - '):'',c1:c(0),c2:c(1),c3:c(2),c4:c(3),qf,prov:it.state!=='closed'&&it.state!=='pend',end:lastAddr(it),e1:e(0),e2:e(1),e3:e(2),e4:e(3),arm:(S.meta&&S.meta.whAll)||it.wh||(S.meta&&S.meta.wh)||'',vu:it.cost==null?null:cost,vt:qf==null?null:Math.round(qf*cost*100)/100};
 }
 const ctrlTotals=rows=>({n:rows.length,vt:Math.round(rows.reduce((a,r)=>a+(r.vt||0),0)*100)/100,prov:rows.filter(r=>r.prov).length});
 function ctrlTableRows(rows){
-  if(!rows.length)return'<tr><td colspan="15" class="empty">Nenhum item para exibir.</td></tr>';
+  if(!rows.length)return'<tr><td colspan="16" class="empty">Nenhum item para exibir.</td></tr>';
   const q=v=>v==null?'<span class="sub">—</span>':fmtQ(v);
-  return rows.slice(0,300).map(r=>'<tr'+(r.zs?' style="background:var(--bad-soft);font-weight:700;color:var(--bad)"':'')+'><td class="mono">'+(r.cod==='CADASTRAR PRODUTO'?'<span class="chip warn">CADASTRAR PRODUTO</span>':esc(r.cod))+'</td><td class="wc">'+esc(r.desc)+'</td><td class="r num">'+q(r.c1)+'</td><td class="r num">'+q(r.c2)+'</td><td class="r num">'+q(r.c3)+'</td><td class="r num">'+q(r.c4)+'</td><td class="r num"><b'+(!r.zs&&r.qf!=null?' class="'+(r.prov?'neg':'pos')+'"':'')+'>'+(r.zs?'ZERAR SALDO':r.qf==null?'—':fmtQ(r.qf))+'</b>'+(r.prov?'<span class="sub" title="contagem ainda não fechada"> *</span>':'')+'</td><td>'+esc(r.end)+'</td>'+
-    [r.e1,r.e2,r.e3,r.e4].map(n=>'<td>'+(n?esc(n):'<span class="sub">—</span>')+'</td>').join('')+'<td'+(r.edW?' style="background:var(--warn-soft)"':'')+'>'+esc(r.arm||'–')+'</td><td class="r num"><input type="text" inputmode="decimal" class="cin" style="width:84px;text-align:right'+(r.edV?';background:var(--warn-soft)':'')+'" data-chg="cedit" data-f="vu" data-id="'+esc(r.id)+'" value="'+(r.vu==null?'':String(r.vu).replace('.',','))+'" placeholder="informar" aria-label="Valor unitário"></td><td class="r num"><b>'+(r.vt==null?'—':fmtR(r.vt))+'</b></td></tr>').join('')+(rows.length>300?'<tr><td colspan="15" class="sub" style="text-align:center">Mostrando 300 de '+rows.length+'. A exportação traz todos.</td></tr>':'');
+  return rows.slice(0,300).map(r=>'<tr'+(r.zs?' style="background:var(--bad-soft);font-weight:700;color:var(--bad)"':'')+'><td class="mono">'+(r.cod==='CADASTRAR PRODUTO'?'<span class="chip warn">CADASTRAR PRODUTO</span>':esc(r.cod))+'</td><td class="wc">'+esc(r.desc)+'</td><td class="sub">'+esc(r.grp||'')+'</td><td class="r num">'+q(r.c1)+'</td><td class="r num">'+q(r.c2)+'</td><td class="r num">'+q(r.c3)+'</td><td class="r num">'+q(r.c4)+'</td><td class="r num"><b'+(!r.zs&&r.qf!=null?' class="'+(r.prov?'neg':'pos')+'"':'')+'>'+(r.zs?'ZERAR SALDO':r.qf==null?'—':fmtQ(r.qf))+'</b>'+(r.prov?'<span class="sub" title="contagem ainda não fechada"> *</span>':'')+'</td><td>'+esc(r.end)+'</td>'+
+    [r.e1,r.e2,r.e3,r.e4].map(n=>'<td>'+(n?esc(n):'<span class="sub">—</span>')+'</td>').join('')+'<td'+(r.edW?' style="background:var(--warn-soft)"':'')+'>'+esc(r.arm||'–')+'</td><td class="r num"><input type="text" inputmode="decimal" class="cin" style="width:84px;text-align:right'+(r.edV?';background:var(--warn-soft)':'')+'" data-chg="cedit" data-f="vu" data-id="'+esc(r.id)+'" value="'+(r.vu==null?'':String(r.vu).replace('.',','))+'" placeholder="informar" aria-label="Valor unitário"></td><td class="r num"><b>'+(r.vt==null?'—':fmtR(r.vt))+'</b></td></tr>').join('')+(rows.length>300?'<tr><td colspan="16" class="sub" style="text-align:center">Mostrando 300 de '+rows.length+'. A exportação traz todos.</td></tr>':'');
 }
 function vCtrl(){
   if(!S.meta)return noInv();
@@ -1731,7 +1731,7 @@ function exportCtrlXlsx(){
     CCOLS.forEach((c,j)=>{
       const x=row.getCell(j+1);let v=r[c.k];
       if(c.k==='qf'&&r.zs)v='ZERAR SALDO';
-      if(c.k==='vt'&&!r.zs&&r.qf!=null&&r.vu!=null)v={formula:'G'+rn+'*N'+rn,result:r.vt};
+      if(c.k==='vt'&&!r.zs&&r.qf!=null&&r.vu!=null)v={formula:'H'+rn+'*O'+rn,result:r.vt};
       x.value=v==null?null:v;
       x.font={name:'Calibri',size:10,color:{argb:'FF1B2A18'}};
       x.alignment={vertical:'middle',horizontal:c.z?'right':'left',wrapText:c.k==='desc'};
@@ -1752,7 +1752,7 @@ function exportCtrlXlsx(){
   const tr=ws.getRow(5+rows.length);tr.height=22;
   CCOLS.forEach((c,j)=>{const x=tr.getCell(j+1);x.fill={type:'pattern',pattern:'solid',fgColor:{argb:SOFT}};x.font={name:'Calibri',size:11,bold:true,color:{argb:GR}};x.border={top:{style:'medium',color:{argb:GR}}};
     if(c.k==='cod')x.value='TOTAL';if(c.k==='desc')x.value=t.n+' itens';
-    if(c.k==='vt'){x.value=rows.length?{formula:'SUM(O5:O'+(4+rows.length)+')',result:t.vt}:t.vt;x.numFmt='"R$" #,##0.00';x.alignment={horizontal:'right',vertical:'middle'}}});
+    if(c.k==='vt'){x.value=rows.length?{formula:'SUM(P5:P'+(4+rows.length)+')',result:t.vt}:t.vt;x.numFmt='"R$" #,##0.00';x.alignment={horizontal:'right',vertical:'middle'}}});
   if(rows.length)ws.autoFilter={from:{row:4,column:1},to:{row:4+rows.length,column:nc}};
   ws.headerFooter={oddFooter:'&R&8Página &P de &N'};
   wb.xlsx.writeBuffer().then(buf=>S.dl.save({filename:ctrlName()+'.xlsx',data:new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'})})).then(()=>toast('Arquivo salvo')).catch(e=>{if(!e||e.code!=='declined')toast('Não foi possível salvar o arquivo')});
@@ -1769,15 +1769,15 @@ function exportCtrlPdf(){
   doc.setFontSize(8);doc.text('Gerado em '+new Date().toLocaleString('pt-BR')+' · '+t.n+' itens · Valor total '+fmtR(t.vt)+(t.prov?' · * quantidade provisória (item não fechado)':'')+' · '+IP_TXT,10,17);
   const q=v=>v==null?'':fmtQ(v);
   const RR=rows;
-  const body=rows.map(r=>[r.cod,r.desc,q(r.c1),q(r.c2),q(r.c3),q(r.c4),(r.zs?'ZERAR SALDO':(r.qf==null?'':fmtQ(r.qf))+(r.prov?' *':'')),r.end,r.e1,r.e2,r.e3,r.e4,r.arm,r.vu==null?'':fmtR(r.vu),r.vt==null?'':fmtR(r.vt)]);
+  const body=rows.map(r=>[r.cod,r.desc,r.grp||'',q(r.c1),q(r.c2),q(r.c3),q(r.c4),(r.zs?'ZERAR SALDO':(r.qf==null?'':fmtQ(r.qf))+(r.prov?' *':'')),r.end,r.e1,r.e2,r.e3,r.e4,r.arm,r.vu==null?'':fmtR(r.vu),r.vt==null?'':fmtR(r.vt)]);
   const num={halign:'right'};
   doc.autoTable({
-    head:[CCOLS.map(c=>c.h.replace(' (R$)','').replace(' contagem',' cont.'))],body,foot:[['TOTAL',t.n+' itens','','','','','','','','','','','','',fmtR(t.vt)]],showFoot:'lastPage',
+    head:[CCOLS.map(c=>c.h.replace(' (R$)','').replace(' contagem',' cont.'))],body,foot:[['TOTAL',t.n+' itens','','','','','','','','','','','','','',fmtR(t.vt)]],showFoot:'lastPage',
     startY:20,margin:{left:8,right:8,bottom:12},theme:'grid',
     styles:{fontSize:6.2,cellPadding:1,overflow:'linebreak',lineWidth:.1,lineColor:[200,205,200]},
     headStyles:{fillColor:[47,127,21],textColor:255,fontSize:6.2,halign:'center'},footStyles:{fillColor:[230,240,226],textColor:20,fontStyle:'bold'},
-    columnStyles:{0:{cellWidth:17},1:{cellWidth:46},2:Object.assign({cellWidth:11},num),3:Object.assign({cellWidth:11},num),4:Object.assign({cellWidth:11},num),5:Object.assign({cellWidth:11},num),6:Object.assign({cellWidth:12,fontStyle:'bold'},num),7:{cellWidth:20},8:{cellWidth:19},9:{cellWidth:19},10:{cellWidth:19},11:{cellWidth:19},12:{cellWidth:14},13:Object.assign({cellWidth:15},num),14:Object.assign({cellWidth:17,fontStyle:'bold'},num)},
-    didParseCell:h=>{if(h.section==='body'&&RR[h.row.index]&&RR[h.row.index].zs){h.cell.styles.fillColor=[251,225,221];h.cell.styles.textColor=[192,53,43];h.cell.styles.fontStyle='bold'}else if(h.section==='body'&&h.column.index===6){const r=RR[h.row.index];if(r&&r.qf!=null){h.cell.styles.textColor=r.prov?[192,53,43]:[30,122,18];h.cell.styles.fontStyle='bold'}}},
+    columnStyles:{0:{cellWidth:17},1:{cellWidth:38},2:{cellWidth:22},3:Object.assign({cellWidth:11},num),4:Object.assign({cellWidth:11},num),5:Object.assign({cellWidth:11},num),6:Object.assign({cellWidth:11},num),7:Object.assign({cellWidth:12,fontStyle:'bold'},num),8:{cellWidth:19},9:{cellWidth:18},10:{cellWidth:18},11:{cellWidth:18},12:{cellWidth:18},13:{cellWidth:13},14:Object.assign({cellWidth:15},num),15:Object.assign({cellWidth:17,fontStyle:'bold'},num)},
+    didParseCell:h=>{if(h.section==='body'&&RR[h.row.index]&&RR[h.row.index].zs){h.cell.styles.fillColor=[251,225,221];h.cell.styles.textColor=[192,53,43];h.cell.styles.fontStyle='bold'}else if(h.section==='body'&&h.column.index===7){const r=RR[h.row.index];if(r&&r.qf!=null){h.cell.styles.textColor=r.prov?[192,53,43]:[30,122,18];h.cell.styles.fontStyle='bold'}}},
     didDrawPage:d=>{doc.setFontSize(7);doc.text(IP_TXT,8,doc.internal.pageSize.getHeight()-5);doc.text('Página '+doc.internal.getNumberOfPages(),doc.internal.pageSize.getWidth()-8,doc.internal.pageSize.getHeight()-5,{align:'right'})}
   });
   S.dl.save({filename:ctrlName()+'.pdf',data:doc.output('blob')}).then(()=>toast('Arquivo salvo')).catch(e=>{if(!e||e.code!=='declined')toast('Não foi possível salvar o arquivo')});
