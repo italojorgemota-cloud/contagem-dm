@@ -270,7 +270,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 66</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 67</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -2975,14 +2975,20 @@ function relGrpStats(){
   const gOf=it=>{let g=String(it.grp||'').trim();if(!g&&cp&&cp.size){const c=cp.get(zc(it.code));if(c)g=String(c.grp||'').trim()}return g};
   const by=new Map(),canon=new Map();let any=0;
   for(const it of S.items.values()){if(it.xo)continue;const g=gOf(it);if(!g)continue;any++;const k=exKey(g),o=canon.get(k);if(!o||g.length>o.length)canon.set(k,g)}
-  for(const it of S.items.values()){if(it.xo)continue;const g=gOf(it);if(!g)continue;const k=exKey(g);let o=by.get(k);if(!o){o={n:0,sum:0};by.set(k,o)}o.n++;o.sum+=Number(it.erp)||0}
+  for(const it of S.items.values()){if(it.xo)continue;const g=gOf(it);if(!g)continue;const k=exKey(g);let o=by.get(k);if(!o){o={n:0,sum:0,list:[]};by.set(k,o)}o.n++;o.sum+=Number(it.erp)||0;o.list.push(it)}
   const m=new Map();
-  for(const [k,g] of canon)m.set('m'+slug(g.slice(0,30)),by.get(k));
+  for(const [k,g] of canon)m.set(shKey(g),by.get(k));
   m.__byName=by;m.__any=any;m.__tot=S.items.size;return m;
 }
+function relStatFind(s,st){const base=s.key.endsWith('@2')?s.key.slice(0,-2):s.key;return st.get(base)||st.__byName.get(exKey(s.name))}
+function relProdPanel(s,st){
+  const x=relStatFind(s,st);
+  if(!x||!x.list.length)return'<div class="sub" style="margin:4px 0 8px">Nenhum produto encontrado neste grupo.</div>';
+  const L=x.list.slice().sort((a,b)=>String(a.code).localeCompare(String(b.code),'pt',{numeric:true}));
+  return'<div class="scroll" style="max-height:280px;overflow:auto;margin:4px 0 8px;border:1px solid var(--line,#ddd);border-radius:8px"><table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th>Un</th><th style="text-align:right">Saldo</th></tr></thead><tbody>'+L.map(i=>'<tr><td>'+esc(i.code)+'</td><td>'+esc(i.desc)+'</td><td>'+esc(i.un||'')+'</td><td style="text-align:right">'+(i.erp==null?'–':fmtQ(i.erp))+'</td></tr>').join('')+'</tbody><tfoot><tr><td colspan="3"><b>'+fmtN(x.n)+(x.n===1?' produto':' produtos')+'</b></td><td style="text-align:right"><b>'+fmtQ(x.sum)+'</b></td></tr></tfoot></table></div>';
+}
 function relStatHtml(s,st){
-  const base=s.key.endsWith('@2')?s.key.slice(0,-2):s.key;
-  const x=st.get(base)||st.__byName.get(exKey(s.name));
+  const x=relStatFind(s,st);
   if(!x)return st.__any?' <span class="sub" style="font-weight:400;font-size:11px;opacity:.6;margin-left:6px">· 0 produtos</span>':' <span class="sub" style="font-weight:400;font-size:11px;opacity:.6;margin-left:6px">· sem dados de grupo nos itens ('+fmtN(st.__tot)+' itens carregados)</span>';
   return' <span class="sub" style="font-weight:400;font-size:11px;opacity:.75;margin-left:6px" title="Produtos do grupo e soma dos saldos do ERP (só para o gestor)">· '+fmtN(x.n)+(x.n===1?' produto':' produtos')+' · saldo '+fmtQ(x.sum)+'</span>';
 }
@@ -2994,7 +3000,7 @@ function relBody(ops,r2){
     const tot=st.reduce((a,x)=>a+x.n,0),cl=st.filter(x=>x.c).length;
     const ed=S.relEd===s.key;
     return'<div class="gr"><div class="gh" style="display:flex;grid-template-columns:none;gap:8px;align-items:center;flex-wrap:wrap">'+(ed?'<input type="text" id="reled" maxlength="60" autocomplete="off" value="'+esc(s.name)+'" aria-label="Novo nome do grupo" style="flex:1;min-width:180px">':'<span class="nm" style="flex:1;min-width:180px;grid-column:auto">📍 '+esc(s.name)+relStatHtml(s,gst)+'</span>')+(tm.length?'<span class="chip '+(cl===tm.length?'ok':'warn')+'" style="flex:none">'+(cl===tm.length?'fechada':cl+'/'+tm.length+' fechadas')+' · '+tot+' contados</span>':'<span class="chip warn" style="flex:none">sem equipe</span>')+
-      '<span style="display:flex;gap:6px;flex:none;width:172px;justify-content:flex-end">'+(ed?'<button class="btn sm primary" data-act="relsave" data-sk="'+esc(s.key)+'">Salvar</button><button class="btn sm" data-act="relcancel">Cancelar</button>':'<button class="btn sm" data-act="reledit" data-sk="'+esc(s.key)+'">Editar</button><button class="btn sm" data-act="relrm" data-sk="'+esc(s.key)+'">Remover</button>')+'</span></div>'+
+      '<span style="display:flex;gap:6px;flex:none;width:250px;justify-content:flex-end">'+(ed?'<button class="btn sm primary" data-act="relsave" data-sk="'+esc(s.key)+'">Salvar</button><button class="btn sm" data-act="relcancel">Cancelar</button>':'<button class="btn sm" data-act="relprod" data-sk="'+esc(s.key)+'" title="Ver os produtos deste grupo">'+(S.relPr===s.key?'▾':'▸')+' Produtos</button><button class="btn sm" data-act="reledit" data-sk="'+esc(s.key)+'">Editar</button><button class="btn sm" data-act="relrm" data-sk="'+esc(s.key)+'">Remover</button>')+'</span></div>'+(S.relPr===s.key?relProdPanel(s,gst):'')+
       '<div class="row" style="gap:6px 16px;flex-wrap:wrap">'+ops.map(o=>{const x=st.find(y=>y.k===o.key);const f1=r2&&(((S.hb.get(o.key)||{}).bl||{})[base]||{}).n,blk=r2&&r1Block(s.key,o.key);return'<label style="display:flex;gap:6px;align-items:center;min-height:32px'+(blk?';opacity:.55':'')+'"><input type="checkbox" data-chg="relteam" data-sk="'+esc(s.key)+'" data-k="'+esc(o.key)+'"'+(tm.includes(o.key)?' checked':'')+(blk?' disabled':'')+'> '+esc(o.name)+(x?' <span class="sub">· '+x.n+(x.c?' · fechou':'')+'</span>':'')+(blk?' <span class="chip warn" title="Quem conta a 1ª desta prateleira não pode fazer a 2ª">'+(f1?'fez a 1ª ('+f1+')':'equipe da 1ª')+' · bloqueado</span>':'')+'</label>'}).join('')+'</div></div>'}).join('');
 }
 async function relReopen(sk,k){
@@ -3013,15 +3019,28 @@ function blApplyRo(){
   if(ch){blSave();try{const h=$('#bllist');if(h)h.dataset.sig=''}catch(e){}try{pushPresence(true)}catch(e){}toast('O gestor reabriu uma prateleira para você alterar',4000)}
 }
 /* nomes de prateleira = grupos do inventário (um por grupo, nome mais completo) */
+const shKey=g=>'m'+slug(String(g).slice(0,30));
+function relFixNames(){
+  const map={};if(!S.meta||!S.items||!S.items.size)return map;
+  const full=grpShelfNames([...S.items.values()].filter(o=>!o.xo)),cur=manualShelves();
+  for(const nm of full){const k=shKey(nm);for(const s of cur){const b=s.key.endsWith('@2')?s.key.slice(0,-2):s.key;if(b===k&&s.name.length<nm.length&&nm.startsWith(s.name))map['sn:'+s.key]=nm}}
+  return map;
+}
+let _fixSig='';
+function relAutoFix(){
+  if(!S.isAdmin)return;const m=relFixNames(),sig=JSON.stringify(m);if(!Object.keys(m).length||sig===_fixSig)return;_fixSig=sig;
+  try{writeDoc(S.db.doc('assign/current'),{inv:S.meta.inv,map:m})}catch(e){}
+}
 function grpShelfNames(list){
   const m=new Map();
   for(const x of list){const g=String(x.grp||x.g||'').trim();if(!g)continue;const k=exKey(g),o=m.get(k);if(!o||g.length>o.length)m.set(k,g)}
-  return [...m.values()].map(g=>g.slice(0,30)).sort((a,b)=>a.localeCompare(b,'pt',{numeric:true}));
+  return [...m.values()].map(g=>g.slice(0,60)).sort((a,b)=>a.localeCompare(b,'pt',{numeric:true}));
 }
 async function relGrp(){
   if(!S.meta)return;
   const names=grpShelfNames([...S.items.values()].filter(o=>!o.xo)),have=new Set(manualShelves().map(s=>s.key)),map={};let n=0;
-  names.forEach(nm=>{const k='m'+slug(nm);if(!have.has(k)){map['sn:'+k]=nm;n++}if(!have.has(k+'@2'))map['sn:'+k+'@2']=nm});
+  Object.assign(map,relFixNames());
+  names.forEach(nm=>{const k=shKey(nm);if(!have.has(k)){map['sn:'+k]=nm;n++}if(!have.has(k+'@2'))map['sn:'+k+'@2']=nm});
   if(!Object.keys(map).length){toast('Todos os grupos já estão na lista');return}
   try{await writeDoc(S.db.doc('assign/current'),{inv:S.meta.inv,map});toast(n+' grupo(s) adicionado(s)')}catch(e){toast('Não foi possível salvar')}
 }
@@ -3042,7 +3061,7 @@ function relHtml(ops){
     '<div id="rel-closed">'+relClosedBody()+'</div></div></div>';
 }
 async function relAdd(r){
-  const r2=String(r)==='2',i=$(r2?'#relname2':'#relname');const name=(i&&i.value||'').trim().slice(0,30);if(!name){toast('Digite o nome do grupo');return}
+  const r2=String(r)==='2',i=$(r2?'#relname2':'#relname');const name=(i&&i.value||'').trim().slice(0,60);if(!name){toast('Digite o nome do grupo');return}
   const key='m'+slug(name)+(r2?'@2':'');
   if(manualShelves().some(s=>s.key===key)){toast('Essa prateleira já está na lista');return}
   await setAssignKey('sn:'+key,name);
@@ -3081,7 +3100,7 @@ async function setTeam(sk,k,on){
 }
 
 let _relLast='';
-function relRefresh(){const h=$('#rel-body'),h2=$('#rel-body2');if(!h||!S.meta)return;const tb=$('#team-body');if(tb){const tt=teamBody();if(tb.innerHTML!==tt)tb.innerHTML=tt}const pb=$('#pause-body');if(pb){const pt=pauseBody();if(pb.innerHTML!==pt)pb.innerHTML=pt}const a=document.activeElement;if(a&&a.closest&&(a.closest('#rel-body')||a.closest('#rel-body2')))return;const ops=knownOps(),n=relBody(ops,false),n2=relBody(ops,true),n3=relClosedBody(),h3=$('#rel-closed');if(n+'§'+n2+'§'+n3!==_relLast){_relLast=n+'§'+n2+'§'+n3;h.innerHTML=n;if(h2)h2.innerHTML=n2;if(h3)h3.innerHTML=n3}}
+function relRefresh(){const h=$('#rel-body'),h2=$('#rel-body2');if(!h||!S.meta)return;try{relAutoFix()}catch(e){}const tb=$('#team-body');if(tb){const tt=teamBody();if(tb.innerHTML!==tt)tb.innerHTML=tt}const pb=$('#pause-body');if(pb){const pt=pauseBody();if(pb.innerHTML!==pt)pb.innerHTML=pt}const a=document.activeElement;if(a&&a.closest&&(a.closest('#rel-body')||a.closest('#rel-body2')))return;const ops=knownOps(),n=relBody(ops,false),n2=relBody(ops,true),n3=relClosedBody(),h3=$('#rel-closed');if(n+'§'+n2+'§'+n3!==_relLast){_relLast=n+'§'+n2+'§'+n3;h.innerHTML=n;if(h2)h2.innerHTML=n2;if(h3)h3.innerHTML=n3}}
 
 const adm={};
 function defAddr(it){if(!it)return'';for(let i=it.cnt.length-1;i>=0;i--)if(it.cnt[i].a)return it.cnt[i].a;return addrsFor(it)[0]||''}
@@ -4556,7 +4575,7 @@ async function publishInv(){
       await S.db.doc('chunks/'+inv+'_'+d.no).set(d.chunk);step('Publicando a lista');
       await S.db.doc('erp/'+inv+'_'+d.no).set(d.erp);step('Guardando saldos do ERP');
     }
-    {const map={};grpShelfNames(imp.parsed.items).forEach(n=>{const k='m'+slug(n);map['sn:'+k]=n;map['sn:'+k+'@2']=n});
+    {const map={};grpShelfNames(imp.parsed.items).forEach(n=>{const k=shKey(n);map['sn:'+k]=n;map['sn:'+k+'@2']=n});
      await S.db.doc('assign/current').set({inv,map});step('Preparando equipe')}
     await S.db.doc('third/current').set({inv,items:{}});
     await S.db.doc('search/current').set({inv,items:{}});
@@ -4799,6 +4818,7 @@ const ACT={
   relreopen(b){relReopen(b.dataset.sk,b.dataset.k)},
   relrm(b){relRm(b.dataset.sk)},
   reledit(b){relEdit(b.dataset.sk)},
+  relprod(b){S.relPr=S.relPr===b.dataset.sk?null:b.dataset.sk;relRedraw()},
   rrask(b){S.rrOpen=b.dataset.sk;rrRedraw();const f=$('#rrtxt');if(f)f.focus()},
   rrcancel(){S.rrOpen=null;rrRedraw()},
   rrsend(b){rrSend(b.dataset.sk)},
