@@ -267,7 +267,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 61</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 62</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -1261,9 +1261,9 @@ function vDashboard(){
     .sort((a,b)=>(!!b.pe-!!a.pe)||(b.o.n-a.o.n));
   const onl=list.filter(x=>x.pe).length+1;
   const encl=S.meta&&S.meta.status==='encerrado';
-  let h=st.unasg2&&!encl?'<div class="note warn"><b>'+st.unasg2+' '+(st.unasg2===1?'item aguarda':'itens aguardam')+' responsável pela 2ª contagem.</b> Os operadores só veem a 2ª contagem depois que você atribuir. <button class="btn sm" data-act="goto2">Atribuir agora</button></div>':'';
-  h+=rrOpenList().length?'<div class="note warn"><b>🔓 '+rrOpenList().length+' '+(rrOpenList().length===1?'pedido de reabertura de prateleira':'pedidos de reabertura de prateleira')+'.</b> Uma equipe pediu para alterar uma prateleira fechada. <button class="btn sm" data-act="goto2">Ver em Locais</button></div>':'';
-  h+=st.unasg&&!encl?'<div class="note warn"><b>'+st.unasg+' '+(st.unasg===1?'item aguarda':'itens aguardam')+' responsável pela 3ª/4ª contagem.</b> Os operadores só veem esses itens depois que você atribuir. <button class="btn sm" data-act="goto3">Atribuir agora</button></div>':'';
+  let h=st.unasg2&&!encl?'<div class="note warn"><b>'+st.unasg2+' '+(st.unasg2===1?'item aguarda':'itens aguardam')+' responsável pela 2ª contagem.</b> Os operadores só veem a 2ª contagem depois que você atribuir. <button class="btn sm" data-act="gofalta">Atribuir agora</button></div>':'';
+  h+=rrOpenList().length?'<div class="note warn"><b>🔓 '+rrOpenList().length+' '+(rrOpenList().length===1?'pedido de reabertura de prateleira':'pedidos de reabertura de prateleira')+'.</b> Uma equipe pediu para alterar uma prateleira fechada. <button class="btn sm" data-act="gorr">Ver pedido</button></div>':'';
+  h+=st.unasg&&!encl?'<div class="note warn"><b>'+st.unasg+' '+(st.unasg===1?'item aguarda':'itens aguardam')+' responsável pela 3ª/4ª contagem.</b> Os operadores só veem esses itens depois que você atribuir. <button class="btn sm" data-act="gothird">Atribuir agora</button></div>':'';
   h+='<div class="grid2">';
   h+='<div class="card"><div class="hd"><h2><span class="pill" style="padding:0;background:none">🟢</span> Equipe ao vivo</h2></div><div class="bd stack" style="gap:8px"><div class="sub">'+onl+' '+(onl===1?'pessoa conectada':'pessoas conectadas')+' agora · atualiza sozinho</div>'+
     list.map(({p,o,pe})=>'<div class="person'+(pe?' on':'')+'"><span class="pav">'+esc(ini(p.name))+'</span><div style="min-width:0"><div class="nm">'+esc(p.name)+'</div><div class="sub">'+(pe?'🟢 online':'○ offline')+(o.last?' · última contagem '+fmtT(o.last):'')+(pe&&pe.shelf?' · '+esc(pe.shelf):(!pe&&shelfOf(p.key).length?' · '+esc(shelfOf(p.key).join(', ')):''))+(pe&&(pe.pend||pe.drafts)?'<br><span style="color:var(--warn);font-weight:700">'+(pe.drafts?pe.drafts+' para enviar':'')+(pe.drafts&&pe.pend?' · ':'')+(pe.pend?pe.pend+' sem conexão':'')+'</span>':'')+'</div></div><div class="big"><b class="num">'+o.n+'</b><span class="sub">contagens</span>'+(o.m15?'<span class="g">'+o.m15+' nos últimos 15 min</span>':'')+'</div></div>').join('')+
@@ -1357,7 +1357,7 @@ function assignBar(){
   if(!pend.length)return'';
   const un=pend.filter(it=>!it.asg).length;
   const ops=knownOps().filter(o=>S.ops.has(o.key));
-  return'<div class="card"><div class="bd stack"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h2>🎯 Quem fará a 3ª contagem</h2><span class="sub">'+pend.length+' '+(pend.length===1?'item':'itens')+' · '+un+' sem responsável</span></div>'+
+  return'<div class="card" id="third-card" style="scroll-margin-top:96px"><div class="bd stack"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h2>🎯 Quem fará a 3ª contagem</h2><span class="sub">'+pend.length+' '+(pend.length===1?'item':'itens')+' · '+un+' sem responsável</span></div>'+
     '<div class="sub">A 3ª contagem só pode ser feita por quem não fez a 1ª nem a 2ª. Os operadores só veem o item depois da atribuição. Você também pode atribuir item a item, na coluna Status.</div>'+
     '<div class="row"><div class="field"><label for="thsel">RESPONSÁVEL</label><select id="thsel"><option value="">Escolha…</option>'+ops.map(o=>'<option value="'+esc(o.key)+'">'+esc(o.name)+'</option>').join('')+'</select></div>'+
     '<button class="btn primary" data-act="third-bulk" data-m="un">Atribuir todos sem responsável</button><button class="btn" data-act="third-any">Liberar sem responsável para qualquer operador elegível</button></div></div></div>';
@@ -2811,7 +2811,7 @@ async function rrDecide(id,ok){
 }
 function rrGestorBody(){
   const l=rrOpenList();if(!l.length)return'';
-  return'<div class="note warn" style="margin-bottom:10px"><b>🔓 '+l.length+' '+(l.length===1?'pedido de reabertura':'pedidos de reabertura')+'</b>'+l.map(x=>'<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line)"><b>'+esc(x.name)+'</b> · '+esc(x.shelf)+' <span class="sub">· '+fmtDT(x.t)+'</span><div>“'+esc(x.reason)+'”</div><div class="row" style="gap:8px;margin-top:4px"><button class="btn sm primary" data-act="rrok" data-id="'+esc(x.id)+'">Reabrir para '+esc(x.name)+'</button><button class="btn sm" data-act="rrno" data-id="'+esc(x.id)+'">Dispensar</button></div></div>').join('')+'</div>';
+  return'<div class="note warn" id="rr-box" style="margin-bottom:10px;scroll-margin-top:96px"><b>🔓 '+l.length+' '+(l.length===1?'pedido de reabertura':'pedidos de reabertura')+'</b>'+l.map(x=>'<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line)"><b>'+esc(x.name)+'</b> · '+esc(x.shelf)+' <span class="sub">· '+fmtDT(x.t)+'</span><div>“'+esc(x.reason)+'”</div><div class="row" style="gap:8px;margin-top:4px"><button class="btn sm primary" data-act="rrok" data-id="'+esc(x.id)+'">Reabrir para '+esc(x.name)+'</button><button class="btn sm" data-act="rrno" data-id="'+esc(x.id)+'">Dispensar</button></div></div>').join('')+'</div>';
 }
 function rrCollectorBox(sk){
   const m=rrMine(sk);
@@ -4035,7 +4035,7 @@ function faltaCard(){
   const grp=[...new Set(un.map(it=>dvGrp(it)))].sort((a,b)=>a.localeCompare(b,'pt',{numeric:true}));
   const by=new Map();pend.forEach(it=>{if(it.asg){const k=it.asg==='*'?'(qualquer operador)':((ops.find(o=>o.key===it.asg)||{}).name||it.asg);by.set(k,(by.get(k)||0)+1)}});
   const n1=pend.filter(it=>dvKey(it)==='f1').length,n2=pend.filter(it=>dvKey(it)==='f2').length;
-  return'<div class="card"><div class="hd"><h2>🎯 Quem fará a contagem que falta</h2><span class="sub">'+n1+' só na 1ª · '+n2+' só na 2ª · '+un.length+' sem responsável</span></div><div class="bd stack">'+
+  return'<div class="card" id="falta-card" style="scroll-margin-top:96px"><div class="hd"><h2>🎯 Quem fará a contagem que falta</h2><span class="sub">'+n1+' só na 1ª · '+n2+' só na 2ª · '+un.length+' sem responsável</span></div><div class="bd stack">'+
     '<div class="sub">Para os itens contados só uma vez (filtros "Só na 1ª" e "Só na 2ª"): escolha quem vai contar o que falta. O item aparece no celular da pessoa em <b>Contagem → recontagem</b>, e fica de fora quem já contou o item. Você também pode escolher o responsável item a item, na coluna Status.</div>'+
     '<div class="row"><div class="field"><label for="s2op">RESPONSÁVEL</label><select id="s2op"><option value="">Escolha…</option>'+ops.map(o=>'<option value="'+esc(o.key)+'">'+esc(o.name)+'</option>').join('')+'</select></div>'+
     '<div class="field"><label for="s2g">GRUPO</label><select id="s2g"><option value="">Todos os grupos</option>'+grp.map(g=>'<option'+(g===g0?' selected':'')+'>'+esc(g)+'</option>').join('')+'</select></div>'+
@@ -4616,6 +4616,13 @@ function vInv(){
 }
 
 /* ============ ações ============ */
+function goHere(tab,sel,o){
+  S.tab=tab;if(o&&o.filter)S.filter=o.filter;mainMode='';draw(true);window.scrollTo(0,0);
+  if(!document.getElementById('flashcss')){const st=document.createElement('style');st.id='flashcss';st.textContent='@keyframes flashbx{0%,100%{box-shadow:0 0 0 0 rgba(224,144,43,0)}20%,60%{box-shadow:0 0 0 4px rgba(224,144,43,.85)}}.flashbx{animation:flashbx 1.8s ease-in-out 1}';document.head.appendChild(st)}
+  let n=0;const t=setInterval(()=>{const el=$(sel);n++;
+    if(el){clearInterval(t);el.scrollIntoView({block:'start',behavior:'smooth'});el.classList.remove('flashbx');void el.offsetWidth;el.classList.add('flashbx');setTimeout(()=>el.classList.remove('flashbx'),2000)}
+    else if(n>12){clearInterval(t);toast('Esse item já foi resolvido',2500)}},150);
+}
 async function setAssignKey(sk,v){try{await writeDoc(S.db.doc('assign/current'),{inv:S.meta.inv,map:{[sk]:v||''}})}catch(e){toast('Não foi possível salvar a atribuição')}}
 async function setThird(map){
   const items={},t=Date.now();
@@ -4642,6 +4649,9 @@ const ACT={
     const n=await setThird(map);if(n)toast(n+' liberado(s) para qualquer operador elegível',3500);
   },
   rnd(b){S.rf=b.dataset.v||'';lastListKey='';draw(true)},
+  gofalta(){goHere('divergencias','#falta-card',{filter:'todas'})},
+  gothird(){goHere('divergencias','#third-card',{filter:'todas'})},
+  gorr(){goHere('locais','#rr-box')},
   goto2(){S.tab='locais';mainMode='';draw(true);window.scrollTo(0,0)},
   opensecond(b){S.rf='2';S.rg=(b&&b.dataset&&b.dataset.g)||'';S.opView={page:'contagem',kind:'recount',shelf:null};S.q.op='';draw(true);window.scrollTo(0,0)},
   async 'second-bulk'(){
