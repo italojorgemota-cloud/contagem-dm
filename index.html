@@ -270,7 +270,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 67</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 69</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -1251,6 +1251,13 @@ function managerBody(){
 }
 const locTxt=it=>it.shelf+(it.sec?' / '+it.sec:'');
 
+S.dgopen=new Set();
+function dgLocais(o,asg){
+  const l=[...o.sh.values()].sort((a,b)=>String(a.name).localeCompare(String(b.name),'pt',{numeric:true}));
+  return'<tr><td colspan="8" style="background:var(--soft,#f6f8f4);padding:6px 12px 12px"><table class="tbl"><thead><tr><th>Local</th><th>Responsável</th><th style="min-width:140px">Andamento</th><th class="r">Contados</th><th class="r">Divergentes</th><th class="r">Em recontagem</th></tr></thead><tbody>'+
+    l.map(s=>{const pc=x=>(s.total?x/s.total*100:0);const who=(knownOps().find(p=>p.key===(asg||{})[s.key])||{}).name;
+      return'<tr><td><b>'+esc(s.name)+'</b></td><td>'+esc(who||'–')+'</td><td><div class="prog split"><b style="width:'+pc(s.closed-s.div)+'%;background:var(--ok)"></b><b style="width:'+pc(s.div)+'%;background:var(--bad)"></b><b style="width:'+pc(s.rec)+'%;background:var(--warn)"></b></div></td><td class="r num">'+s.counted+' / '+s.total+'</td><td class="r num">'+(s.div?'<span class="neg">'+s.div+'</span>':'0')+'</td><td class="r num">'+s.rec+'</td></tr>'}).join('')+'</tbody></table></td></tr>';
+}
 function vDashboard(){
   const st=S.stats;if(!S.meta||!st)return vLive()+noInv();
   const pct=(a,b)=>b?a/b*100:0;
@@ -1289,17 +1296,17 @@ function vDashboard(){
     (st.unasg?tl('n3',st.unasg,'Sem responsável','3ª/4ª a atribuir'):'')+'</div></div></div>';
   if([...S.items.values()].some(it=>it.grp)){
     const gm=new Map();
-    for(const it of S.items.values()){const g=it.grp||'(Sem grupo)';let o=gm.get(g);if(!o){o={n:g,tot:0,cont:0,closed:0,pend:0,busca:0};gm.set(g,o)}o.tot++;if(it.state==='pend'){o.pend++;if(it.sreq&&(!it.find||it.find.t<it.sreq.t))o.busca++}else o.cont++;if(it.state==='closed')o.closed++}
+    for(const it of S.items.values()){const g=it.grp||'(Sem grupo)';let o=gm.get(g);if(!o){o={n:g,tot:0,cont:0,closed:0,pend:0,busca:0,sh:new Map()};gm.set(g,o)}o.tot++;{let q=o.sh.get(it.sk);if(!q){q={key:it.sk,name:it.shelf,total:0,counted:0,closed:0,div:0,rec:0};o.sh.set(it.sk,q)}q.total++;if(it.state!=='pend'){q.counted++;if(it.state==='closed'){q.closed++;if(it.div)q.div++}else q.rec++}}if(it.state==='pend'){o.pend++;if(it.sreq&&(!it.find||it.find.t<it.sreq.t))o.busca++}else o.cont++;if(it.state==='closed')o.closed++}
     const cl=(S.gstat&&S.gstat.inv===S.meta.inv&&S.gstat.closed)||{};
-    h+='<div class="card"><div class="hd"><h2>🗂️ Andamento por grupo</h2><span class="sub">'+gm.size+' grupos</span></div><div class="bd scroll"><table class="tbl"><thead><tr><th>Grupo</th><th class="r">Itens</th><th>Andamento</th><th class="r">Contados</th><th class="r">Fechados</th><th class="r">Sem contagem</th><th class="r">Em busca</th><th></th></tr></thead><tbody>'+
-      [...gm.values()].sort((a,b)=>a.n.localeCompare(b.n,'pt',{numeric:true})).map(o=>{const k=slug(o.n),done=!!cl[k];return'<tr><td><b>'+esc(o.n)+'</b></td><td class="r num">'+o.tot+'</td><td style="min-width:120px"><div class="prog split"><b style="width:'+pct(o.closed,o.tot)+'%;background:var(--ok)"></b><b style="width:'+pct(o.cont-o.closed,o.tot)+'%;background:var(--warn)"></b></div></td><td class="r num">'+o.cont+'</td><td class="r num">'+o.closed+'</td><td class="r num">'+(o.pend?'<span class="neg">'+o.pend+'</span>':'0')+'</td><td class="r num">'+o.busca+'</td><td>'+(done?'<span class="chip ok">✓ Encerrado</span> <button class="btn sm" data-act="gclose" data-k="'+esc(k)+'" data-n="'+esc(o.n)+'" data-v="0">Reabrir</button>':'<button class="btn sm" data-act="gclose" data-k="'+esc(k)+'" data-n="'+esc(o.n)+'" data-v="1" data-open="'+(o.tot-o.closed)+'">Encerrar grupo</button>')+' <button class="btn sm" data-act="gexcl" data-k="'+esc(exKey(o.n))+'" data-n="'+esc(o.n)+'" data-v="1" data-c="'+o.tot+'" title="Tira o grupo da contagem e de todos os relatórios">🗑 Excluir grupo</button></td></tr>'}).join('')+'</tbody></table></div></div>';
+    h+='<div class="card"><div class="hd"><h2>🗂️ Andamento por grupo</h2><span class="sub">'+gm.size+' grupos · toque na seta para ver os locais de cada grupo</span><span style="margin-left:auto;display:flex;gap:6px"><button class="btn sm" data-act="dgall">Abrir todos</button><button class="btn sm" data-act="dgnone">Fechar todos</button></span></div><div class="bd scroll"><table class="tbl"><thead><tr><th>Grupo</th><th class="r">Itens</th><th>Andamento</th><th class="r">Contados</th><th class="r">Fechados</th><th class="r">Sem contagem</th><th class="r">Em busca</th><th></th></tr></thead><tbody>'+
+      [...gm.values()].sort((a,b)=>a.n.localeCompare(b.n,'pt',{numeric:true})).map(o=>{const k=slug(o.n),done=!!cl[k],op=S.dgopen.has(o.n);return'<tr><td style="white-space:nowrap"><button class="btn sm" data-act="dgtog" data-g="'+esc(o.n)+'" aria-expanded="'+op+'" aria-label="Ver os locais do grupo" style="min-height:26px;padding:2px 8px;margin-right:6px">'+(op?'▾':'▸')+'</button><b>'+esc(o.n)+'</b> <span class="sub">· '+o.sh.size+(o.sh.size===1?' local':' locais')+'</span></td><td class="r num">'+o.tot+'</td><td style="min-width:120px"><div class="prog split"><b style="width:'+pct(o.closed,o.tot)+'%;background:var(--ok)"></b><b style="width:'+pct(o.cont-o.closed,o.tot)+'%;background:var(--warn)"></b></div></td><td class="r num">'+o.cont+'</td><td class="r num">'+o.closed+'</td><td class="r num">'+(o.pend?'<span class="neg">'+o.pend+'</span>':'0')+'</td><td class="r num">'+o.busca+'</td><td>'+(done?'<span class="chip ok">✓ Encerrado</span> <button class="btn sm" data-act="gclose" data-k="'+esc(k)+'" data-n="'+esc(o.n)+'" data-v="0">Reabrir</button>':'<button class="btn sm" data-act="gclose" data-k="'+esc(k)+'" data-n="'+esc(o.n)+'" data-v="1" data-open="'+(o.tot-o.closed)+'">Encerrar grupo</button>')+' <button class="btn sm" data-act="gexcl" data-k="'+esc(exKey(o.n))+'" data-n="'+esc(o.n)+'" data-v="1" data-c="'+o.tot+'" title="Tira o grupo da contagem e de todos os relatórios">🗑 Excluir grupo</button></td></tr>'+(op?dgLocais(o,asg):'')}).join('')+'</tbody></table></div></div>';
   }
   {const ex=(S.gstat&&S.gstat.inv===S.meta.inv&&S.gstat.excl)||{},el=Object.entries(ex).filter(e=>e[1]&&!e[1].off);
    if(el.length)h+='<div class="card"><div class="hd"><h2>🗑 Grupos excluídos da contagem</h2><span class="sub">não aparecem na contagem nem nos relatórios</span></div><div class="bd stack">'+el.map(([k,v])=>'<div class="row" style="align-items:center"><b>'+esc(v.n||k)+'</b><span class="sub">'+fmtDT(v.t)+'</span><button class="btn sm" data-act="gexcl" data-k="'+esc(k)+'" data-n="'+esc(v.n||k)+'" data-v="0">↩ Restaurar</button></div>').join('')+'</div></div>';}
   const ok=st.okAll,cf=st.conf,rc=st.rec2+st.rec3+st.rec4+st.sem;
   h+='<div class="card"><div class="bd stack" style="gap:8px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h2>Progresso geral da contagem</h2><span class="sub">'+fmtN(st.counted)+' de '+fmtN(st.total)+' itens receberam ao menos uma contagem</span></div><div class="prog split"><b style="width:'+pct(ok,st.total)+'%;background:var(--ok)"></b><b style="width:'+pct(cf,st.total)+'%;background:var(--bad)"></b><b style="width:'+pct(rc,st.total)+'%;background:var(--warn)"></b></div><div class="sub">Verde: conferido · Vermelho: divergência confirmada · Amarelo: aguardando recontagem</div></div></div>';
   const sh=[...st.shelves.values()].sort((a,b)=>a.name.localeCompare(b.name,'pt',{numeric:true}));
-  h+='<div class="card"><div class="hd"><h2>📍 Locais</h2></div><div class="bd scroll"><table class="tbl"><thead><tr><th>Local</th><th>Responsável</th><th style="min-width:140px">Andamento</th><th class="r">Contados</th><th class="r">Divergentes</th><th class="r">Em recontagem</th></tr></thead><tbody>'+
+  if(![...S.items.values()].some(it=>it.grp))h+='<div class="card"><div class="hd"><h2>📍 Locais</h2></div><div class="bd scroll"><table class="tbl"><thead><tr><th>Local</th><th>Responsável</th><th style="min-width:140px">Andamento</th><th class="r">Contados</th><th class="r">Divergentes</th><th class="r">Em recontagem</th></tr></thead><tbody>'+
     sh.map(s=>{const pc=x=>(s.total?x/s.total*100:0);const who=(knownOps().find(o=>o.key===asg[s.key])||{}).name;
       return'<tr><td><b>'+esc(s.name)+'</b></td><td>'+esc(who||'–')+'</td><td><div class="prog split"><b style="width:'+pc(s.closed-s.div)+'%;background:var(--ok)"></b><b style="width:'+pc(s.div)+'%;background:var(--bad)"></b><b style="width:'+pc(s.rec)+'%;background:var(--warn)"></b></div></td><td class="r num">'+s.counted+' / '+s.total+'</td><td class="r num">'+(s.div?'<span class="neg">'+s.div+'</span>':'0')+'</td><td class="r num">'+s.rec+'</td></tr>'}).join('')+'</tbody></table></div></div>';
   return h;
@@ -4410,8 +4417,13 @@ async function sbSave(){
   }catch(e){console.error(e);toast('Não foi possível salvar a base ('+((e&&e.code)||'erro')+')',4000)}
 }
 async function sbOff(){
-  if(!confirmOnce('sboff')){toast('Toque de novo para excluir a base de estoque',3500);return}
-  try{for(const id of [...S.atask.keys()])if(/^s\d+$/.test(id)||id==='smeta')await S.db.doc('addrtask/'+id).delete();toast('Base de estoque excluída')}catch(e){toast('Não foi possível excluir')}
+  const run=!!adMeta();
+  if(!confirmOnce('sboff')){toast(run?'Toque de novo para excluir a base de estoque. A lista liberada para os coletores também será encerrada (os endereços já coletados são mantidos)':'Toque de novo para excluir a base de estoque',5000);return}
+  try{
+    for(const id of [...S.atask.keys()])if(/^s\d+$/.test(id)||id==='smeta')await S.db.doc('addrtask/'+id).delete();
+    if(run){for(const id of [...S.atask.keys()])if(/^t\d+$/.test(id))await S.db.doc('addrtask/'+id).delete();await S.db.doc('addrtask/meta').set({on:false,t:Date.now(),count:0,by:S.name})}
+    toast(run?'Base de estoque excluída e lista dos coletores encerrada':'Base de estoque excluída')
+  }catch(e){toast('Não foi possível excluir')}
 }
 function sbCard(){
   const m=sbMeta();let h='<div class="card"><div class="hd"><h2>📦 Base de estoque do endereçamento</h2>'+(m?'<span class="chip ok">ativa · '+fmtN(m.count)+' produtos</span>':'<span class="chip">não carregada</span>')+'</div><div class="bd stack">'+
@@ -4818,6 +4830,9 @@ const ACT={
   relreopen(b){relReopen(b.dataset.sk,b.dataset.k)},
   relrm(b){relRm(b.dataset.sk)},
   reledit(b){relEdit(b.dataset.sk)},
+  dgtog(b){const g=b.dataset.g;if(S.dgopen.has(g))S.dgopen.delete(g);else S.dgopen.add(g);draw(true)},
+  dgall(){for(const it of S.items.values())S.dgopen.add(it.grp||'(Sem grupo)');draw(true)},
+  dgnone(){S.dgopen.clear();draw(true)},
   relprod(b){S.relPr=S.relPr===b.dataset.sk?null:b.dataset.sk;relRedraw()},
   rrask(b){S.rrOpen=b.dataset.sk;rrRedraw();const f=$('#rrtxt');if(f)f.focus()},
   rrcancel(){S.rrOpen=null;rrRedraw()},
