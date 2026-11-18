@@ -270,7 +270,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 74</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 76</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -4453,7 +4453,7 @@ const inPct=(a,b)=>b?a/b*100:0;
 const IN_NOG='(Sem grupo)';
 const inAddr=(shelf,sec)=>inNorm(shelf)+(inNorm(sec)?' / '+inNorm(sec):'');
 function inParse(t){const s=inNorm(t),i=s.indexOf(' / ');return i<0?{shelf:s,sec:''}:{shelf:s.slice(0,i).trim(),sec:s.slice(i+3).trim()}}
-S.inOpen=new Set();S.inMv=null;S.inAdd=null;
+S.inOpen=new Set();S.inOpenG=new Set();S.inMv=null;S.inAdd=null;
 
 /* ---- lado do gestor: produtos e endereços da base ---- */
 function inProducts(){
@@ -4619,20 +4619,20 @@ function inExcel(){
   const det=[],alt=[];
   for(const r of rows){
     const s=st.get(r.rid);
-    det.push({c:r.code,d:r.desc,g:r.g,u:r.un,e:r.shelf,s:r.sec,sit:inDone(s)?sit[s.st]:'Pendente',q:inDone(s)&&s.st!=='nf'?s.qty:'',n:s&&s.st==='mv'?inAddr(inParse(s.to).shelf,inParse(s.to).sec):'',who:inDone(s)?s.op:'',t:inDone(s)?when(s.t):''});
-    if(s&&s.st==='mv')alt.push({c:r.code,d:r.desc,g:r.g,tp:'Remanejado',de:inAddr(r.shelf,r.sec),pa:inAddr(inParse(s.to).shelf,inParse(s.to).sec),q:s.qty,who:s.op,t:when(s.t)});
+    det.push({c:r.code,d:r.desc,g:r.g,u:r.un,e:r.shelf,s:r.sec,sit:inDone(s)?sit[s.st]:'Pendente',q:inDone(s)&&s.st!=='nf'&&s.qty!=null?s.qty:'',n:s&&s.st==='mv'?inAddr(inParse(s.to).shelf,inParse(s.to).sec):'',who:inDone(s)?s.op:'',t:inDone(s)?when(s.t):''});
+    if(s&&s.st==='mv')alt.push({c:r.code,d:r.desc,g:r.g,tp:'Remanejado',de:inAddr(r.shelf,r.sec),pa:inAddr(inParse(s.to).shelf,inParse(s.to).sec),q:s.qty==null?'':s.qty,who:s.op,t:when(s.t)});
     if(s&&s.st==='nf')alt.push({c:r.code,d:r.desc,g:r.g,tp:'Não encontrado',de:inAddr(r.shelf,r.sec),pa:'',q:'',who:s.op,t:when(s.t)});
   }
   const codes=new Set(rows.map(r=>zc(r.code)));
   for(const s of docs)if(s.st==='add'&&codes.has(zc(s.code))){
     const p=inParse(s.to);
-    det.push({c:s.code,d:s.desc||'',g:s.g||'',u:s.un||'',e:'',s:'',sit:'Novo endereço',q:s.qty,n:inAddr(p.shelf,p.sec),who:s.op,t:when(s.t)});
-    alt.push({c:s.code,d:s.desc||'',g:s.g||'',tp:'Novo endereço',de:'',pa:inAddr(p.shelf,p.sec),q:s.qty,who:s.op,t:when(s.t)});
+    det.push({c:s.code,d:s.desc||'',g:s.g||'',u:s.un||'',e:'',s:'',sit:'Novo endereço',q:s.qty==null?'':s.qty,n:inAddr(p.shelf,p.sec),who:s.op,t:when(s.t)});
+    alt.push({c:s.code,d:s.desc||'',g:s.g||'',tp:'Novo endereço',de:'',pa:inAddr(p.shelf,p.sec),q:s.qty==null?'':s.qty,who:s.op,t:when(s.t)});
   }
   const qt=new Map();
-  for(const r of rows){const k=zc(r.code);let o=qt.get(k);if(!o){o={c:r.code,d:r.desc,g:r.g,u:r.un,sis:r.q,tot:0,pend:0,n:0};qt.set(k,o)}o.n++;const s=st.get(r.rid);if(!inDone(s))o.pend++;else if(s.st!=='nf')o.tot+=Number(s.qty)||0}
-  for(const s of docs)if(s.st==='add'){const o=qt.get(zc(s.code));if(o)o.tot+=Number(s.qty)||0}
-  const qrows=[...qt.values()].sort((a,b)=>a.g.localeCompare(b.g,'pt',{numeric:true})||a.c.localeCompare(b.c,'pt',{numeric:true})).map(o=>({c:o.c,d:o.d,g:o.g,u:o.u,sis:o.sis==null?'':o.sis,tot:o.pend?'':o.tot,dif:o.pend||o.sis==null?'':Math.round((o.tot-o.sis)*1000)/1000,sit:o.pend?'Faltam '+o.pend+' de '+o.n+' endereços':'Completo'}));
+  for(const r of rows){const k=zc(r.code);let o=qt.get(k);if(!o){o={c:r.code,d:r.desc,g:r.g,u:r.un,sis:r.q,tot:0,pend:0,n:0,noq:0};qt.set(k,o)}o.n++;const s=st.get(r.rid);if(!inDone(s))o.pend++;else if(s.st!=='nf'){if(s.qty==null)o.noq++;else o.tot+=Number(s.qty)||0}}
+  for(const s of docs)if(s.st==='add'){const o=qt.get(zc(s.code));if(o&&s.qty!=null)o.tot+=Number(s.qty)||0}
+  const qrows=[...qt.values()].sort((a,b)=>a.g.localeCompare(b.g,'pt',{numeric:true})||a.c.localeCompare(b.c,'pt',{numeric:true})).map(o=>({c:o.c,d:o.d,g:o.g,u:o.u,sis:o.sis==null?'':o.sis,tot:o.pend||o.noq?'':o.tot,dif:o.pend||o.noq||o.sis==null?'':Math.round((o.tot-o.sis)*1000)/1000,sit:o.pend?'Faltam '+o.pend+' de '+o.n+' endereços':o.noq?'Conferido sem quantidade em '+o.noq+' endereço(s)':'Completo'}));
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,mkSheet(base,[{h:'Código',k:'c',w:18},{h:'Endereço / prateleira',k:'e',w:24},{h:'Seção',k:'s',w:14}]),'Base atualizada');
   if(rows.length){
@@ -4652,7 +4652,7 @@ function drawInspPage(host,ro){
   if(opMode!=='inspetor'||!$('#inlist')||host.dataset.gsig!==gsig){
     opMode='inspetor';lastListKey='';host.dataset.gsig=gsig;
     if(S.q.ing&&!gl.includes(S.q.ing))S.q.ing='';
-    host.innerHTML=opNav('inspetor')+ro+'<div><h1 class="hero">🔍 Inspetor</h1><div class="sub">Vá até cada prateleira e confira se o produto está no endereço indicado. Informe a quantidade que encontrou. Se estiver em outro lugar, use Remanejar.</div></div><div id="inprog"></div>'+
+    host.innerHTML=opNav('inspetor')+ro+'<div><h1 class="hero">🔍 Inspetor</h1><div class="sub">Vá até cada prateleira e confira se o produto está no endereço indicado. A quantidade é opcional. Se estiver em outro lugar, use Remanejar.</div></div><div id="inprog"></div>'+
       '<div class="row" style="gap:8px;flex-wrap:wrap">'+(gl.length>1?'<div class="field" style="flex:1;min-width:160px"><label for="ing">GRUPO</label><select id="ing" data-chg="ing"><option value="">Todos os meus grupos</option>'+gl.map(g=>'<option value="'+esc(g)+'"'+(S.q.ing===g?' selected':'')+'>'+esc(g)+'</option>').join('')+'</select></div>':'')+
       '<div class="field" style="min-width:140px"><label for="inf">MOSTRAR</label><select id="inf" data-chg="inf"><option value="pend"'+((S.q.inf||'pend')==='pend'?' selected':'')+'>Pendentes</option><option value="todos"'+(S.q.inf==='todos'?' selected':'')+'>Todos</option><option value="feitos"'+(S.q.inf==='feitos'?' selected':'')+'>Conferidos</option></select></div></div>'+
       '<div class="field"><label for="inq">BUSCAR</label><input type="search" id="inq" data-inp="inq" autocomplete="off" placeholder="Código, descrição ou prateleira" value="'+esc(S.q.inq||'')+'"></div><datalist id="inl"></datalist><div id="inlist" class="stack"></div>';
@@ -4693,14 +4693,14 @@ function inCard(r,st,all){
   const ri=esc(r.rid);
   let h='<div class="card" data-ir="'+ri+'" style="box-shadow:none"><div class="bd stack" style="gap:8px"><div><span class="tag c">'+esc(r.code)+'</span> <span class="tag s">'+esc(inAddr(r.shelf,r.sec))+'</span></div><div class="desc"><b>'+esc(r.desc)+'</b>'+(r.un?' <span class="sub">· '+esc(r.un)+'</span>':'')+'</div>';
   if(oth.length)h+='<div><span class="chip warn">⚠ também cadastrado em: '+oth.map(x=>esc(inAddr(x.shelf,x.sec))).join(' · ')+'</span></div>';
-  if(adds.length)h+='<div class="row" style="gap:6px;flex-wrap:wrap">'+adds.map(a=>'<span class="chip ok">＋ '+esc(a.to)+' · '+fmtN(a.qty,3)+'</span><button class="btn sm" data-act="inundo" data-r="'+esc(a.rid)+'" title="Desfazer este endereço novo">✕</button>').join('')+'</div>';
+  if(adds.length)h+='<div class="row" style="gap:6px;flex-wrap:wrap">'+adds.map(a=>'<span class="chip ok">＋ '+esc(a.to)+(a.qty!=null?' · '+fmtN(a.qty,3):'')+'</span><button class="btn sm" data-act="inundo" data-r="'+esc(a.rid)+'" title="Desfazer este endereço novo">✕</button>').join('')+'</div>';
   if(d){
-    h+='<div class="row" style="gap:8px;align-items:center;flex-wrap:wrap">'+(d.st==='ok'?'<span class="chip ok">✓ Está aqui · '+fmtN(d.qty,3)+(r.un?' '+esc(r.un):'')+'</span>':d.st==='nf'?'<span class="chip bad">✗ Não encontrado</span>':'<span class="chip warn">↦ Remanejado para '+esc(d.to)+' · '+fmtN(d.qty,3)+'</span>')+'<span class="sub">'+esc(d.op||'')+'</span><button class="btn sm" data-act="inundo" data-r="'+ri+'">Desfazer</button></div>';
+    h+='<div class="row" style="gap:8px;align-items:center;flex-wrap:wrap">'+(d.st==='ok'?'<span class="chip ok">✓ Está aqui'+(d.qty!=null?' · '+fmtN(d.qty,3)+(r.un?' '+esc(r.un):''):'')+'</span>':d.st==='nf'?'<span class="chip bad">✗ Não encontrado</span>':'<span class="chip warn">↦ Remanejado para '+esc(d.to)+(d.qty!=null?' · '+fmtN(d.qty,3):'')+'</span>')+'<span class="sub">'+esc(d.op||'')+'</span><button class="btn sm" data-act="inundo" data-r="'+ri+'">Desfazer</button></div>';
   }else{
-    h+='<div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><div class="field" style="width:130px"><input type="text" inputmode="decimal" autocomplete="off" data-iq placeholder="Qtd encontrada" aria-label="Quantidade encontrada"></div><button class="btn primary sm" data-act="inok" data-r="'+ri+'">✓ Está aqui</button><button class="btn sm" data-act="innf" data-r="'+ri+'">✗ Não encontrei</button><button class="btn sm" data-act="inmvo" data-r="'+ri+'">↦ Remanejar</button></div>';
-    if(S.inMv===r.rid)h+='<div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><div class="field" style="flex:1;min-width:150px"><input type="text" data-imv list="inl" autocomplete="off" autocapitalize="characters" placeholder="Novo endereço, ex.: A-12 / 03" aria-label="Novo endereço"></div><button class="btn primary sm" data-act="inmvs" data-r="'+ri+'">Confirmar remanejo</button><button class="btn sm" data-act="inmvc">Cancelar</button></div><div class="sub">A quantidade acima será a que foi para o novo endereço.</div>';
+    h+='<div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><div class="field" style="width:130px"><input type="text" inputmode="decimal" autocomplete="off" data-iq placeholder="Qtd (opcional)" aria-label="Quantidade encontrada, opcional"></div><button class="btn primary sm" data-act="inok" data-r="'+ri+'">✓ Está aqui</button><button class="btn sm" data-act="innf" data-r="'+ri+'">✗ Não encontrei</button><button class="btn sm" data-act="inmvo" data-r="'+ri+'">↦ Remanejar</button></div>';
+    if(S.inMv===r.rid)h+='<div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><div class="field" style="flex:1;min-width:150px"><input type="text" data-imv list="inl" autocomplete="off" autocapitalize="characters" placeholder="Novo endereço, ex.: A-12 / 03" aria-label="Novo endereço"></div><button class="btn primary sm" data-act="inmvs" data-r="'+ri+'">Confirmar remanejo</button><button class="btn sm" data-act="inmvc">Cancelar</button></div><div class="sub">Se informar a quantidade acima, ela é a que foi para o novo endereço. É opcional.</div>';
   }
-  if(S.inAdd===r.rid)h+='<div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><div class="field" style="flex:1;min-width:150px"><input type="text" data-iad list="inl" autocomplete="off" autocapitalize="characters" placeholder="Outro endereço onde achou" aria-label="Outro endereço"></div><div class="field" style="width:110px"><input type="text" inputmode="decimal" autocomplete="off" data-iaq placeholder="Qtd" aria-label="Quantidade nesse endereço"></div><button class="btn primary sm" data-act="inadds" data-r="'+ri+'">Salvar</button><button class="btn sm" data-act="inaddc">Cancelar</button></div>';
+  if(S.inAdd===r.rid)h+='<div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><div class="field" style="flex:1;min-width:150px"><input type="text" data-iad list="inl" autocomplete="off" autocapitalize="characters" placeholder="Outro endereço onde achou" aria-label="Outro endereço"></div><div class="field" style="width:110px"><input type="text" inputmode="decimal" autocomplete="off" data-iaq placeholder="Qtd (opcional)" aria-label="Quantidade nesse endereço, opcional"></div><button class="btn primary sm" data-act="inadds" data-r="'+ri+'">Salvar</button><button class="btn sm" data-act="inaddc">Cancelar</button></div>';
   else h+='<div><button class="btn sm" data-act="inaddo" data-r="'+ri+'">＋ Achei em outro endereço</button></div>';
   return h+'</div></div>';
 }
@@ -4711,16 +4711,17 @@ async function inWrite(d){
   S.inMv=null;S.inAdd=null;inRender(true);
 }
 function inBase(r,st,extra){return Object.assign({kind:'insp',id:inDocId(r.rid),rid:r.rid,code:r.code,desc:r.desc,un:r.un,g:r.g,shelf:r.shelf,sec:r.sec,st,qty:null,to:'',op:S.name,ok:myKey(),t:Date.now()},extra||{})}
-function inQty(el){const i=el&&el.querySelector('[data-iq]');const q=i?parseQty(i.value):NaN;if(!isFinite(q)||q<0){toast('Informe a quantidade encontrada',3000);if(i)i.focus();return null}return q}
+function inQty(el){const i=el&&el.querySelector('[data-iq]');if(!i||!String(i.value).trim())return null;const q=parseQty(i.value);if(!isFinite(q)||q<0){toast('Quantidade inválida. Deixe em branco se não quiser informar.',3500);i.focus();return false}return q}
 const inRowOf=rid=>inRows().find(r=>r.rid===rid);
 const IN_ACT={
+  ingtog(b){const g=b.dataset.g;if(S.inOpenG.has(g))S.inOpenG.delete(g);else S.inOpenG.add(g);inRender(true)},
   intog(b){const s=b.dataset.s;if(S.inOpen.has(s))S.inOpen.delete(s);else S.inOpen.add(s);inRender(true)},
-  inok(b){const r=inRowOf(b.dataset.r);if(!r)return;const q=inQty(inCardOf(r.rid));if(q==null)return;inWrite(inBase(r,'ok',{qty:q}))},
+  inok(b){const r=inRowOf(b.dataset.r);if(!r)return;const q=inQty(inCardOf(r.rid));if(q===false)return;inWrite(inBase(r,'ok',{qty:q}))},
   innf(b){const r=inRowOf(b.dataset.r);if(!r)return;inWrite(inBase(r,'nf'))},
   inmvo(b){S.inMv=b.dataset.r;S.inAdd=null;inRender(true);const c=inCardOf(b.dataset.r),i=c&&c.querySelector('[data-imv]');if(i)i.focus()},
   inmvc(){S.inMv=null;inRender(true)},
   inmvs(b){
-    const r=inRowOf(b.dataset.r);if(!r)return;const c=inCardOf(r.rid),q=inQty(c);if(q==null)return;
+    const r=inRowOf(b.dataset.r);if(!r)return;const c=inCardOf(r.rid),q=inQty(c);if(q===false)return;
     const i=c.querySelector('[data-imv]'),to=inAddr(inParse(i?i.value:'').shelf,inParse(i?i.value:'').sec);
     if(!to){toast('Informe o novo endereço',3000);if(i)i.focus();return}
     if(to===inAddr(r.shelf,r.sec)){toast('O novo endereço é igual ao atual. Use "Está aqui".',3500);return}
@@ -4730,9 +4731,9 @@ const IN_ACT={
   inaddc(){S.inAdd=null;inRender(true)},
   inadds(b){
     const r=inRowOf(b.dataset.r);if(!r)return;const c=inCardOf(r.rid),i=c.querySelector('[data-iad]'),qi=c.querySelector('[data-iaq]');
-    const p=inParse(i?i.value:''),to=inAddr(p.shelf,p.sec),q=parseQty(qi?qi.value:'');
+    const p=inParse(i?i.value:''),to=inAddr(p.shelf,p.sec),qv=qi?String(qi.value).trim():'',q=qv?parseQty(qv):null;
     if(!to){toast('Informe o endereço onde achou',3000);if(i)i.focus();return}
-    if(!isFinite(q)||q<0){toast('Informe a quantidade nesse endereço',3000);if(qi)qi.focus();return}
+    if(q!=null&&(!isFinite(q)||q<0)){toast('Quantidade inválida. Deixe em branco se não quiser informar.',3500);if(qi)qi.focus();return}
     const rid='add|'+zc(r.code)+'|'+to;
     inWrite({kind:'insp',id:inDocId(rid),rid,code:r.code,desc:r.desc,un:r.un,g:r.g,shelf:p.shelf,sec:p.sec,st:'add',qty:q,to,op:S.name,ok:myKey(),t:Date.now()});
   },
