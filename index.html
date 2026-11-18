@@ -270,7 +270,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 69</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 74</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -883,7 +883,7 @@ window.__ci={S,rebuild,draw,flush,evalItem,mergePeers};
 
 /* ============ moldura do app ============ */
 const ini=n=>String(n||'?').trim().split(/\s+/).slice(0,2).map(w=>w[0]||'').join('').toUpperCase()||'?';
-const MTABS=[['dashboard','📊','Dashboard'],['indicadores','📈','Indicadores'],['importar','📥','Importar'],['locais','📍','Locais'],['enderecos','📍','Endereçamento'],['itens','📦','Itens'],['divergencias','⚠️','Divergências'],['auditoria','🕒','Auditoria'],['usuarios','👤','Usuários'],['foraerp','🆕','Fora do ERP'],['relatorio','📑','Relatório'],['controladoria','🧾','Controladoria'],['apuracao','🧮','Apuração']];
+const MTABS=[['dashboard','📊','Dashboard'],['indicadores','📈','Indicadores'],['importar','📥','Importar'],['locais','📍','Locais'],['enderecos','📍','Endereçamento'],['inspetor','🔍','Inspetor'],['itens','📦','Itens'],['divergencias','⚠️','Divergências'],['auditoria','🕒','Auditoria'],['usuarios','👤','Usuários'],['foraerp','🆕','Fora do ERP'],['relatorio','📑','Relatório'],['controladoria','🧾','Controladoria'],['apuracao','🧮','Apuração']];
 const LOGO='<svg viewBox="0 0 24 24" fill="none" stroke="#2F7F15" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M12 2.5 20 7v10l-8 4.5L4 17V7z"/><path d="M12 12 4 7M12 12l8-5M12 12v9.5"/><path d="m9 15.5 2 1.8 4-4" stroke="#34C21F"/></svg>';
 let mainMode='',opMode='';
 const confirmOnce=(()=>{let k='',t=0;return key=>{if(k===key&&Date.now()-t<4000){k='';return true}k=key;t=Date.now();return false}})();
@@ -911,7 +911,7 @@ function drawApp(){
   if(!S.isAdmin&&S.name){
     const rc=S.meta?recountItems().filter(canRecount).length+secondItems().filter(canRecount).length:0,pg=S.opView.page;
     bn.hidden=false;
-    bn.innerHTML=[['locais','📍','Locais',0],['contagem','📱','Contagem',rc],['procurar','🔎','Procurar',searchItems().length],['novo','➕','Novo item',0],['hist','🕒','Histórico',0]].filter(x=>x[0]!=='procurar'||x[3]>0||pg==='procurar').concat(qMeta()?[['consulta','📍','Endereços',0]]:[]).concat(adMeta()?[['enderecar','🏷️','Endereçar',adMissing().length]]:[]).map(([k,ic,l,b])=>'<button class="nv" data-act="opage" data-v="'+k+'" aria-selected="'+(pg===k)+'"><span class="ic">'+ic+'</span>'+l+(b?'<span class="badge">'+b+'</span>':'')+'</button>').join('');bn.classList.toggle('many',bn.children.length>6);
+    bn.innerHTML=[['locais','📍','Locais',0],['contagem','📱','Contagem',rc],['procurar','🔎','Procurar',searchItems().length],['novo','➕','Novo item',0],['hist','🕒','Histórico',0]].filter(x=>x[0]!=='procurar'||x[3]>0||pg==='procurar').concat(qMeta()?[['consulta','📍','Endereços',0]]:[]).concat(adMeta()?[['enderecar','🏷️','Endereçar',adMissing().length]]:[]).concat(inMeta()&&inVisible().length?[['inspetor','🔍','Inspetor',inPending()]]:[]).map(([k,ic,l,b])=>'<button class="nv" data-act="opage" data-v="'+k+'" aria-selected="'+(pg===k)+'"><span class="ic">'+ic+'</span>'+l+(b?'<span class="badge">'+b+'</span>':'')+'</button>').join('');bn.classList.toggle('many',bn.children.length>6);
   }else bn.hidden=true;
   if(cv){
     if(mainMode!=='op'){$('#main').innerHTML='<div id="sync" class="sync"></div><div id="opc" class="stack" style="max-width:640px;margin:0 auto;width:100%"></div>';mainMode='op';opMode='';lastListKey=''}
@@ -994,7 +994,7 @@ let rows=new Map(),heads=new Map(),lastListKey='';
 function frameReset(){mainMode='';lastListKey='';opMode=''}
 function opNav(active){
   if(!S.isAdmin)return'';
-  return'<div class="filters">'+[['consulta','📍 Endereços'],['locais','📍 Locais'],['contagem','📱 Contagem'],['procurar','🔎 Procurar'+(searchItems().length?' ('+searchItems().length+')':'')],['novo','➕ Item fora do ERP'],['hist','🕒 Meu histórico']].map(([k,l])=>'<button class="btn sm" data-act="opage" data-v="'+k+'" aria-pressed="'+(active===k)+'">'+l+'</button>').join('')+'</div>';
+  return'<div class="filters">'+[['consulta','📍 Endereços'],['locais','📍 Locais'],['contagem','📱 Contagem'],['inspetor','🔍 Inspetor'],['procurar','🔎 Procurar'+(searchItems().length?' ('+searchItems().length+')':'')],['novo','➕ Item fora do ERP'],['hist','🕒 Meu histórico']].map(([k,l])=>'<button class="btn sm" data-act="opage" data-v="'+k+'" aria-pressed="'+(active===k)+'">'+l+'</button>').join('')+'</div>';
 }
 function drawOpContent(){
   const host=$('#opc');if(!host)return;
@@ -1003,6 +1003,7 @@ function drawOpContent(){
   const ro=S.canWrite===false?'<div class="note bad">Seu acesso é somente leitura: as contagens não serão aceitas. Peça ao supervisor para liberar acesso de colaborador.</div>':'';
   if(v.page==='consulta')return drawConsultaPage(host,ro);
   if(v.page==='enderecar')return drawAddrPage(host,ro);
+  if(v.page==='inspetor')return drawInspPage(host,ro);
   if(!S.meta){opMode='msg';host.innerHTML=opNav(v.page)+ro+'<div class="card"><div class="empty">Nenhum inventário aberto no momento.<br>Aguarde o supervisor publicar a lista.</div></div>';return}
   if(S.meta.status==='encerrado'){opMode='msg';host.innerHTML=opNav(v.page)+'<div class="card"><div class="empty"><b>Inventário encerrado.</b><br>Obrigado pela contagem.</div></div>';return}
   if(v.page==='contagem'&&!v.shelf&&v.kind!=='recount'){
@@ -1243,6 +1244,7 @@ function managerBody(){
     case 'apuracao':return vApur();
     case 'grupos':return vGrupos();
     case 'enderecos':return vEnd();
+    case 'inspetor':return vInspetor();
     case 'busca':return vBusca();
     case 'relatorio':return vReport();
     case 'indicadores':return vIndic();
@@ -4438,6 +4440,324 @@ function sbCard(){
   return h+'</div></div>';
 }
 
+/* ============ Inspetor: pré-inventário de endereços ============
+   O gestor libera grupos (com os endereços da base); os coletores conferem, prateleira por prateleira,
+   se o produto está no endereço e informam a quantidade. Quem achar em outro lugar pode remanejar ou
+   acrescentar um endereço. O gestor baixa o Excel com a base de endereços já atualizada. */
+const inMeta=()=>{const m=S.atask.get('imeta');return m&&m.on?m:null};
+const inAsg=()=>{const d=S.atask.get('iasg');return(d&&d.map)||{}};
+const inNorm=s=>String(s||'').toUpperCase().replace(/\s+/g,' ').trim();
+const inRid=(code,shelf,sec)=>zc(code)+'|'+inNorm(shelf)+'|'+inNorm(sec);
+const inDocId=rid=>'ip'+cyrb53(rid);
+const inPct=(a,b)=>b?a/b*100:0;
+const IN_NOG='(Sem grupo)';
+const inAddr=(shelf,sec)=>inNorm(shelf)+(inNorm(sec)?' / '+inNorm(sec):'');
+function inParse(t){const s=inNorm(t),i=s.indexOf(' / ');return i<0?{shelf:s,sec:''}:{shelf:s.slice(0,i).trim(),sec:s.slice(i+3).trim()}}
+S.inOpen=new Set();S.inMv=null;S.inAdd=null;
+
+/* ---- lado do gestor: produtos e endereços da base ---- */
+function inProducts(){
+  const m=new Map();
+  for(const x of endBase())m.set(zc(x.c),{code:String(x.c),desc:x.d||'',un:x.u||'',g:String(x.g||'').trim(),q:x.q});
+  let cp=null;try{cp=cpIndex()}catch(e){}
+  if(cp&&cp.size)for(const [k,c] of cp){const o=m.get(k);if(o){if(!o.g)o.g=String(c.grp||'').trim();if(!o.desc)o.desc=c.desc||''}}
+  return {m,cp};
+}
+function inPairs(){
+  const m=new Map();
+  const add=(code,shelf,sec)=>{const k=zc(code),sh=inNorm(shelf);if(!sh)return;let l=m.get(k);if(!l){l={code:String(code),a:[]};m.set(k,l)}const se=inNorm(sec);if(!l.a.some(x=>x.shelf===sh&&x.sec===se))l.a.push({shelf:sh,sec:se})};
+  [...S.addrDocs.entries()].filter(([k])=>k!=='meta').sort((a,b)=>a[0]<b[0]?-1:1).forEach(([,d])=>(d.rows||[]).forEach(r=>add(r[0],r[1],r[2]||'')));
+  for(const d of S.anew.values()){
+    if(d.nf||!d.shelf)continue;const k=zc(d.code),p=inParse(d.shelf);
+    if(d.mv){m.set(k,{code:String(d.code),a:[]});add(d.code,p.shelf,p.sec)}else if(!m.has(k))add(d.code,p.shelf,p.sec);
+  }
+  return m;
+}
+function inInfo(P,l){
+  const k=zc(l.code),p=P.m.get(k),c=P.cp&&P.cp.get(k);
+  if(p)return p;
+  return c?{code:l.code,desc:c.desc,un:c.un,g:String(c.grp||'').trim(),q:null}:{code:l.code,desc:l.code,un:'',g:'',q:null};
+}
+function inGroups(){
+  const P=inProducts(),pr=inPairs(),m=new Map();
+  for(const [,l] of pr){
+    const p=inInfo(P,l),g=p.g||IN_NOG;let o=m.get(g);if(!o){o={g,n:0,na:0,sh:new Set()};m.set(g,o)}
+    o.n++;o.na+=l.a.length;l.a.forEach(a=>o.sh.add(a.shelf));
+  }
+  return [...m.values()].sort((a,b)=>a.g.localeCompare(b.g,'pt',{numeric:true}));
+}
+function inBuildRows(groups){
+  const P=inProducts(),pr=inPairs(),set=new Set(groups),rows=[];
+  for(const [,l] of pr){
+    const p=inInfo(P,l),g=p.g||IN_NOG;if(!set.has(g))continue;
+    for(const a of l.a)rows.push([l.code.slice(0,30),String(p.desc||'').slice(0,70),String(p.un||'').slice(0,8),g.slice(0,80),a.shelf.slice(0,40),a.sec.slice(0,30),p.q==null?'':p.q]);
+  }
+  rows.sort((a,b)=>a[4].localeCompare(b[4],'pt',{numeric:true})||a[5].localeCompare(b[5],'pt',{numeric:true})||a[0].localeCompare(b[0],'pt',{numeric:true}));
+  return rows;
+}
+async function inPublish(groups){
+  try{
+    const old=[...S.atask.keys()].filter(k=>/^i\d+$/.test(k));
+    if(!groups.length){
+      for(const id of old)await S.db.doc('addrtask/'+id).delete();
+      await S.db.doc('addrtask/imeta').set({on:false,t:Date.now(),count:0,groups:[],by:S.name});
+      toast('Inspetor desligado');return;
+    }
+    const rows=inBuildRows(groups),ids=new Set();
+    for(let i=0,n=0;i<rows.length;i+=250,n++){const id='i'+String(n).padStart(3,'0');ids.add(id);await S.db.doc('addrtask/'+id).set({no:n,rows:rows.slice(i,i+250)})}
+    for(const id of old)if(!ids.has(id))await S.db.doc('addrtask/'+id).delete();
+    await S.db.doc('addrtask/imeta').set({on:true,t:Date.now(),count:rows.length,groups,by:S.name});
+    toast('Inspetor atualizado: '+fmtN(rows.length)+' endereços em '+groups.length+(groups.length===1?' grupo':' grupos'),3500);
+  }catch(e){console.error(e);toast('Não foi possível liberar ('+((e&&e.code)||'erro')+')',4000)}
+}
+async function inToggleGroup(g,on){
+  const m=inMeta(),cur=new Set((m&&m.groups)||[]);
+  if(on)cur.add(g);else cur.delete(g);
+  await inPublish([...cur]);
+}
+async function inAllGroups(on){await inPublish(on?inGroups().map(x=>x.g):[])}
+async function inSetAsg(g,v){
+  const map=Object.assign({},inAsg());if(v)map[g]=v;else delete map[g];
+  try{await S.db.doc('addrtask/iasg').set({map,t:Date.now()});toast('Responsável atualizado')}catch(e){toast('Não foi possível salvar',3500)}
+}
+
+/* ---- linhas liberadas e conferências ---- */
+let _inr=null;
+function inRows(){
+  if(_inr&&_inr.k===S.atask)return _inr.l;
+  const l=[];
+  [...S.atask.entries()].filter(([k])=>/^i\d+$/.test(k)).sort((a,b)=>a[0]<b[0]?-1:1).forEach(([,d])=>(d.rows||[]).forEach(r=>l.push({code:String(r[0]),desc:r[1]||'',un:r[2]||'',g:r[3]||IN_NOG,shelf:r[4]||'',sec:r[5]||'',q:r[6]===''||r[6]==null?null:Number(r[6]),rid:inRid(r[0],r[4],r[5]||'')})));
+  _inr={k:S.atask,l};return l;
+}
+function inState(){const m=new Map();for(const d of S.extras.values())if(d&&d.kind==='insp'&&d.st!=='undo')m.set(d.rid,d);return m}
+const inDone=s=>!!s&&(s.st==='ok'||s.st==='nf'||s.st==='mv');
+function inVisible(){
+  const rows=inMeta()?inRows():[];if(S.isAdmin)return rows;
+  const a=inAsg(),k=myKey();return rows.filter(r=>{const w=a[r.g];return w==='*'||w===k});
+}
+function inStats(rows,st){
+  const o={tot:rows.length,done:0,ok:0,nf:0,mv:0,add:0};
+  for(const r of rows){const s=st.get(r.rid);if(inDone(s)){o.done++;o[s.st]++}}
+  const codes=new Set(rows.map(r=>zc(r.code)));
+  for(const s of st.values())if(s.st==='add'&&codes.has(zc(s.code)))o.add++;
+  return o;
+}
+
+/* ---- importar planilha com os grupos a conferir ---- */
+S.inImp=null;
+async function inImport(f){
+  const sheets=await loadWorkbook(f),names=Object.keys(sheets).filter(n=>sheets[n].length>0);
+  if(!names.length){toast('A planilha está vazia');return}
+  const aoa=sheets[names[0]],nz=s=>qn(String(s==null?'':s)).trim();
+  let hr=-1,gc=-1,rc=-1;
+  for(let r=0;r<Math.min(aoa.length,10)&&hr<0;r++){(aoa[r]||[]).forEach((c,i)=>{const n=nz(c);if(gc<0&&/grupo/.test(n))gc=i;if(rc<0&&/respons|coletor/.test(n))rc=i});if(gc>=0)hr=r}
+  if(hr<0){gc=0;rc=-1}
+  const gs=inGroups(),byK=new Map(gs.map(x=>[exKey(x.g),x.g])),byS=new Map(gs.map(x=>[slug(x.g),x.g]));
+  const ops=knownOps(),found=new Map(),miss=[],badResp=[];
+  for(let r=hr+1;r<aoa.length;r++){
+    const row=aoa[r]||[],v=String(row[gc]==null?'':row[gc]).trim();if(!v)continue;
+    const g=byK.get(exKey(v))||byS.get(slug(v));
+    if(!g){if(!miss.includes(v))miss.push(v);continue}
+    let w=found.get(g);if(w===undefined){w='';found.set(g,w)}
+    if(rc>=0){
+      const rv=nz(row[rc]);
+      if(rv){
+        if(/^(todos|\*)/.test(rv))found.set(g,'*');
+        else{const o=ops.find(x=>nz(x.name)&&nz(x.name)===rv)||ops.find(x=>nz(x.name)&&(nz(x.name).startsWith(rv)||rv.startsWith(nz(x.name))));if(o)found.set(g,o.key);else if(!badResp.includes(row[rc]))badResp.push(String(row[rc]))}
+      }
+    }
+  }
+  S.inImp={file:f.name,ok:found.size,miss,badResp};
+  if(!found.size){toast('Nenhum grupo da planilha foi achado na base de endereços',4500);draw(true);return}
+  const groups=[...found.keys()],asg=Object.assign({},inAsg());let na=0;
+  for(const [g,w] of found)if(w){asg[g]=w;na++}
+  try{if(na)await S.db.doc('addrtask/iasg').set({map:asg,t:Date.now()})}catch(e){console.error(e)}
+  await inPublish(groups);
+  draw(true);
+}
+function inModel(){
+  const gs=inGroups();if(!gs.length){toast('Carregue a base de endereços primeiro');return}
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,mkSheet(gs.map(x=>({g:x.g,r:'',n:x.n,a:x.na})),[{h:'Grupo',k:'g',w:40},{h:'Responsável',k:'r',w:20},{h:'Produtos',k:'n',w:10},{h:'Endereços',k:'a',w:10}]),'Grupos');
+  saveXlsx(wb,'modelo_grupos_inspetor.xlsx');
+}
+
+/* ---- gestor: aba Inspetor ---- */
+function vInspetor(){
+  const m=inMeta();
+  if(!S.addr.size)return'<div class="card"><div class="hd"><h2>🔍 Inspetor</h2></div><div class="bd stack"><div class="empty"><b>Carregue a base de endereços primeiro.</b><br>O Inspetor usa os endereços da base (aba Endereçamento) para montar a conferência por prateleira.</div></div></div>';
+  const gs=inGroups(),rel=new Set((m&&m.groups)||[]),a=inAsg(),st=inState(),rows=inMeta()?inRows():[];
+  const byG=new Map();for(const r of rows){let o=byG.get(r.g);if(!o){o={tot:0,done:0};byG.set(r.g,o)}o.tot++;if(inDone(st.get(r.rid)))o.done++}
+  const S0=inStats(rows,st);
+  let h='<div class="card"><div class="hd"><h2>🔍 Inspetor — pré-inventário de endereços</h2></div><div class="bd stack">'+
+    '<div class="sub">Libere os grupos que quer conferir. Os coletores indicados veem os produtos organizados por prateleira, confirmam se estão no endereço da base e informam a quantidade. Se um produto estiver em dois lugares, podem manter os dois ou remanejar. No fim você baixa o Excel com a base de endereços atualizada.</div>';
+  if(m)h+='<div class="kpis">'+kpi('Endereços liberados',fmtN(S0.tot),fmtN(rel.size)+(rel.size===1?' grupo':' grupos'))+kpi('Conferidos',fmtN(S0.done),fmtP(inPct(S0.done,S0.tot))+' do total','g')+kpi('Não encontrados',fmtN(S0.nf),'não estavam no endereço',S0.nf?'r':'')+kpi('Remanejados',fmtN(S0.mv),'mudaram de endereço','a')+kpi('Endereços novos',fmtN(S0.add),'achados em outro lugar','a')+'</div>';
+  if(S.inImp){const x=S.inImp;h+='<div class="note'+(x.ok?'':' bad')+'"><b>'+esc(x.file)+':</b> '+fmtN(x.ok)+(x.ok===1?' grupo liberado':' grupos liberados')+(x.miss.length?'. Não achei na base de endereços: '+esc(x.miss.slice(0,12).join(', '))+(x.miss.length>12?' e mais '+(x.miss.length-12):''):'')+(x.badResp.length?'. Responsável não reconhecido: '+esc(x.badResp.slice(0,8).join(', ')):'')+'</div>'}
+  h+='<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn primary" data-act="inxl">⬇ Baixar Excel (base atualizada)</button><label class="btn" style="cursor:pointer" title="Planilha com a coluna Grupo (e, se quiser, Responsável). Substitui os grupos liberados; as conferências já feitas são mantidas.">📥 Importar grupos<input type="file" accept=".xlsx,.xls,.csv,.txt" data-chg="infile" hidden></label><button class="btn" data-act="inmodel" title="Baixa a lista de grupos para você apagar os que não quer e importar de volta">Modelo da planilha</button>'+(m?'<button class="btn" data-act="inall" data-v="0">Desligar o Inspetor</button><button class="btn" data-act="inrefresh" title="Atualiza a lista liberada com a base de endereços atual; as conferências já feitas são mantidas">↻ Atualizar lista</button>':'')+'</div></div></div>';
+  const gm=new Map(gs.map(x=>[x.g,x])),vis=[...rel].sort((x,y)=>x.localeCompare(y,'pt',{numeric:true})).map(g=>gm.get(g)||{g,n:0,na:0,sh:new Set()});
+  h+='<div class="card"><div class="hd"><h2>Grupos a conferir</h2><span class="sub">'+(vis.length?fmtN(vis.length)+(vis.length===1?' grupo':' grupos'):'nenhum grupo adicionado')+'</span></div><div class="bd stack"><div class="row" style="gap:8px;flex-wrap:nowrap"><input type="text" id="inadd" list="ingl" autocomplete="off" placeholder="Número ou nome do grupo, ex.: 7705 (vários: separe com ;)" style="flex:1" aria-label="Adicionar grupo"><button class="btn primary" data-act="inadd">Adicionar</button></div><datalist id="ingl">'+gs.filter(x=>!rel.has(x.g)).map(x=>'<option value="'+esc(x.g)+'">').join('')+'</datalist>'+(vis.length?'':'<div class="empty">Adicione os grupos que quer conferir aqui, ou importe uma planilha com a coluna Grupo.</div>')+(vis.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Grupo</th><th class="r">Produtos</th><th class="r">Endereços</th><th class="r">Prateleiras</th><th>Responsável</th><th style="min-width:140px">Andamento</th><th></th></tr></thead><tbody>'+
+    vis.map(x=>{const on=rel.has(x.g),b=byG.get(x.g)||{tot:0,done:0};
+      return'<tr><td><b>'+esc(x.g)+'</b></td><td class="r num">'+fmtN(x.n)+'</td><td class="r num">'+fmtN(x.na)+'</td><td class="r num">'+fmtN(x.sh.size)+'</td><td>'+(on?'<select data-chg="inag" data-g="'+esc(x.g)+'" aria-label="Responsável pelo grupo '+esc(x.g)+'">'+adOpts(a[x.g]||'')+'</select>':'<span class="sub">—</span>')+'</td><td>'+(on?'<div class="prog split"><b style="width:'+inPct(b.done,b.tot)+'%;background:var(--ok)"></b></div><span class="sub">'+fmtN(b.done)+' de '+fmtN(b.tot)+'</span>':'<span class="sub">não liberado</span>')+'</td><td>'+(on?'<button class="btn sm" data-act="inret" data-g="'+esc(x.g)+'">Retirar</button>':'<button class="btn sm primary" data-act="inlib" data-g="'+esc(x.g)+'">Liberar</button>')+'</td></tr>'}).join('')+'</tbody></table></div>':'')+'</div></div>';
+  return h;
+}
+
+/* ---- Excel: base de endereços atualizada ---- */
+function inExcel(){
+  if(!S.addr.size){toast('Carregue a base de endereços primeiro');return}
+  const pr=inPairs(),st=inState(),P=inProducts();
+  const docs=[...S.extras.values()].filter(d=>d&&d.kind==='insp'&&d.st!=='undo').sort((a,b)=>(a.t||0)-(b.t||0));
+  const final=new Map();for(const [k,l] of pr)final.set(k,{code:l.code,a:l.a.map(x=>({shelf:x.shelf,sec:x.sec}))});
+  const addA=(code,shelf,sec)=>{const k=zc(code);let l=final.get(k);if(!l){l={code:String(code),a:[]};final.set(k,l)}if(!shelf)return;if(!l.a.some(x=>x.shelf===shelf&&x.sec===sec))l.a.push({shelf,sec})};
+  for(const d of docs){
+    if(d.st==='mv'){const l=final.get(zc(d.code));if(l)l.a=l.a.filter(x=>!(x.shelf===inNorm(d.shelf)&&x.sec===inNorm(d.sec)));const p=inParse(d.to);addA(d.code,p.shelf,p.sec)}
+    else if(d.st==='add'){const p=inParse(d.to);addA(d.code,p.shelf,p.sec)}
+  }
+  const base=[];
+  for(const l of [...final.values()].sort((a,b)=>a.code.localeCompare(b.code,'pt',{numeric:true})))for(const a of l.a)base.push({c:l.code,e:a.shelf,s:a.sec});
+  const rows=inMeta()?inRows():[],when=t=>t?fmtDT(t):'';
+  const sit={ok:'Confirmado',nf:'Não encontrado',mv:'Remanejado'};
+  const det=[],alt=[];
+  for(const r of rows){
+    const s=st.get(r.rid);
+    det.push({c:r.code,d:r.desc,g:r.g,u:r.un,e:r.shelf,s:r.sec,sit:inDone(s)?sit[s.st]:'Pendente',q:inDone(s)&&s.st!=='nf'?s.qty:'',n:s&&s.st==='mv'?inAddr(inParse(s.to).shelf,inParse(s.to).sec):'',who:inDone(s)?s.op:'',t:inDone(s)?when(s.t):''});
+    if(s&&s.st==='mv')alt.push({c:r.code,d:r.desc,g:r.g,tp:'Remanejado',de:inAddr(r.shelf,r.sec),pa:inAddr(inParse(s.to).shelf,inParse(s.to).sec),q:s.qty,who:s.op,t:when(s.t)});
+    if(s&&s.st==='nf')alt.push({c:r.code,d:r.desc,g:r.g,tp:'Não encontrado',de:inAddr(r.shelf,r.sec),pa:'',q:'',who:s.op,t:when(s.t)});
+  }
+  const codes=new Set(rows.map(r=>zc(r.code)));
+  for(const s of docs)if(s.st==='add'&&codes.has(zc(s.code))){
+    const p=inParse(s.to);
+    det.push({c:s.code,d:s.desc||'',g:s.g||'',u:s.un||'',e:'',s:'',sit:'Novo endereço',q:s.qty,n:inAddr(p.shelf,p.sec),who:s.op,t:when(s.t)});
+    alt.push({c:s.code,d:s.desc||'',g:s.g||'',tp:'Novo endereço',de:'',pa:inAddr(p.shelf,p.sec),q:s.qty,who:s.op,t:when(s.t)});
+  }
+  const qt=new Map();
+  for(const r of rows){const k=zc(r.code);let o=qt.get(k);if(!o){o={c:r.code,d:r.desc,g:r.g,u:r.un,sis:r.q,tot:0,pend:0,n:0};qt.set(k,o)}o.n++;const s=st.get(r.rid);if(!inDone(s))o.pend++;else if(s.st!=='nf')o.tot+=Number(s.qty)||0}
+  for(const s of docs)if(s.st==='add'){const o=qt.get(zc(s.code));if(o)o.tot+=Number(s.qty)||0}
+  const qrows=[...qt.values()].sort((a,b)=>a.g.localeCompare(b.g,'pt',{numeric:true})||a.c.localeCompare(b.c,'pt',{numeric:true})).map(o=>({c:o.c,d:o.d,g:o.g,u:o.u,sis:o.sis==null?'':o.sis,tot:o.pend?'':o.tot,dif:o.pend||o.sis==null?'':Math.round((o.tot-o.sis)*1000)/1000,sit:o.pend?'Faltam '+o.pend+' de '+o.n+' endereços':'Completo'}));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,mkSheet(base,[{h:'Código',k:'c',w:18},{h:'Endereço / prateleira',k:'e',w:24},{h:'Seção',k:'s',w:14}]),'Base atualizada');
+  if(rows.length){
+    XLSX.utils.book_append_sheet(wb,mkSheet(alt,[{h:'Código',k:'c',w:16},{h:'Descrição',k:'d',w:44},{h:'Grupo',k:'g',w:28},{h:'Alteração',k:'tp',w:16},{h:'De',k:'de',w:20},{h:'Para',k:'pa',w:20},{h:'Qtd',k:'q',w:10},{h:'Conferido por',k:'who',w:18},{h:'Quando',k:'t',w:18}]),'Alterações');
+    XLSX.utils.book_append_sheet(wb,mkSheet(det,[{h:'Código',k:'c',w:16},{h:'Descrição',k:'d',w:44},{h:'Grupo',k:'g',w:28},{h:'Un',k:'u',w:6},{h:'Endereço original',k:'e',w:20},{h:'Seção',k:'s',w:10},{h:'Situação',k:'sit',w:16},{h:'Qtd conferida',k:'q',w:12},{h:'Endereço novo',k:'n',w:20},{h:'Conferido por',k:'who',w:18},{h:'Quando',k:'t',w:18}]),'Conferência');
+    XLSX.utils.book_append_sheet(wb,mkSheet(qrows,[{h:'Código',k:'c',w:16},{h:'Descrição',k:'d',w:44},{h:'Grupo',k:'g',w:28},{h:'Un',k:'u',w:6},{h:'Saldo no sistema',k:'sis',w:14,z:'#,##0.###'},{h:'Qtd conferida',k:'tot',w:14,z:'#,##0.###'},{h:'Diferença',k:'dif',w:12,z:'#,##0.###'},{h:'Situação',k:'sit',w:28}]),'Quantidades');
+  }
+  saveXlsx(wb,'inspetor_base_enderecos_'+new Date().toISOString().slice(0,10)+'.xlsx');
+}
+
+/* ---- coletor: tela de conferência ---- */
+function inGroupsMine(){return [...new Set(inVisible().map(r=>r.g))].sort((a,b)=>a.localeCompare(b,'pt',{numeric:true}))}
+function drawInspPage(host,ro){
+  const vis=inVisible();
+  if(!inMeta()||!vis.length){opMode='msg';host.innerHTML=opNav('inspetor')+ro+'<div class="card"><div class="empty"><b>'+(inMeta()?'O gestor ainda não indicou grupos para você.':'Nenhuma conferência liberada.')+'</b><br>Quando o gestor liberar, a lista aparece aqui sozinha.</div></div>';return}
+  const gl=inGroupsMine(),gsig=gl.join('|');
+  if(opMode!=='inspetor'||!$('#inlist')||host.dataset.gsig!==gsig){
+    opMode='inspetor';lastListKey='';host.dataset.gsig=gsig;
+    if(S.q.ing&&!gl.includes(S.q.ing))S.q.ing='';
+    host.innerHTML=opNav('inspetor')+ro+'<div><h1 class="hero">🔍 Inspetor</h1><div class="sub">Vá até cada prateleira e confira se o produto está no endereço indicado. Informe a quantidade que encontrou. Se estiver em outro lugar, use Remanejar.</div></div><div id="inprog"></div>'+
+      '<div class="row" style="gap:8px;flex-wrap:wrap">'+(gl.length>1?'<div class="field" style="flex:1;min-width:160px"><label for="ing">GRUPO</label><select id="ing" data-chg="ing"><option value="">Todos os meus grupos</option>'+gl.map(g=>'<option value="'+esc(g)+'"'+(S.q.ing===g?' selected':'')+'>'+esc(g)+'</option>').join('')+'</select></div>':'')+
+      '<div class="field" style="min-width:140px"><label for="inf">MOSTRAR</label><select id="inf" data-chg="inf"><option value="pend"'+((S.q.inf||'pend')==='pend'?' selected':'')+'>Pendentes</option><option value="todos"'+(S.q.inf==='todos'?' selected':'')+'>Todos</option><option value="feitos"'+(S.q.inf==='feitos'?' selected':'')+'>Conferidos</option></select></div></div>'+
+      '<div class="field"><label for="inq">BUSCAR</label><input type="search" id="inq" data-inp="inq" autocomplete="off" placeholder="Código, descrição ou prateleira" value="'+esc(S.q.inq||'')+'"></div><datalist id="inl"></datalist><div id="inlist" class="stack"></div>';
+  }
+  inRender(false);
+}
+function inProg(rows,st){
+  const el=$('#inprog');if(!el)return;const s=inStats(rows,st);
+  el.innerHTML='<div class="kpis"><div class="kpi"><div class="l">Faltam conferir</div><div class="v a">'+fmtN(s.tot-s.done)+'</div><div class="s">de '+fmtN(s.tot)+' endereços</div></div><div class="kpi"><div class="l">Conferidos</div><div class="v g">'+fmtN(s.done)+'</div><div class="s">'+fmtN(s.nf)+' não encontrados · '+fmtN(s.mv)+' remanejados</div></div></div>';
+}
+function inRender(force){
+  const host=$('#inlist');if(!host)return;
+  const rows=inVisible(),st=inState(),sel=S.q.ing||'',q=qn(S.q.inq||''),f=S.q.inf||'pend';
+  inProg(rows,st);
+  let l=rows.filter(r=>!sel||r.g===sel);
+  if(q)l=l.filter(r=>qn(r.code+' '+r.desc+' '+r.shelf+' '+r.sec).includes(q));
+  const byS=new Map();
+  for(const r of l){let o=byS.get(r.shelf);if(!o){o={shelf:r.shelf,rows:[],done:0};byS.set(r.shelf,o)}o.rows.push(r);if(inDone(st.get(r.rid)))o.done++}
+  let shelves=[...byS.values()].sort((a,b)=>a.shelf.localeCompare(b.shelf,'pt',{numeric:true}));
+  if(f==='pend')shelves=shelves.filter(o=>o.done<o.rows.length);else if(f==='feitos')shelves=shelves.filter(o=>o.done>0);
+  const sig=cyrb53([sel,q,f,S.inMv||'',S.inAdd||'',[...S.inOpen].join(','),shelves.map(o=>o.shelf+':'+o.rows.length+':'+o.done).join(','),[...st.values()].map(s=>s.rid+s.st+s.t).join(',')].join('#'));
+  const act=document.activeElement;
+  if(!force&&host.dataset.sig===String(sig))return;
+  if(!force&&act&&host.contains(act)&&/INPUT|SELECT|TEXTAREA/.test(act.tagName))return;
+  host.dataset.sig=String(sig);
+  const dl=$('#inl');if(dl)dl.innerHTML=[...new Set(inRows().map(r=>inAddr(r.shelf,r.sec)))].slice(0,400).map(x=>'<option value="'+esc(x)+'">').join('');
+  const all={by:new Map(),adds:new Map()};
+  for(const r of rows){const k=zc(r.code);if(!all.by.has(k))all.by.set(k,[]);all.by.get(k).push(r)}
+  for(const s of st.values())if(s.st==='add'){const k=zc(s.code);if(!all.adds.has(k))all.adds.set(k,[]);all.adds.get(k).push(s)}
+  host.innerHTML=shelves.length?shelves.map(o=>{
+    const op=S.inOpen.has(o.shelf)||!!q;
+    let rs=o.rows;if(f==='pend')rs=rs.filter(r=>!inDone(st.get(r.rid)));else if(f==='feitos')rs=rs.filter(r=>inDone(st.get(r.rid)));
+    return'<div class="card" style="box-shadow:none"><div class="hd" style="cursor:pointer" data-act="intog" data-s="'+esc(o.shelf)+'" role="button" tabindex="0" aria-expanded="'+op+'"><h3 style="margin:0">'+(op?'▾':'▸')+' '+esc(o.shelf)+'</h3><span class="sub">'+fmtN(o.rows.length)+(o.rows.length===1?' produto':' produtos')+' · '+fmtN(o.done)+' conferidos</span>'+(o.done===o.rows.length?'<span class="chip ok" style="margin-left:auto">✓ completa</span>':'')+'</div>'+(op?'<div class="bd stack" style="gap:10px">'+rs.slice(0,60).map(r=>inCard(r,st,all)).join('')+(rs.length>60?'<div class="sub" style="text-align:center">Mostrando 60 de '+fmtN(rs.length)+'. Confira estes e a lista avança.</div>':'')+'</div>':'')+'</div>'}).join(''):'<div class="card"><div class="empty">'+(f==='pend'&&!q?'<b>Tudo conferido!</b><br>Avise o gestor.':'Nada encontrado.')+'</div></div>';
+}
+function inCard(r,st,all){
+  const s=st.get(r.rid),d=inDone(s)?s:null,k=zc(r.code);
+  const oth=(all.by.get(k)||[]).filter(x=>x.rid!==r.rid),adds=all.adds.get(k)||[];
+  const ri=esc(r.rid);
+  let h='<div class="card" data-ir="'+ri+'" style="box-shadow:none"><div class="bd stack" style="gap:8px"><div><span class="tag c">'+esc(r.code)+'</span> <span class="tag s">'+esc(inAddr(r.shelf,r.sec))+'</span></div><div class="desc"><b>'+esc(r.desc)+'</b>'+(r.un?' <span class="sub">· '+esc(r.un)+'</span>':'')+'</div>';
+  if(oth.length)h+='<div><span class="chip warn">⚠ também cadastrado em: '+oth.map(x=>esc(inAddr(x.shelf,x.sec))).join(' · ')+'</span></div>';
+  if(adds.length)h+='<div class="row" style="gap:6px;flex-wrap:wrap">'+adds.map(a=>'<span class="chip ok">＋ '+esc(a.to)+' · '+fmtN(a.qty,3)+'</span><button class="btn sm" data-act="inundo" data-r="'+esc(a.rid)+'" title="Desfazer este endereço novo">✕</button>').join('')+'</div>';
+  if(d){
+    h+='<div class="row" style="gap:8px;align-items:center;flex-wrap:wrap">'+(d.st==='ok'?'<span class="chip ok">✓ Está aqui · '+fmtN(d.qty,3)+(r.un?' '+esc(r.un):'')+'</span>':d.st==='nf'?'<span class="chip bad">✗ Não encontrado</span>':'<span class="chip warn">↦ Remanejado para '+esc(d.to)+' · '+fmtN(d.qty,3)+'</span>')+'<span class="sub">'+esc(d.op||'')+'</span><button class="btn sm" data-act="inundo" data-r="'+ri+'">Desfazer</button></div>';
+  }else{
+    h+='<div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><div class="field" style="width:130px"><input type="text" inputmode="decimal" autocomplete="off" data-iq placeholder="Qtd encontrada" aria-label="Quantidade encontrada"></div><button class="btn primary sm" data-act="inok" data-r="'+ri+'">✓ Está aqui</button><button class="btn sm" data-act="innf" data-r="'+ri+'">✗ Não encontrei</button><button class="btn sm" data-act="inmvo" data-r="'+ri+'">↦ Remanejar</button></div>';
+    if(S.inMv===r.rid)h+='<div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><div class="field" style="flex:1;min-width:150px"><input type="text" data-imv list="inl" autocomplete="off" autocapitalize="characters" placeholder="Novo endereço, ex.: A-12 / 03" aria-label="Novo endereço"></div><button class="btn primary sm" data-act="inmvs" data-r="'+ri+'">Confirmar remanejo</button><button class="btn sm" data-act="inmvc">Cancelar</button></div><div class="sub">A quantidade acima será a que foi para o novo endereço.</div>';
+  }
+  if(S.inAdd===r.rid)h+='<div class="row" style="gap:8px;align-items:center;flex-wrap:wrap"><div class="field" style="flex:1;min-width:150px"><input type="text" data-iad list="inl" autocomplete="off" autocapitalize="characters" placeholder="Outro endereço onde achou" aria-label="Outro endereço"></div><div class="field" style="width:110px"><input type="text" inputmode="decimal" autocomplete="off" data-iaq placeholder="Qtd" aria-label="Quantidade nesse endereço"></div><button class="btn primary sm" data-act="inadds" data-r="'+ri+'">Salvar</button><button class="btn sm" data-act="inaddc">Cancelar</button></div>';
+  else h+='<div><button class="btn sm" data-act="inaddo" data-r="'+ri+'">＋ Achei em outro endereço</button></div>';
+  return h+'</div></div>';
+}
+function inCardOf(rid){return [...document.querySelectorAll('[data-ir]')].find(e=>e.dataset.ir===rid)||null}
+async function inWrite(d){
+  S.extras.set(d.id,d);
+  try{await withTimeout(S.db.doc('extras/'+d.id).set(d),20000);toast(d.st==='undo'?'Desfeito':'Salvo',1800)}catch(e){console.error(e);toast('Não foi possível salvar ('+((e&&e.code)||'erro')+'). Tente de novo.',4000)}
+  S.inMv=null;S.inAdd=null;inRender(true);
+}
+function inBase(r,st,extra){return Object.assign({kind:'insp',id:inDocId(r.rid),rid:r.rid,code:r.code,desc:r.desc,un:r.un,g:r.g,shelf:r.shelf,sec:r.sec,st,qty:null,to:'',op:S.name,ok:myKey(),t:Date.now()},extra||{})}
+function inQty(el){const i=el&&el.querySelector('[data-iq]');const q=i?parseQty(i.value):NaN;if(!isFinite(q)||q<0){toast('Informe a quantidade encontrada',3000);if(i)i.focus();return null}return q}
+const inRowOf=rid=>inRows().find(r=>r.rid===rid);
+const IN_ACT={
+  intog(b){const s=b.dataset.s;if(S.inOpen.has(s))S.inOpen.delete(s);else S.inOpen.add(s);inRender(true)},
+  inok(b){const r=inRowOf(b.dataset.r);if(!r)return;const q=inQty(inCardOf(r.rid));if(q==null)return;inWrite(inBase(r,'ok',{qty:q}))},
+  innf(b){const r=inRowOf(b.dataset.r);if(!r)return;inWrite(inBase(r,'nf'))},
+  inmvo(b){S.inMv=b.dataset.r;S.inAdd=null;inRender(true);const c=inCardOf(b.dataset.r),i=c&&c.querySelector('[data-imv]');if(i)i.focus()},
+  inmvc(){S.inMv=null;inRender(true)},
+  inmvs(b){
+    const r=inRowOf(b.dataset.r);if(!r)return;const c=inCardOf(r.rid),q=inQty(c);if(q==null)return;
+    const i=c.querySelector('[data-imv]'),to=inAddr(inParse(i?i.value:'').shelf,inParse(i?i.value:'').sec);
+    if(!to){toast('Informe o novo endereço',3000);if(i)i.focus();return}
+    if(to===inAddr(r.shelf,r.sec)){toast('O novo endereço é igual ao atual. Use "Está aqui".',3500);return}
+    inWrite(inBase(r,'mv',{qty:q,to}));
+  },
+  inaddo(b){S.inAdd=b.dataset.r;S.inMv=null;inRender(true);const c=inCardOf(b.dataset.r),i=c&&c.querySelector('[data-iad]');if(i)i.focus()},
+  inaddc(){S.inAdd=null;inRender(true)},
+  inadds(b){
+    const r=inRowOf(b.dataset.r);if(!r)return;const c=inCardOf(r.rid),i=c.querySelector('[data-iad]'),qi=c.querySelector('[data-iaq]');
+    const p=inParse(i?i.value:''),to=inAddr(p.shelf,p.sec),q=parseQty(qi?qi.value:'');
+    if(!to){toast('Informe o endereço onde achou',3000);if(i)i.focus();return}
+    if(!isFinite(q)||q<0){toast('Informe a quantidade nesse endereço',3000);if(qi)qi.focus();return}
+    const rid='add|'+zc(r.code)+'|'+to;
+    inWrite({kind:'insp',id:inDocId(rid),rid,code:r.code,desc:r.desc,un:r.un,g:r.g,shelf:p.shelf,sec:p.sec,st:'add',qty:q,to,op:S.name,ok:myKey(),t:Date.now()});
+  },
+  inundo(b){
+    const rid=b.dataset.r,cur=inState().get(rid);if(!cur)return;
+    inWrite(Object.assign({},cur,{st:'undo',op:S.name,ok:myKey(),t:Date.now()}));
+  },
+  inlib(b){inToggleGroup(b.dataset.g,true)},
+  inret(b){if(!confirmOnce('inret'+b.dataset.g)){toast('Toque de novo para retirar este grupo da conferência (as conferências já feitas são mantidas)',4000);return}inToggleGroup(b.dataset.g,false)},
+  inall(b){const on=b.dataset.v==='1';if(!confirmOnce('inall'+(on?1:0))){toast(on?'Toque de novo para liberar TODOS os grupos':'Toque de novo para desligar o Inspetor (as conferências já feitas são mantidas)',4000);return}inAllGroups(on)},
+  inadd(){
+    const i=document.getElementById('inadd'),txt=i?i.value:'';if(!String(txt).trim()){toast('Digite o número ou o nome do grupo',3000);return}
+    const gs=inGroups(),byK=new Map(gs.map(x=>[exKey(x.g),x.g])),byS=new Map(gs.map(x=>[slug(x.g),x.g])),m=inMeta(),cur=new Set((m&&m.groups)||[]),miss=[];
+    String(txt).split(/[;\n]+/).map(x=>x.trim()).filter(Boolean).forEach(v=>{const g=byK.get(exKey(v))||byS.get(slug(v));if(g)cur.add(g);else miss.push(v)});
+    if(miss.length)toast('Não achei na base de endereços: '+miss.join(', '),5000);
+    if(cur.size===((m&&m.groups)||[]).length){return}
+    if(i)i.value='';inPublish([...cur]).then(()=>draw(true));
+  },
+  inrefresh(){const m=inMeta();inPublish((m&&m.groups)||[])},
+  inxl(){inExcel()},
+  inmodel(){inModel()}
+};
+
+const inPending=()=>{const v=inVisible(),st=inState();return v.filter(r=>!inDone(st.get(r.rid))).length};
+
 /* ============ importação do ERP ============ */
 const normH=s=>String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
 const FIELDS=[['code','Código do material'],['desc','Descrição'],['un','Unidade'],['qty','Saldo do ERP'],['cost','Custo unitário'],['shelf','Prateleira / endereço'],['sec','Seção'],['wh','Cód. armazém (opcional)'],['grp','Grupo (opcional)'],['gdesc','Descrição do grupo (opcional)']];
@@ -4560,7 +4880,7 @@ function demoItems(){
 async function purge(keepInv){
   for(const col of ['chunks','erp','counts','extras','finds']){
     const snap=await S.db.collection(col).get();
-    for(const d of snap.docs){const x=d.data()||{};if(x.kind!=='ahist'&&x.inv!==keepInv)await S.db.doc(col+'/'+d.id).delete()}
+    for(const d of snap.docs){const x=d.data()||{};if(x.kind!=='ahist'&&x.kind!=='insp'&&x.inv!==keepInv)await S.db.doc(col+'/'+d.id).delete()}
   }
 }
 async function publishInv(){
@@ -4936,6 +5256,7 @@ const ACT={
   async toggleclose(){try{await S.db.doc('meta/current').update({status:S.meta.status==='encerrado'?'aberto':'encerrado'})}catch(e){toast('Não foi possível alterar')}},
   async delete(b){if(!confirmOnce('del')){b.textContent='Toque de novo para confirmar';return}await deleteInv()}
 };
+Object.assign(ACT,IN_ACT);
 const CHG={
   async gfile(t){
     const f=t.files&&t.files[0];if(!f)return;
@@ -5009,6 +5330,10 @@ const CHG={
   apf(t){S.q.apf=t.value;draw(true)},apg(t){S.q.apg=t.value;draw(true)},
   adps(t){S.q.adps=t.value;draw(true)},adlc(t){S.q.adlc=t.value;S.adlmax=100;adListRefresh()},adls(t){S.q.adls=t.value;S.adlmax=100;adListRefresh()},
   adg(t){adSetGroups([[t.dataset.g,t.value]])},
+  inag(t){inSetAsg(t.dataset.g,t.value)},
+  ing(t){S.q.ing=t.value;inRender(true)},
+  inf(t){S.q.inf=t.value;inRender(true)},
+  async infile(t){const f=t.files&&t.files[0];t.value='';if(!f)return;if(typeof XLSX==='undefined'){toast('A biblioteca de planilhas não carregou. Verifique a conexão e recarregue.',4000);return}try{await inImport(f)}catch(e){console.error(e);toast('Não consegui ler a planilha',4000)}},
   adgall(t){const v=t.value;if(!v)return;adSetGroups(adGroupsFiltered().map(x=>[x.g,v]));t.value=''},
   asheet(t){aSetSheet(S.aend,t.value);draw(true)},
   ahdr(t){S.aend.hdr=Math.max(1,Math.floor(Number(t.value)||1))-1;aRemap(S.aend);draw(true)},
@@ -5036,7 +5361,7 @@ root.addEventListener('input',e=>{
   else if(k==='apq'){S.q.apq=t.value;$('#apur-body').innerHTML=apBody(apRows())}
   else if(k==='adlq'){S.q.adlq=t.value;S.adlmax=100;adListRefresh()}
   else if(k==='adgq'){S.q.adgq=t.value;const b=$('#adg-body');if(b)b.innerHTML=adGroupsBody()}
-  else if(k==='aq'){S.q.aq=t.value;adRender(true)}
+  else if(k==='aq'){S.q.aq=t.value;adRender(true)}else if(k==='inq'){S.q.inq=t.value;inRender(true)}
   else if(k==='cq'){S.q.cq=t.value;qRender()}
   else if(k==='apq2'){S.q.apq2=t.value;ahPendRefresh()}
   else if(k==='eq'){S.q.eq=t.value;$('#end-body').innerHTML=endBody()}
