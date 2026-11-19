@@ -270,7 +270,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 76</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 78</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -4448,67 +4448,58 @@ const inMeta=()=>{const m=S.atask.get('imeta');return m&&m.on?m:null};
 const inAsg=()=>{const d=S.atask.get('iasg');return(d&&d.map)||{}};
 const inNorm=s=>String(s||'').toUpperCase().replace(/\s+/g,' ').trim();
 const inRid=(code,shelf,sec)=>zc(code)+'|'+inNorm(shelf)+'|'+inNorm(sec);
-const inDocId=rid=>'ip'+cyrb53(rid);
+const inRound=()=>{const m=S.atask.get('imeta');return m&&m.round===2?2:1};
+const inDocId=rid=>'ip'+cyrb53(rid)+(inRound()>1?'r'+inRound():'');
+/* item já contado na rodada atual do Inspetor (1ª ou 2ª contagem) */
+const inCnt=it=>{const R=inRound();return Array.isArray(it.cnt)?it.cnt.length>=R:(R===1?it.state!=='pend':(it.state!=='pend'&&it.state!=='rec2'))};
 const inPct=(a,b)=>b?a/b*100:0;
 const IN_NOG='(Sem grupo)';
 const inAddr=(shelf,sec)=>inNorm(shelf)+(inNorm(sec)?' / '+inNorm(sec):'');
 function inParse(t){const s=inNorm(t),i=s.indexOf(' / ');return i<0?{shelf:s,sec:''}:{shelf:s.slice(0,i).trim(),sec:s.slice(i+3).trim()}}
 S.inOpen=new Set();S.inOpenG=new Set();S.inMv=null;S.inAdd=null;
 
-/* ---- lado do gestor: produtos e endereços da base ---- */
-function inProducts(){
+/* ---- base: o próprio inventário (produto + local de cada item) ---- */
+let _inv=null;
+function inInvRows(){
+  if(_inv&&_inv.k===S.items&&_inv.r===inRound())return _inv.l;
   const m=new Map();
-  for(const x of endBase())m.set(zc(x.c),{code:String(x.c),desc:x.d||'',un:x.u||'',g:String(x.g||'').trim(),q:x.q});
-  let cp=null;try{cp=cpIndex()}catch(e){}
-  if(cp&&cp.size)for(const [k,c] of cp){const o=m.get(k);if(o){if(!o.g)o.g=String(c.grp||'').trim();if(!o.desc)o.desc=c.desc||''}}
-  return {m,cp};
+  for(const it of S.items.values()){
+    if(it.xo)continue;
+    const g=String(it.grp||'').trim()||IN_NOG,rid=inRid(it.code,it.shelf,it.sec);
+    let r=m.get(rid);
+    if(!r){r={code:String(it.code),desc:it.desc||'',un:it.un||'',g,shelf:inNorm(it.shelf),sec:inNorm(it.sec),q:null,rid,n:0,cn:0};m.set(rid,r)}
+    r.n++;if(inCnt(it))r.cn++;
+    if(it.erp!=null)r.q=(r.q||0)+it.erp;
+  }
+  const l=[...m.values()];
+  l.forEach(r=>{r.cnt=r.cn===r.n});
+  l.sort((a,b)=>a.shelf.localeCompare(b.shelf,'pt',{numeric:true})||a.sec.localeCompare(b.sec,'pt',{numeric:true})||a.code.localeCompare(b.code,'pt',{numeric:true}));
+  _inv={k:S.items,r:inRound(),l};return l;
 }
+function inGroups(){
+  const m=new Map();
+  for(const r of inInvRows()){
+    let o=m.get(r.g);if(!o){o={g:r.g,codes:new Set(),na:0,sh:new Set()};m.set(r.g,o)}
+    o.codes.add(zc(r.code));o.na++;o.sh.add(r.shelf);
+  }
+  return [...m.values()].map(o=>({g:o.g,n:o.codes.size,na:o.na,sh:o.sh})).sort((a,b)=>a.g.localeCompare(b.g,'pt',{numeric:true}));
+}
+/* pares produto+endereço de todo o inventário (base do Excel) */
 function inPairs(){
   const m=new Map();
-  const add=(code,shelf,sec)=>{const k=zc(code),sh=inNorm(shelf);if(!sh)return;let l=m.get(k);if(!l){l={code:String(code),a:[]};m.set(k,l)}const se=inNorm(sec);if(!l.a.some(x=>x.shelf===sh&&x.sec===se))l.a.push({shelf:sh,sec:se})};
-  [...S.addrDocs.entries()].filter(([k])=>k!=='meta').sort((a,b)=>a[0]<b[0]?-1:1).forEach(([,d])=>(d.rows||[]).forEach(r=>add(r[0],r[1],r[2]||'')));
-  for(const d of S.anew.values()){
-    if(d.nf||!d.shelf)continue;const k=zc(d.code),p=inParse(d.shelf);
-    if(d.mv){m.set(k,{code:String(d.code),a:[]});add(d.code,p.shelf,p.sec)}else if(!m.has(k))add(d.code,p.shelf,p.sec);
+  for(const r of inInvRows()){
+    if(!r.shelf)continue;const k=zc(r.code);let l=m.get(k);if(!l){l={code:r.code,a:[]};m.set(k,l)}
+    if(!l.a.some(x=>x.shelf===r.shelf&&x.sec===r.sec))l.a.push({shelf:r.shelf,sec:r.sec});
   }
   return m;
 }
-function inInfo(P,l){
-  const k=zc(l.code),p=P.m.get(k),c=P.cp&&P.cp.get(k);
-  if(p)return p;
-  return c?{code:l.code,desc:c.desc,un:c.un,g:String(c.grp||'').trim(),q:null}:{code:l.code,desc:l.code,un:'',g:'',q:null};
-}
-function inGroups(){
-  const P=inProducts(),pr=inPairs(),m=new Map();
-  for(const [,l] of pr){
-    const p=inInfo(P,l),g=p.g||IN_NOG;let o=m.get(g);if(!o){o={g,n:0,na:0,sh:new Set()};m.set(g,o)}
-    o.n++;o.na+=l.a.length;l.a.forEach(a=>o.sh.add(a.shelf));
-  }
-  return [...m.values()].sort((a,b)=>a.g.localeCompare(b.g,'pt',{numeric:true}));
-}
-function inBuildRows(groups){
-  const P=inProducts(),pr=inPairs(),set=new Set(groups),rows=[];
-  for(const [,l] of pr){
-    const p=inInfo(P,l),g=p.g||IN_NOG;if(!set.has(g))continue;
-    for(const a of l.a)rows.push([l.code.slice(0,30),String(p.desc||'').slice(0,70),String(p.un||'').slice(0,8),g.slice(0,80),a.shelf.slice(0,40),a.sec.slice(0,30),p.q==null?'':p.q]);
-  }
-  rows.sort((a,b)=>a[4].localeCompare(b[4],'pt',{numeric:true})||a[5].localeCompare(b[5],'pt',{numeric:true})||a[0].localeCompare(b[0],'pt',{numeric:true}));
-  return rows;
-}
-async function inPublish(groups){
+const inProducts=()=>null;
+async function inPublish(groups,round){
   try{
-    const old=[...S.atask.keys()].filter(k=>/^i\d+$/.test(k));
-    if(!groups.length){
-      for(const id of old)await S.db.doc('addrtask/'+id).delete();
-      await S.db.doc('addrtask/imeta').set({on:false,t:Date.now(),count:0,groups:[],by:S.name});
-      toast('Inspetor desligado');return;
-    }
-    const rows=inBuildRows(groups),ids=new Set();
-    for(let i=0,n=0;i<rows.length;i+=250,n++){const id='i'+String(n).padStart(3,'0');ids.add(id);await S.db.doc('addrtask/'+id).set({no:n,rows:rows.slice(i,i+250)})}
-    for(const id of old)if(!ids.has(id))await S.db.doc('addrtask/'+id).delete();
-    await S.db.doc('addrtask/imeta').set({on:true,t:Date.now(),count:rows.length,groups,by:S.name});
-    toast('Inspetor atualizado: '+fmtN(rows.length)+' endereços em '+groups.length+(groups.length===1?' grupo':' grupos'),3500);
-  }catch(e){console.error(e);toast('Não foi possível liberar ('+((e&&e.code)||'erro')+')',4000)}
+    for(const id of [...S.atask.keys()].filter(k=>/^i\d+$/.test(k)))await S.db.doc('addrtask/'+id).delete();
+    await S.db.doc('addrtask/imeta').set({on:groups.length>0,t:Date.now(),groups,by:S.name,src:'inv',round:round||inRound()});
+    toast(groups.length?'Inspetor atualizado: '+groups.length+(groups.length===1?' grupo':' grupos'):'Inspetor desligado',3000);
+  }catch(e){console.error(e);toast('Não foi possível salvar ('+((e&&e.code)||'erro')+')',4000)}
 }
 async function inToggleGroup(g,on){
   const m=inMeta(),cur=new Set((m&&m.groups)||[]);
@@ -4522,22 +4513,17 @@ async function inSetAsg(g,v){
 }
 
 /* ---- linhas liberadas e conferências ---- */
-let _inr=null;
-function inRows(){
-  if(_inr&&_inr.k===S.atask)return _inr.l;
-  const l=[];
-  [...S.atask.entries()].filter(([k])=>/^i\d+$/.test(k)).sort((a,b)=>a[0]<b[0]?-1:1).forEach(([,d])=>(d.rows||[]).forEach(r=>l.push({code:String(r[0]),desc:r[1]||'',un:r[2]||'',g:r[3]||IN_NOG,shelf:r[4]||'',sec:r[5]||'',q:r[6]===''||r[6]==null?null:Number(r[6]),rid:inRid(r[0],r[4],r[5]||'')})));
-  _inr={k:S.atask,l};return l;
-}
-function inState(){const m=new Map();for(const d of S.extras.values())if(d&&d.kind==='insp'&&d.st!=='undo')m.set(d.rid,d);return m}
+function inRows(){const m=inMeta();if(!m)return[];const set=new Set(m.groups||[]);return inInvRows().filter(r=>set.has(r.g))}
+function inState(){const m=new Map();for(const d of S.extras.values())if(d&&d.kind==='insp'&&d.st!=='undo'&&(d.rd||1)===inRound())m.set(d.rid,d);return m}
 const inDone=s=>!!s&&(s.st==='ok'||s.st==='nf'||s.st==='mv');
+const inDoneR=(r,st)=>!!r.cnt||inDone(st.get(r.rid));
 function inVisible(){
   const rows=inMeta()?inRows():[];if(S.isAdmin)return rows;
   const a=inAsg(),k=myKey();return rows.filter(r=>{const w=a[r.g];return w==='*'||w===k});
 }
 function inStats(rows,st){
-  const o={tot:rows.length,done:0,ok:0,nf:0,mv:0,add:0};
-  for(const r of rows){const s=st.get(r.rid);if(inDone(s)){o.done++;o[s.st]++}}
+  const o={tot:rows.length,done:0,cn:0,ok:0,nf:0,mv:0,add:0};
+  for(const r of rows){const s=st.get(r.rid);if(inDone(s)){o.done++;o[s.st]++}else if(r.cnt){o.done++;o.cn++}}
   const codes=new Set(rows.map(r=>zc(r.code)));
   for(const s of st.values())if(s.st==='add'&&codes.has(zc(s.code)))o.add++;
   return o;
@@ -4585,15 +4571,16 @@ function inModel(){
 /* ---- gestor: aba Inspetor ---- */
 function vInspetor(){
   const m=inMeta();
-  if(!S.addr.size)return'<div class="card"><div class="hd"><h2>🔍 Inspetor</h2></div><div class="bd stack"><div class="empty"><b>Carregue a base de endereços primeiro.</b><br>O Inspetor usa os endereços da base (aba Endereçamento) para montar a conferência por prateleira.</div></div></div>';
+  if(!S.meta||!S.items.size)return'<div class="card"><div class="hd"><h2>🔍 Inspetor</h2></div><div class="bd stack"><div class="empty"><b>Publique o inventário primeiro.</b><br>O Inspetor usa os produtos e locais do próprio inventário. Conforme a equipe conta, os produtos saem da lista.</div></div></div>';
   const gs=inGroups(),rel=new Set((m&&m.groups)||[]),a=inAsg(),st=inState(),rows=inMeta()?inRows():[];
-  const byG=new Map();for(const r of rows){let o=byG.get(r.g);if(!o){o={tot:0,done:0};byG.set(r.g,o)}o.tot++;if(inDone(st.get(r.rid)))o.done++}
+  const byG=new Map();for(const r of rows){let o=byG.get(r.g);if(!o){o={tot:0,done:0};byG.set(r.g,o)}o.tot++;if(inDoneR(r,st))o.done++}
   const S0=inStats(rows,st);
   let h='<div class="card"><div class="hd"><h2>🔍 Inspetor — pré-inventário de endereços</h2></div><div class="bd stack">'+
-    '<div class="sub">Libere os grupos que quer conferir. Os coletores indicados veem os produtos organizados por prateleira, confirmam se estão no endereço da base e informam a quantidade. Se um produto estiver em dois lugares, podem manter os dois ou remanejar. No fim você baixa o Excel com a base de endereços atualizada.</div>';
-  if(m)h+='<div class="kpis">'+kpi('Endereços liberados',fmtN(S0.tot),fmtN(rel.size)+(rel.size===1?' grupo':' grupos'))+kpi('Conferidos',fmtN(S0.done),fmtP(inPct(S0.done,S0.tot))+' do total','g')+kpi('Não encontrados',fmtN(S0.nf),'não estavam no endereço',S0.nf?'r':'')+kpi('Remanejados',fmtN(S0.mv),'mudaram de endereço','a')+kpi('Endereços novos',fmtN(S0.add),'achados em outro lugar','a')+'</div>';
-  if(S.inImp){const x=S.inImp;h+='<div class="note'+(x.ok?'':' bad')+'"><b>'+esc(x.file)+':</b> '+fmtN(x.ok)+(x.ok===1?' grupo liberado':' grupos liberados')+(x.miss.length?'. Não achei na base de endereços: '+esc(x.miss.slice(0,12).join(', '))+(x.miss.length>12?' e mais '+(x.miss.length-12):''):'')+(x.badResp.length?'. Responsável não reconhecido: '+esc(x.badResp.slice(0,8).join(', ')):'')+'</div>'}
-  h+='<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn primary" data-act="inxl">⬇ Baixar Excel (base atualizada)</button><label class="btn" style="cursor:pointer" title="Planilha com a coluna Grupo (e, se quiser, Responsável). Substitui os grupos liberados; as conferências já feitas são mantidas.">📥 Importar grupos<input type="file" accept=".xlsx,.xls,.csv,.txt" data-chg="infile" hidden></label><button class="btn" data-act="inmodel" title="Baixa a lista de grupos para você apagar os que não quer e importar de volta">Modelo da planilha</button>'+(m?'<button class="btn" data-act="inall" data-v="0">Desligar o Inspetor</button><button class="btn" data-act="inrefresh" title="Atualiza a lista liberada com a base de endereços atual; as conferências já feitas são mantidas">↻ Atualizar lista</button>':'')+'</div></div></div>';
+    '<div class="sub">Libere os grupos que quer conferir. A lista vem do próprio inventário: conforme a equipe conta, o produto sai da lista dos coletores. Os coletores indicados veem os produtos organizados por prateleira, confirmam se estão no endereço do inventário e informam a quantidade. Se um produto estiver em dois lugares, podem manter os dois ou remanejar. No fim você baixa o Excel com a base de endereços atualizada.</div>';
+  h+='<div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><b>Rodada:</b><button class="btn'+(inRound()===1?' primary':'')+'" data-act="inround" data-v="1">1ª contagem</button><button class="btn'+(inRound()===2?' primary':'')+'" data-act="inround" data-v="2">2ª contagem</button><span class="sub">Ao passar para a 2ª contagem, os produtos voltam para a lista (a 2ª equipe confere de novo) e saem conforme forem contados pela 2ª vez. Indique o responsável de cada grupo. O que já foi conferido na 1ª rodada fica guardado.</span></div>';
+  if(m)h+='<div class="kpis">'+kpi('Endereços liberados',fmtN(S0.tot),fmtN(rel.size)+(rel.size===1?' grupo':' grupos'))+kpi('Faltam conferir',fmtN(S0.tot-S0.done),'ainda não contados nem conferidos','a')+kpi('Conferidos',fmtN(S0.ok+S0.nf+S0.mv),'pelo Inspetor','g')+kpi('Já contados',fmtN(S0.cn),'no inventário (saem da lista)')+kpi('Não encontrados',fmtN(S0.nf),'não estavam no endereço',S0.nf?'r':'')+kpi('Remanejados',fmtN(S0.mv),'mudaram de endereço','a')+kpi('Endereços novos',fmtN(S0.add),'achados em outro lugar','a')+'</div>';
+  if(S.inImp){const x=S.inImp;h+='<div class="note'+(x.ok?'':' bad')+'"><b>'+esc(x.file)+':</b> '+fmtN(x.ok)+(x.ok===1?' grupo liberado':' grupos liberados')+(x.miss.length?'. Não achei no inventário: '+esc(x.miss.slice(0,12).join(', '))+(x.miss.length>12?' e mais '+(x.miss.length-12):''):'')+(x.badResp.length?'. Responsável não reconhecido: '+esc(x.badResp.slice(0,8).join(', ')):'')+'</div>'}
+  h+='<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn primary" data-act="inxl">⬇ Baixar Excel (base atualizada)</button><label class="btn" style="cursor:pointer" title="Planilha com a coluna Grupo (e, se quiser, Responsável). Substitui os grupos liberados; as conferências já feitas são mantidas.">📥 Importar grupos<input type="file" accept=".xlsx,.xls,.csv,.txt" data-chg="infile" hidden></label><button class="btn" data-act="inmodel" title="Baixa a lista de grupos para você apagar os que não quer e importar de volta">Modelo da planilha</button>'+(m?'<button class="btn" data-act="inall" data-v="0">Desligar o Inspetor</button>':'')+'</div></div></div>';
   const gm=new Map(gs.map(x=>[x.g,x])),vis=[...rel].sort((x,y)=>x.localeCompare(y,'pt',{numeric:true})).map(g=>gm.get(g)||{g,n:0,na:0,sh:new Set()});
   h+='<div class="card"><div class="hd"><h2>Grupos a conferir</h2><span class="sub">'+(vis.length?fmtN(vis.length)+(vis.length===1?' grupo':' grupos'):'nenhum grupo adicionado')+'</span></div><div class="bd stack"><div class="row" style="gap:8px;flex-wrap:nowrap"><input type="text" id="inadd" list="ingl" autocomplete="off" placeholder="Número ou nome do grupo, ex.: 7705 (vários: separe com ;)" style="flex:1" aria-label="Adicionar grupo"><button class="btn primary" data-act="inadd">Adicionar</button></div><datalist id="ingl">'+gs.filter(x=>!rel.has(x.g)).map(x=>'<option value="'+esc(x.g)+'">').join('')+'</datalist>'+(vis.length?'':'<div class="empty">Adicione os grupos que quer conferir aqui, ou importe uma planilha com a coluna Grupo.</div>')+(vis.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Grupo</th><th class="r">Produtos</th><th class="r">Endereços</th><th class="r">Prateleiras</th><th>Responsável</th><th style="min-width:140px">Andamento</th><th></th></tr></thead><tbody>'+
     vis.map(x=>{const on=rel.has(x.g),b=byG.get(x.g)||{tot:0,done:0};
@@ -4603,7 +4590,7 @@ function vInspetor(){
 
 /* ---- Excel: base de endereços atualizada ---- */
 function inExcel(){
-  if(!S.addr.size){toast('Carregue a base de endereços primeiro');return}
+  if(!S.meta||!S.items.size){toast('Publique o inventário primeiro');return}
   const pr=inPairs(),st=inState(),P=inProducts();
   const docs=[...S.extras.values()].filter(d=>d&&d.kind==='insp'&&d.st!=='undo').sort((a,b)=>(a.t||0)-(b.t||0));
   const final=new Map();for(const [k,l] of pr)final.set(k,{code:l.code,a:l.a.map(x=>({shelf:x.shelf,sec:x.sec}))});
@@ -4619,7 +4606,7 @@ function inExcel(){
   const det=[],alt=[];
   for(const r of rows){
     const s=st.get(r.rid);
-    det.push({c:r.code,d:r.desc,g:r.g,u:r.un,e:r.shelf,s:r.sec,sit:inDone(s)?sit[s.st]:'Pendente',q:inDone(s)&&s.st!=='nf'&&s.qty!=null?s.qty:'',n:s&&s.st==='mv'?inAddr(inParse(s.to).shelf,inParse(s.to).sec):'',who:inDone(s)?s.op:'',t:inDone(s)?when(s.t):''});
+    det.push({c:r.code,d:r.desc,g:r.g,u:r.un,e:r.shelf,s:r.sec,sit:inDone(s)?sit[s.st]:(r.cnt?'Contado no inventário':'Pendente'),q:inDone(s)&&s.st!=='nf'&&s.qty!=null?s.qty:'',n:s&&s.st==='mv'?inAddr(inParse(s.to).shelf,inParse(s.to).sec):'',who:inDone(s)?s.op:'',t:inDone(s)?when(s.t):''});
     if(s&&s.st==='mv')alt.push({c:r.code,d:r.desc,g:r.g,tp:'Remanejado',de:inAddr(r.shelf,r.sec),pa:inAddr(inParse(s.to).shelf,inParse(s.to).sec),q:s.qty==null?'':s.qty,who:s.op,t:when(s.t)});
     if(s&&s.st==='nf')alt.push({c:r.code,d:r.desc,g:r.g,tp:'Não encontrado',de:inAddr(r.shelf,r.sec),pa:'',q:'',who:s.op,t:when(s.t)});
   }
@@ -4630,9 +4617,9 @@ function inExcel(){
     alt.push({c:s.code,d:s.desc||'',g:s.g||'',tp:'Novo endereço',de:'',pa:inAddr(p.shelf,p.sec),q:s.qty==null?'':s.qty,who:s.op,t:when(s.t)});
   }
   const qt=new Map();
-  for(const r of rows){const k=zc(r.code);let o=qt.get(k);if(!o){o={c:r.code,d:r.desc,g:r.g,u:r.un,sis:r.q,tot:0,pend:0,n:0,noq:0};qt.set(k,o)}o.n++;const s=st.get(r.rid);if(!inDone(s))o.pend++;else if(s.st!=='nf'){if(s.qty==null)o.noq++;else o.tot+=Number(s.qty)||0}}
+  for(const r of rows){const k=zc(r.code);let o=qt.get(k);if(!o){o={c:r.code,d:r.desc,g:r.g,u:r.un,sis:r.q,tot:0,pend:0,n:0,noq:0,cn:0};qt.set(k,o)}o.n++;const s=st.get(r.rid);if(!inDone(s)){if(r.cnt)o.cn++;else o.pend++}else if(s.st!=='nf'){if(s.qty==null)o.noq++;else o.tot+=Number(s.qty)||0}}
   for(const s of docs)if(s.st==='add'){const o=qt.get(zc(s.code));if(o&&s.qty!=null)o.tot+=Number(s.qty)||0}
-  const qrows=[...qt.values()].sort((a,b)=>a.g.localeCompare(b.g,'pt',{numeric:true})||a.c.localeCompare(b.c,'pt',{numeric:true})).map(o=>({c:o.c,d:o.d,g:o.g,u:o.u,sis:o.sis==null?'':o.sis,tot:o.pend||o.noq?'':o.tot,dif:o.pend||o.noq||o.sis==null?'':Math.round((o.tot-o.sis)*1000)/1000,sit:o.pend?'Faltam '+o.pend+' de '+o.n+' endereços':o.noq?'Conferido sem quantidade em '+o.noq+' endereço(s)':'Completo'}));
+  const qrows=[...qt.values()].sort((a,b)=>a.g.localeCompare(b.g,'pt',{numeric:true})||a.c.localeCompare(b.c,'pt',{numeric:true})).map(o=>({c:o.c,d:o.d,g:o.g,u:o.u,sis:o.sis==null?'':o.sis,tot:o.pend||o.noq?'':o.tot,dif:o.pend||o.noq||o.sis==null?'':Math.round((o.tot-o.sis)*1000)/1000,sit:o.pend?'Faltam '+o.pend+' de '+o.n+' endereços':o.noq?'Conferido sem quantidade em '+o.noq+' endereço(s)':(o.cn===o.n?'Contado no inventário':'Completo')}));
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,mkSheet(base,[{h:'Código',k:'c',w:18},{h:'Endereço / prateleira',k:'e',w:24},{h:'Seção',k:'s',w:14}]),'Base atualizada');
   if(rows.length){
@@ -4670,7 +4657,7 @@ function inRender(force){
   let l=rows.filter(r=>!sel||r.g===sel);
   if(q)l=l.filter(r=>qn(r.code+' '+r.desc+' '+r.shelf+' '+r.sec).includes(q));
   const byS=new Map();
-  for(const r of l){let o=byS.get(r.shelf);if(!o){o={shelf:r.shelf,rows:[],done:0};byS.set(r.shelf,o)}o.rows.push(r);if(inDone(st.get(r.rid)))o.done++}
+  for(const r of l){let o=byS.get(r.shelf);if(!o){o={shelf:r.shelf,rows:[],done:0};byS.set(r.shelf,o)}o.rows.push(r);if(inDoneR(r,st))o.done++}
   let shelves=[...byS.values()].sort((a,b)=>a.shelf.localeCompare(b.shelf,'pt',{numeric:true}));
   if(f==='pend')shelves=shelves.filter(o=>o.done<o.rows.length);else if(f==='feitos')shelves=shelves.filter(o=>o.done>0);
   const sig=cyrb53([sel,q,f,S.inMv||'',S.inAdd||'',[...S.inOpen].join(','),shelves.map(o=>o.shelf+':'+o.rows.length+':'+o.done).join(','),[...st.values()].map(s=>s.rid+s.st+s.t).join(',')].join('#'));
@@ -4684,7 +4671,7 @@ function inRender(force){
   for(const s of st.values())if(s.st==='add'){const k=zc(s.code);if(!all.adds.has(k))all.adds.set(k,[]);all.adds.get(k).push(s)}
   host.innerHTML=shelves.length?shelves.map(o=>{
     const op=S.inOpen.has(o.shelf)||!!q;
-    let rs=o.rows;if(f==='pend')rs=rs.filter(r=>!inDone(st.get(r.rid)));else if(f==='feitos')rs=rs.filter(r=>inDone(st.get(r.rid)));
+    let rs=o.rows;if(f==='pend')rs=rs.filter(r=>!inDoneR(r,st));else if(f==='feitos')rs=rs.filter(r=>inDoneR(r,st));
     return'<div class="card" style="box-shadow:none"><div class="hd" style="cursor:pointer" data-act="intog" data-s="'+esc(o.shelf)+'" role="button" tabindex="0" aria-expanded="'+op+'"><h3 style="margin:0">'+(op?'▾':'▸')+' '+esc(o.shelf)+'</h3><span class="sub">'+fmtN(o.rows.length)+(o.rows.length===1?' produto':' produtos')+' · '+fmtN(o.done)+' conferidos</span>'+(o.done===o.rows.length?'<span class="chip ok" style="margin-left:auto">✓ completa</span>':'')+'</div>'+(op?'<div class="bd stack" style="gap:10px">'+rs.slice(0,60).map(r=>inCard(r,st,all)).join('')+(rs.length>60?'<div class="sub" style="text-align:center">Mostrando 60 de '+fmtN(rs.length)+'. Confira estes e a lista avança.</div>':'')+'</div>':'')+'</div>'}).join(''):'<div class="card"><div class="empty">'+(f==='pend'&&!q?'<b>Tudo conferido!</b><br>Avise o gestor.':'Nada encontrado.')+'</div></div>';
 }
 function inCard(r,st,all){
@@ -4694,6 +4681,7 @@ function inCard(r,st,all){
   let h='<div class="card" data-ir="'+ri+'" style="box-shadow:none"><div class="bd stack" style="gap:8px"><div><span class="tag c">'+esc(r.code)+'</span> <span class="tag s">'+esc(inAddr(r.shelf,r.sec))+'</span></div><div class="desc"><b>'+esc(r.desc)+'</b>'+(r.un?' <span class="sub">· '+esc(r.un)+'</span>':'')+'</div>';
   if(oth.length)h+='<div><span class="chip warn">⚠ também cadastrado em: '+oth.map(x=>esc(inAddr(x.shelf,x.sec))).join(' · ')+'</span></div>';
   if(adds.length)h+='<div class="row" style="gap:6px;flex-wrap:wrap">'+adds.map(a=>'<span class="chip ok">＋ '+esc(a.to)+(a.qty!=null?' · '+fmtN(a.qty,3):'')+'</span><button class="btn sm" data-act="inundo" data-r="'+esc(a.rid)+'" title="Desfazer este endereço novo">✕</button>').join('')+'</div>';
+  if(!d&&r.cnt){h+='<div><span class="chip ok">✓ Contado na '+inRound()+'ª contagem</span></div>';return h+'</div></div>'}
   if(d){
     h+='<div class="row" style="gap:8px;align-items:center;flex-wrap:wrap">'+(d.st==='ok'?'<span class="chip ok">✓ Está aqui'+(d.qty!=null?' · '+fmtN(d.qty,3)+(r.un?' '+esc(r.un):''):'')+'</span>':d.st==='nf'?'<span class="chip bad">✗ Não encontrado</span>':'<span class="chip warn">↦ Remanejado para '+esc(d.to)+(d.qty!=null?' · '+fmtN(d.qty,3):'')+'</span>')+'<span class="sub">'+esc(d.op||'')+'</span><button class="btn sm" data-act="inundo" data-r="'+ri+'">Desfazer</button></div>';
   }else{
@@ -4710,7 +4698,7 @@ async function inWrite(d){
   try{await withTimeout(S.db.doc('extras/'+d.id).set(d),20000);toast(d.st==='undo'?'Desfeito':'Salvo',1800)}catch(e){console.error(e);toast('Não foi possível salvar ('+((e&&e.code)||'erro')+'). Tente de novo.',4000)}
   S.inMv=null;S.inAdd=null;inRender(true);
 }
-function inBase(r,st,extra){return Object.assign({kind:'insp',id:inDocId(r.rid),rid:r.rid,code:r.code,desc:r.desc,un:r.un,g:r.g,shelf:r.shelf,sec:r.sec,st,qty:null,to:'',op:S.name,ok:myKey(),t:Date.now()},extra||{})}
+function inBase(r,st,extra){return Object.assign({kind:'insp',id:inDocId(r.rid),rid:r.rid,code:r.code,desc:r.desc,un:r.un,g:r.g,shelf:r.shelf,sec:r.sec,st,qty:null,to:'',rd:inRound(),op:S.name,ok:myKey(),t:Date.now()},extra||{})}
 function inQty(el){const i=el&&el.querySelector('[data-iq]');if(!i||!String(i.value).trim())return null;const q=parseQty(i.value);if(!isFinite(q)||q<0){toast('Quantidade inválida. Deixe em branco se não quiser informar.',3500);i.focus();return false}return q}
 const inRowOf=rid=>inRows().find(r=>r.rid===rid);
 const IN_ACT={
@@ -4735,7 +4723,7 @@ const IN_ACT={
     if(!to){toast('Informe o endereço onde achou',3000);if(i)i.focus();return}
     if(q!=null&&(!isFinite(q)||q<0)){toast('Quantidade inválida. Deixe em branco se não quiser informar.',3500);if(qi)qi.focus();return}
     const rid='add|'+zc(r.code)+'|'+to;
-    inWrite({kind:'insp',id:inDocId(rid),rid,code:r.code,desc:r.desc,un:r.un,g:r.g,shelf:p.shelf,sec:p.sec,st:'add',qty:q,to,op:S.name,ok:myKey(),t:Date.now()});
+    inWrite({kind:'insp',id:inDocId(rid),rid,code:r.code,desc:r.desc,un:r.un,g:r.g,shelf:p.shelf,sec:p.sec,st:'add',qty:q,to,rd:inRound(),op:S.name,ok:myKey(),t:Date.now()});
   },
   inundo(b){
     const rid=b.dataset.r,cur=inState().get(rid);if(!cur)return;
@@ -4748,16 +4736,17 @@ const IN_ACT={
     const i=document.getElementById('inadd'),txt=i?i.value:'';if(!String(txt).trim()){toast('Digite o número ou o nome do grupo',3000);return}
     const gs=inGroups(),byK=new Map(gs.map(x=>[exKey(x.g),x.g])),byS=new Map(gs.map(x=>[slug(x.g),x.g])),m=inMeta(),cur=new Set((m&&m.groups)||[]),miss=[];
     String(txt).split(/[;\n]+/).map(x=>x.trim()).filter(Boolean).forEach(v=>{const g=byK.get(exKey(v))||byS.get(slug(v));if(g)cur.add(g);else miss.push(v)});
-    if(miss.length)toast('Não achei na base de endereços: '+miss.join(', '),5000);
+    if(miss.length)toast('Não achei no inventário: '+miss.join(', '),5000);
     if(cur.size===((m&&m.groups)||[]).length){return}
     if(i)i.value='';inPublish([...cur]).then(()=>draw(true));
   },
+  inround(b){const m=S.atask.get('imeta');inPublish((m&&m.groups)||[],+b.dataset.v===2?2:1).then(()=>draw(true))},
   inrefresh(){const m=inMeta();inPublish((m&&m.groups)||[])},
   inxl(){inExcel()},
   inmodel(){inModel()}
 };
 
-const inPending=()=>{const v=inVisible(),st=inState();return v.filter(r=>!inDone(st.get(r.rid))).length};
+const inPending=()=>{const v=inVisible(),st=inState();return v.filter(r=>!inDoneR(r,st)).length};
 
 /* ============ importação do ERP ============ */
 const normH=s=>String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
