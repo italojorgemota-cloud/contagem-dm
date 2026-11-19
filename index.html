@@ -270,7 +270,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 78</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 79</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -4448,6 +4448,7 @@ const inMeta=()=>{const m=S.atask.get('imeta');return m&&m.on?m:null};
 const inAsg=()=>{const d=S.atask.get('iasg');return(d&&d.map)||{}};
 const inNorm=s=>String(s||'').toUpperCase().replace(/\s+/g,' ').trim();
 const inRid=(code,shelf,sec)=>zc(code)+'|'+inNorm(shelf)+'|'+inNorm(sec);
+const inRaw=()=>S.atask.get('imeta')||null;
 const inRound=()=>{const m=S.atask.get('imeta');return m&&m.round===2?2:1};
 const inDocId=rid=>'ip'+cyrb53(rid)+(inRound()>1?'r'+inRound():'');
 /* item já contado na rodada atual do Inspetor (1ª ou 2ª contagem) */
@@ -4494,15 +4495,16 @@ function inPairs(){
   return m;
 }
 const inProducts=()=>null;
-async function inPublish(groups,round){
+async function inPublish(groups,round,on){
+  const raw=inRaw();if(on===undefined)on=groups.length>0&&!(raw&&raw.on===false&&(raw.groups||[]).length>0);
   try{
     for(const id of [...S.atask.keys()].filter(k=>/^i\d+$/.test(k)))await S.db.doc('addrtask/'+id).delete();
-    await S.db.doc('addrtask/imeta').set({on:groups.length>0,t:Date.now(),groups,by:S.name,src:'inv',round:round||inRound()});
-    toast(groups.length?'Inspetor atualizado: '+groups.length+(groups.length===1?' grupo':' grupos'):'Inspetor desligado',3000);
+    await S.db.doc('addrtask/imeta').set({on,t:Date.now(),groups,by:S.name,src:'inv',round:round||inRound()});
+    toast(!on?'Inspetor desligado':'Inspetor ligado: '+groups.length+(groups.length===1?' grupo':' grupos'),3000);
   }catch(e){console.error(e);toast('Não foi possível salvar ('+((e&&e.code)||'erro')+')',4000)}
 }
 async function inToggleGroup(g,on){
-  const m=inMeta(),cur=new Set((m&&m.groups)||[]);
+  const m=inRaw(),cur=new Set((m&&m.groups)||[]);
   if(on)cur.add(g);else cur.delete(g);
   await inPublish([...cur]);
 }
@@ -4572,17 +4574,17 @@ function inModel(){
 function vInspetor(){
   const m=inMeta();
   if(!S.meta||!S.items.size)return'<div class="card"><div class="hd"><h2>🔍 Inspetor</h2></div><div class="bd stack"><div class="empty"><b>Publique o inventário primeiro.</b><br>O Inspetor usa os produtos e locais do próprio inventário. Conforme a equipe conta, os produtos saem da lista.</div></div></div>';
-  const gs=inGroups(),rel=new Set((m&&m.groups)||[]),a=inAsg(),st=inState(),rows=inMeta()?inRows():[];
+  const gs=inGroups(),rel=new Set(((inRaw()||{}).groups)||[]),a=inAsg(),st=inState(),rows=inMeta()?inRows():[];
   const byG=new Map();for(const r of rows){let o=byG.get(r.g);if(!o){o={tot:0,done:0};byG.set(r.g,o)}o.tot++;if(inDoneR(r,st))o.done++}
   const S0=inStats(rows,st);
   let h='<div class="card"><div class="hd"><h2>🔍 Inspetor — pré-inventário de endereços</h2></div><div class="bd stack">'+
     '<div class="sub">Libere os grupos que quer conferir. A lista vem do próprio inventário: conforme a equipe conta, o produto sai da lista dos coletores. Os coletores indicados veem os produtos organizados por prateleira, confirmam se estão no endereço do inventário e informam a quantidade. Se um produto estiver em dois lugares, podem manter os dois ou remanejar. No fim você baixa o Excel com a base de endereços atualizada.</div>';
-  h+='<div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><b>Rodada:</b><button class="btn'+(inRound()===1?' primary':'')+'" data-act="inround" data-v="1">1ª contagem</button><button class="btn'+(inRound()===2?' primary':'')+'" data-act="inround" data-v="2">2ª contagem</button><span class="sub">Ao passar para a 2ª contagem, os produtos voltam para a lista (a 2ª equipe confere de novo) e saem conforme forem contados pela 2ª vez. Indique o responsável de cada grupo. O que já foi conferido na 1ª rodada fica guardado.</span></div>';
+  h+='<div class="row" style="gap:8px;flex-wrap:wrap;align-items:center"><button class="btn'+(m?' primary':'')+'" data-act="inpower" aria-pressed="'+(!!m)+'">'+(m?'● Inspetor ligado':'○ Inspetor desligado — ligar')+'</button><b>Rodada:</b><button class="btn'+(inRound()===1?' primary':'')+'" data-act="inround" data-v="1">1ª contagem</button><button class="btn'+(inRound()===2?' primary':'')+'" data-act="inround" data-v="2">2ª contagem</button><span class="sub">Ao passar para a 2ª contagem, os produtos voltam para a lista (a 2ª equipe confere de novo) e saem conforme forem contados pela 2ª vez. Indique o responsável de cada grupo. O que já foi conferido na 1ª rodada fica guardado.</span></div>';
   if(m)h+='<div class="kpis">'+kpi('Endereços liberados',fmtN(S0.tot),fmtN(rel.size)+(rel.size===1?' grupo':' grupos'))+kpi('Faltam conferir',fmtN(S0.tot-S0.done),'ainda não contados nem conferidos','a')+kpi('Conferidos',fmtN(S0.ok+S0.nf+S0.mv),'pelo Inspetor','g')+kpi('Já contados',fmtN(S0.cn),'no inventário (saem da lista)')+kpi('Não encontrados',fmtN(S0.nf),'não estavam no endereço',S0.nf?'r':'')+kpi('Remanejados',fmtN(S0.mv),'mudaram de endereço','a')+kpi('Endereços novos',fmtN(S0.add),'achados em outro lugar','a')+'</div>';
   if(S.inImp){const x=S.inImp;h+='<div class="note'+(x.ok?'':' bad')+'"><b>'+esc(x.file)+':</b> '+fmtN(x.ok)+(x.ok===1?' grupo liberado':' grupos liberados')+(x.miss.length?'. Não achei no inventário: '+esc(x.miss.slice(0,12).join(', '))+(x.miss.length>12?' e mais '+(x.miss.length-12):''):'')+(x.badResp.length?'. Responsável não reconhecido: '+esc(x.badResp.slice(0,8).join(', ')):'')+'</div>'}
-  h+='<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn primary" data-act="inxl">⬇ Baixar Excel (base atualizada)</button><label class="btn" style="cursor:pointer" title="Planilha com a coluna Grupo (e, se quiser, Responsável). Substitui os grupos liberados; as conferências já feitas são mantidas.">📥 Importar grupos<input type="file" accept=".xlsx,.xls,.csv,.txt" data-chg="infile" hidden></label><button class="btn" data-act="inmodel" title="Baixa a lista de grupos para você apagar os que não quer e importar de volta">Modelo da planilha</button>'+(m?'<button class="btn" data-act="inall" data-v="0">Desligar o Inspetor</button>':'')+'</div></div></div>';
+  h+='<div class="row" style="gap:8px;flex-wrap:wrap"><button class="btn primary" data-act="inxl">⬇ Baixar Excel (base atualizada)</button>'+(m?'<button class="btn" data-act="inall" data-v="0">Desligar o Inspetor</button>':'')+'</div></div></div>';
   const gm=new Map(gs.map(x=>[x.g,x])),vis=[...rel].sort((x,y)=>x.localeCompare(y,'pt',{numeric:true})).map(g=>gm.get(g)||{g,n:0,na:0,sh:new Set()});
-  h+='<div class="card"><div class="hd"><h2>Grupos a conferir</h2><span class="sub">'+(vis.length?fmtN(vis.length)+(vis.length===1?' grupo':' grupos'):'nenhum grupo adicionado')+'</span></div><div class="bd stack"><div class="row" style="gap:8px;flex-wrap:nowrap"><input type="text" id="inadd" list="ingl" autocomplete="off" placeholder="Número ou nome do grupo, ex.: 7705 (vários: separe com ;)" style="flex:1" aria-label="Adicionar grupo"><button class="btn primary" data-act="inadd">Adicionar</button></div><datalist id="ingl">'+gs.filter(x=>!rel.has(x.g)).map(x=>'<option value="'+esc(x.g)+'">').join('')+'</datalist>'+(vis.length?'':'<div class="empty">Adicione os grupos que quer conferir aqui, ou importe uma planilha com a coluna Grupo.</div>')+(vis.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Grupo</th><th class="r">Produtos</th><th class="r">Endereços</th><th class="r">Prateleiras</th><th>Responsável</th><th style="min-width:140px">Andamento</th><th></th></tr></thead><tbody>'+
+  h+='<div class="card"><div class="hd"><h2>Grupos a conferir</h2><span class="sub">'+(vis.length?fmtN(vis.length)+(vis.length===1?' grupo':' grupos'):'nenhum grupo adicionado')+'</span></div><div class="bd stack"><div class="row" style="gap:8px;flex-wrap:nowrap"><input type="text" id="inadd" list="ingl" autocomplete="off" placeholder="Número ou nome do grupo, ex.: 7705 (vários: separe com ;)" style="flex:1" aria-label="Adicionar grupo"><button class="btn primary" data-act="inadd">Adicionar</button></div><datalist id="ingl">'+gs.filter(x=>!rel.has(x.g)).map(x=>'<option value="'+esc(x.g)+'">').join('')+'</datalist>'+(vis.length?'':'<div class="empty">Digite acima os grupos que quer conferir (a lista de produtos vem do inventário).</div>')+(vis.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Grupo</th><th class="r">Produtos</th><th class="r">Endereços</th><th class="r">Prateleiras</th><th>Responsável</th><th style="min-width:140px">Andamento</th><th></th></tr></thead><tbody>'+
     vis.map(x=>{const on=rel.has(x.g),b=byG.get(x.g)||{tot:0,done:0};
       return'<tr><td><b>'+esc(x.g)+'</b></td><td class="r num">'+fmtN(x.n)+'</td><td class="r num">'+fmtN(x.na)+'</td><td class="r num">'+fmtN(x.sh.size)+'</td><td>'+(on?'<select data-chg="inag" data-g="'+esc(x.g)+'" aria-label="Responsável pelo grupo '+esc(x.g)+'">'+adOpts(a[x.g]||'')+'</select>':'<span class="sub">—</span>')+'</td><td>'+(on?'<div class="prog split"><b style="width:'+inPct(b.done,b.tot)+'%;background:var(--ok)"></b></div><span class="sub">'+fmtN(b.done)+' de '+fmtN(b.tot)+'</span>':'<span class="sub">não liberado</span>')+'</td><td>'+(on?'<button class="btn sm" data-act="inret" data-g="'+esc(x.g)+'">Retirar</button>':'<button class="btn sm primary" data-act="inlib" data-g="'+esc(x.g)+'">Liberar</button>')+'</td></tr>'}).join('')+'</tbody></table></div>':'')+'</div></div>';
   return h;
@@ -4641,7 +4643,7 @@ function drawInspPage(host,ro){
     if(S.q.ing&&!gl.includes(S.q.ing))S.q.ing='';
     host.innerHTML=opNav('inspetor')+ro+'<div><h1 class="hero">🔍 Inspetor</h1><div class="sub">Vá até cada prateleira e confira se o produto está no endereço indicado. A quantidade é opcional. Se estiver em outro lugar, use Remanejar.</div></div><div id="inprog"></div>'+
       '<div class="row" style="gap:8px;flex-wrap:wrap">'+(gl.length>1?'<div class="field" style="flex:1;min-width:160px"><label for="ing">GRUPO</label><select id="ing" data-chg="ing"><option value="">Todos os meus grupos</option>'+gl.map(g=>'<option value="'+esc(g)+'"'+(S.q.ing===g?' selected':'')+'>'+esc(g)+'</option>').join('')+'</select></div>':'')+
-      '<div class="field" style="min-width:140px"><label for="inf">MOSTRAR</label><select id="inf" data-chg="inf"><option value="pend"'+((S.q.inf||'pend')==='pend'?' selected':'')+'>Pendentes</option><option value="todos"'+(S.q.inf==='todos'?' selected':'')+'>Todos</option><option value="feitos"'+(S.q.inf==='feitos'?' selected':'')+'>Conferidos</option></select></div></div>'+
+      '<div class="field" style="min-width:140px"><label for="inf">MOSTRAR</label><select id="inf" data-chg="inf"><option value="todos"'+((S.q.inf||'todos')==='todos'?' selected':'')+'>Todos</option><option value="pend"'+(S.q.inf==='pend'?' selected':'')+'>Faltam</option><option value="feitos"'+(S.q.inf==='feitos'?' selected':'')+'>Já contados/conferidos</option></select></div></div>'+
       '<div class="field"><label for="inq">BUSCAR</label><input type="search" id="inq" data-inp="inq" autocomplete="off" placeholder="Código, descrição ou prateleira" value="'+esc(S.q.inq||'')+'"></div><datalist id="inl"></datalist><div id="inlist" class="stack"></div>';
   }
   inRender(false);
@@ -4652,7 +4654,7 @@ function inProg(rows,st){
 }
 function inRender(force){
   const host=$('#inlist');if(!host)return;
-  const rows=inVisible(),st=inState(),sel=S.q.ing||'',q=qn(S.q.inq||''),f=S.q.inf||'pend';
+  const rows=inVisible(),st=inState(),sel=S.q.ing||'',q=qn(S.q.inq||''),f=S.q.inf||'todos';
   inProg(rows,st);
   let l=rows.filter(r=>!sel||r.g===sel);
   if(q)l=l.filter(r=>qn(r.code+' '+r.desc+' '+r.shelf+' '+r.sec).includes(q));
@@ -4671,7 +4673,7 @@ function inRender(force){
   for(const s of st.values())if(s.st==='add'){const k=zc(s.code);if(!all.adds.has(k))all.adds.set(k,[]);all.adds.get(k).push(s)}
   host.innerHTML=shelves.length?shelves.map(o=>{
     const op=S.inOpen.has(o.shelf)||!!q;
-    let rs=o.rows;if(f==='pend')rs=rs.filter(r=>!inDoneR(r,st));else if(f==='feitos')rs=rs.filter(r=>inDoneR(r,st));
+    let rs=o.rows;if(f==='pend')rs=rs.filter(r=>!inDoneR(r,st));else if(f==='feitos')rs=rs.filter(r=>inDoneR(r,st));rs=[...rs].sort((x,y)=>(inDoneR(x,st)?1:0)-(inDoneR(y,st)?1:0));
     return'<div class="card" style="box-shadow:none"><div class="hd" style="cursor:pointer" data-act="intog" data-s="'+esc(o.shelf)+'" role="button" tabindex="0" aria-expanded="'+op+'"><h3 style="margin:0">'+(op?'▾':'▸')+' '+esc(o.shelf)+'</h3><span class="sub">'+fmtN(o.rows.length)+(o.rows.length===1?' produto':' produtos')+' · '+fmtN(o.done)+' conferidos</span>'+(o.done===o.rows.length?'<span class="chip ok" style="margin-left:auto">✓ completa</span>':'')+'</div>'+(op?'<div class="bd stack" style="gap:10px">'+rs.slice(0,60).map(r=>inCard(r,st,all)).join('')+(rs.length>60?'<div class="sub" style="text-align:center">Mostrando 60 de '+fmtN(rs.length)+'. Confira estes e a lista avança.</div>':'')+'</div>':'')+'</div>'}).join(''):'<div class="card"><div class="empty">'+(f==='pend'&&!q?'<b>Tudo conferido!</b><br>Avise o gestor.':'Nada encontrado.')+'</div></div>';
 }
 function inCard(r,st,all){
@@ -4734,14 +4736,15 @@ const IN_ACT={
   inall(b){const on=b.dataset.v==='1';if(!confirmOnce('inall'+(on?1:0))){toast(on?'Toque de novo para liberar TODOS os grupos':'Toque de novo para desligar o Inspetor (as conferências já feitas são mantidas)',4000);return}inAllGroups(on)},
   inadd(){
     const i=document.getElementById('inadd'),txt=i?i.value:'';if(!String(txt).trim()){toast('Digite o número ou o nome do grupo',3000);return}
-    const gs=inGroups(),byK=new Map(gs.map(x=>[exKey(x.g),x.g])),byS=new Map(gs.map(x=>[slug(x.g),x.g])),m=inMeta(),cur=new Set((m&&m.groups)||[]),miss=[];
+    const gs=inGroups(),byK=new Map(gs.map(x=>[exKey(x.g),x.g])),byS=new Map(gs.map(x=>[slug(x.g),x.g])),m=inRaw(),cur=new Set((m&&m.groups)||[]),miss=[];
     String(txt).split(/[;\n]+/).map(x=>x.trim()).filter(Boolean).forEach(v=>{const g=byK.get(exKey(v))||byS.get(slug(v));if(g)cur.add(g);else miss.push(v)});
     if(miss.length)toast('Não achei no inventário: '+miss.join(', '),5000);
     if(cur.size===((m&&m.groups)||[]).length){return}
     if(i)i.value='';inPublish([...cur]).then(()=>draw(true));
   },
-  inround(b){const m=S.atask.get('imeta');inPublish((m&&m.groups)||[],+b.dataset.v===2?2:1).then(()=>draw(true))},
-  inrefresh(){const m=inMeta();inPublish((m&&m.groups)||[])},
+  inround(b){const m=inRaw();inPublish((m&&m.groups)||[],+b.dataset.v===2?2:1).then(()=>draw(true))},
+  inpower(){const m=inRaw(),on=!!inMeta();if(!on&&!(m&&(m.groups||[]).length)){toast('Adicione ao menos um grupo para ligar o Inspetor',3500);return}inPublish((m&&m.groups)||[],undefined,!on).then(()=>draw(true))},
+  inrefresh(){const m=inRaw();inPublish((m&&m.groups)||[])},
   inxl(){inExcel()},
   inmodel(){inModel()}
 };
