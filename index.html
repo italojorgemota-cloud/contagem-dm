@@ -270,7 +270,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 90</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 91</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -712,7 +712,7 @@ function actLabel(){
   return 'Tela inicial';
 }
 const adCount=()=>{try{return adMeta()?adMine():0}catch(e){return 0}};
-function hbPayload(){return{name:S.name,pending:pendingList().length,drafts:draftList().length,bl:blInfo(),shelf:actLabel(),page:S.opView.page,ad:adCount()}}
+function hbPayload(){const o={name:S.name,pending:pendingList().length,drafts:draftList().length,bl:blInfo(),shelf:actLabel(),page:S.opView.page,ad:adCount()};try{if(FC&&_fcDone===fcId())o.fcl={c:FC.c,r:FC.r}}catch(e){}return o}
 function pushHeartbeat(force){
   if(!S.db||!S.name||!S.session||!fcReady())return;
   const p=hbPayload(),s=JSON.stringify(p),now=Date.now();
@@ -829,7 +829,7 @@ function subscribe(){
   subs.push(db.collection('addrnew').onSnapshot(q=>{S.anew=new Map(q.docs.map(d=>[d.id,d.data()]));if(S.canEdit)rebuildAddr();try{adListRefresh()}catch(e){}scheduleRebuild()},err));
   if(S.canEdit)subs.push(db.collection('apur').onSnapshot(q=>{S.apur=new Map(q.docs.map(d=>[d.id,d.data()]));scheduleRebuild();if(S.tab==='apuracao')draw()},err));
   if(S.canEdit)subs.push(db.collection('addr').onSnapshot(q=>{S.addrDocs=new Map(q.docs.map(d=>[d.id,d.data()]));rebuildAddr();scheduleRebuild()},err));
-  if(S.canEdit)subs.push(db.collection('ops').onSnapshot(q=>{S.hb=new Map(q.docs.filter(d=>String(d.id).indexOf('fc~')!==0).map(d=>[d.id,d.data()]));S.fc=new Map(q.docs.filter(d=>String(d.id).indexOf('fc~')===0).map(d=>[String(d.id).slice(3),d.data()]));if(S.isAdmin){peersChanged();relRefresh();try{blNotify()}catch(e){}}},err));
+  if(S.canEdit)subs.push(db.collection('ops').onSnapshot(q=>{S.hb=new Map(q.docs.filter(d=>String(d.id).indexOf('fc~')!==0).map(d=>[d.id,d.data()]));try{fcMemUpdate()}catch(e){}if(S.isAdmin){peersChanged();relRefresh();try{blNotify()}catch(e){}}},err));
   if(S.canEdit)subs.push(db.collection('erp').onSnapshot(q=>{S.erp=new Map(q.docs.map(d=>[d.id,d.data()]));scheduleRebuild()},err));
 }
 async function init(){
@@ -2758,7 +2758,7 @@ function blAll(){
   if(S.blk!==k){S.blk=k;try{S.bl=JSON.parse(store.get(k)||'{}')||{}}catch(e){S.bl={}}}
   return S.bl;
 }
-function blSave(){if(S.blk)store.set(S.blk,JSON.stringify(S.bl||{}));try{fcPush()}catch(e){}}
+function blSave(){if(S.blk)store.set(S.blk,JSON.stringify(S.bl||{}));try{fcSync()}catch(e){}}
 function blList(sk){const b=blAll();return b[sk]||(b[sk]=[])}
 function blCount(){return 0}
 const nameOfKey=k=>k==='*'?'qualquer operador':((S.users.get(k)||{}).name||(knownOpsSafe().find(o=>o.key===k)||{}).name||k);
@@ -3833,7 +3833,7 @@ function relGroups(){
   const out=[];
   for(const sh of manualShelves()){
     const tm=teamOf(sh.key).filter(k=>k!=='*'),mem=[...tm],st={};
-    for(const k of new Set([...S.hb.keys(),...(S.fc?S.fc.keys():[])])){const x=fcStat(k,sh.key);if(x&&(x.n>0||x.c)){st[k]=x;if(!mem.includes(k))mem.push(k)}}
+    for(const k of new Set([...S.hb.keys(),...(S.fcMem?S.fcMem.keys():[])])){const x=fcStat(k,sh.key);if(x&&(x.n>0||x.c)){st[k]=x;if(!mem.includes(k))mem.push(k)}}
     const closed=mem.filter(k=>st[k]&&st[k].c);
     if(!closed.length)continue;
     const a=(S.assign&&S.meta&&S.assign.inv===S.meta.inv&&S.assign.map)||{};
@@ -4010,7 +4010,7 @@ function blShelfGrpLock(it){
   if(!isGrpShelf(sx)||exKey(it.grp)===sx)return null;
   return{shelf:sh.name,grp:it.grp};
 }
-var _fcSig='',_fcDone='',_fcBusy=false,_fcT0=0;
+var FC=null,_fcDone='',_fcBusy=false,_fcT0=0;
 function fcId(){return S.meta?S.meta.inv+'|'+myKey():''}
 function fcReady(){return S.isAdmin||!S.meta||_fcDone===fcId()||(Date.now()-(_fcT0||(_fcT0=Date.now())))>8000}
 function fcClosed(){const b=blAll(),o={};for(const k of Object.keys(b))if(k[0]==='!')o[k.slice(1)]=b[k];return o}
@@ -4034,58 +4034,59 @@ function fcLists(){
   if(ch)for(const k of Object.keys(b))if(k[0]!=='!'&&k[0]!=='~'&&Array.isArray(b[k]))b[k].sort((x,y)=>(y.t||0)-(x.t||0));
   return ch;
 }
+function fcLoad(){
+  try{FC=JSON.parse(store.get('ci:fcs:'+S.dev+':'+S.meta.inv)||'null')}catch(e){FC=null}
+  if(!FC||typeof FC!=='object')FC={c:{},r:{}};if(!FC.c)FC.c={};if(!FC.r)FC.r={};
+}
+function fcSave(){try{store.set('ci:fcs:'+S.dev+':'+S.meta.inv,JSON.stringify(FC))}catch(e){}}
+/* aparelho -> estado de fechamento (c = quando fechou, r = quando reabriu; vale o mais recente) */
+function fcSync(){
+  if(!FC||!S.meta||_fcDone!==fcId())return;
+  const b=blAll(),now=Date.now();let ch=false;
+  for(const sk of Object.keys(FC.c)){if(FC.c[sk]>(FC.r[sk]||0)&&!b['!'+sk]){FC.r[sk]=now;ch=true}}
+  for(const k of Object.keys(b)){
+    if(k[0]!=='!')continue;const sk=k.slice(1);
+    if(!(FC.c[sk]>(FC.r[sk]||0))){FC.c[sk]=Math.max(Number(b[k])||now,(FC.r[sk]||0)+1);ch=true}
+  }
+  if(ch){fcSave();try{pushHeartbeat(true)}catch(e){}}
+}
+/* outro aparelho do mesmo coletor -> este aparelho */
+function fcMerge(rem){
+  if(!FC||!rem||!S.meta||_fcDone!==fcId())return;
+  const b=blAll(),m=(S.assign&&S.assign.inv===S.meta.inv&&S.assign.map)||{},me=myKey();
+  let ch=false,lc=false;
+  const keys=new Set([...Object.keys(rem.c||{}),...Object.keys(rem.r||{})]);
+  for(const sk of keys){
+    const rc=Number((rem.c||{})[sk])||0,rr=Number((rem.r||{})[sk])||0;
+    if(rc>(FC.c[sk]||0)){FC.c[sk]=rc;ch=true}
+    if(rr>(FC.r[sk]||0)){FC.r[sk]=rr;ch=true}
+    const ro=Number(m['ro:'+sk+':'+me])||0;
+    if(ro>(FC.c[sk]||0)&&ro>(FC.r[sk]||0)){FC.r[sk]=ro;ch=true}
+    const closed=(FC.c[sk]||0)>(FC.r[sk]||0);
+    if(closed&&!b['!'+sk]){if(b[sk]&&b[sk].length){b['!'+sk]=FC.c[sk];lc=true}}
+    else if(!closed&&b['!'+sk]){delete b['!'+sk];lc=true}
+  }
+  if(ch)fcSave();
+  if(lc){blSave();try{const h=$('#bllist');if(h)h.dataset.sig='';paintBlind()}catch(e){}try{draw(true)}catch(e){}}
+  if(ch||lc){try{pushHeartbeat(true)}catch(e){}try{pushPresence(true)}catch(e){}}
+}
 async function fcInit(){
   if(!S.db||!S.session||S.isAdmin||!S.meta||!S.items||!S.items.size||_fcBusy||_fcDone===fcId())return;
   const id=fcId();_fcBusy=true;
   try{
-    let srv=null;
-    try{const s=await S.db.doc('ops/fc~'+myKey()).get();if(s.exists){const d=s.data();if(d&&d.inv===S.meta.inv)srv=d}}catch(e){}
+    fcLoad();
+    let rem=null;try{const s=await S.db.doc('ops/'+myKey()).get();if(s.exists){const d=s.data();if(d&&d.fcl)rem=d.fcl}}catch(e){}
     if(fcId()!==id)return;
-    const b=blAll();let ch=fcLists();
-    const m=(S.assign&&S.assign.inv===S.meta.inv&&S.assign.map)||{},me=myKey();
-    if(srv&&srv.cl)for(const [sk,ts] of Object.entries(srv.cl)){
-      if(b['!'+sk])continue;
-      if((Number(m['ro:'+sk+':'+me])||0)>Number(ts))continue;
-      if(!(b[sk]&&b[sk].length))continue;
-      b['!'+sk]=ts;ch=true;
-    }
-    _fcDone=id;_fcSig='';_fcPrev=fcClosed();
-    if(ch)blSave();else fcPush();
+    const ch=fcLists();
+    _fcDone=id;
+    if(ch)blSave();
+    fcSync();
+    if(rem)fcMerge(rem);
+    try{S.db.doc('ops/'+myKey()).onSnapshot(s=>{if(s&&s.exists){const d=s.data();if(d&&d.fcl)fcMerge(d.fcl)}},()=>{})}catch(e){}
     if(ch){try{const h=$('#bllist');if(h)h.dataset.sig='';paintBlind()}catch(e){}try{draw(true)}catch(e){}toast('Suas prateleiras foram recuperadas neste aparelho',4000)}
-    try{pushPresence(true)}catch(e){}
+    try{pushHeartbeat(true)}catch(e){}try{pushPresence(true)}catch(e){}
   }finally{_fcBusy=false}
 }
-var _fcPrev=null,_fcPushing=false;
-async function fcPush(){
-  if(!S.db||!S.session||S.isAdmin||!S.meta||_fcDone!==fcId()||_fcPushing)return;
-  const cl=fcClosed(),sig=JSON.stringify(cl);if(sig===_fcSig)return;
-  _fcPushing=true;
-  try{
-    let srv={};
-    try{const s=await S.db.doc('ops/fc~'+myKey()).get();if(s.exists){const d=s.data();if(d&&d.inv===S.meta.inv&&d.cl)srv=d.cl}}catch(e){}
-    const prev=_fcPrev||{},out=Object.assign({},srv);
-    for(const sk of Object.keys(cl))if(!(sk in srv))out[sk]=cl[sk];
-    for(const sk of Object.keys(prev))if(!(sk in cl))delete out[sk];
-    await S.db.doc('ops/fc~'+myKey()).set({inv:S.meta.inv,cl:out,t:Date.now(),name:S.name});
-    _fcPrev=Object.assign({},cl);_fcSig=sig;
-  }catch(e){}
-  finally{_fcPushing=false;if(JSON.stringify(fcClosed())!==_fcSig)setTimeout(()=>{try{fcPush()}catch(e){}},1500)}
-}
-/* traz para este aparelho os fechamentos feitos em outro aparelho do mesmo coletor */
-async function fcPull(){
-  if(!S.db||!S.session||S.isAdmin||!S.meta||_fcDone!==fcId())return;
-  try{
-    const s=await S.db.doc('ops/fc~'+myKey()).get();if(!s.exists)return;const d=s.data();if(!d||d.inv!==S.meta.inv||!d.cl)return;
-    const b=blAll(),m=(S.assign&&S.assign.inv===S.meta.inv&&S.assign.map)||{},me=myKey();let ch=false;
-    if(fcLists())ch=true;
-    for(const [sk,ts] of Object.entries(d.cl)){
-      if(b['!'+sk])continue;if((Number(m['ro:'+sk+':'+me])||0)>Number(ts))continue;if(!(b[sk]&&b[sk].length))continue;
-      b['!'+sk]=ts;ch=true;
-    }
-    if(ch){_fcPrev=Object.assign({},_fcPrev||{},fcClosed());blSave();try{const h=$('#bllist');if(h)h.dataset.sig='';paintBlind()}catch(e){}try{draw(true)}catch(e){}try{pushPresence(true)}catch(e){}}
-  }catch(e){}
-}
-setInterval(()=>{try{fcPull()}catch(e){}},30000);
 /* gestor: situação de cada prateleira por coletor, lida do banco (não do último sinal do aparelho) */
 var _fcc={k:null,m:new Map()};
 function fcCounts(){
@@ -4105,10 +4106,19 @@ function fcCounts(){
   }
   _fcc.k=S.items;_fcc.m=m;return m;
 }
+function fcMemUpdate(){
+  if(!S.fcMem)S.fcMem=new Map();
+  for(const [k,d] of S.hb){
+    const f=d&&d.fcl;if(!f)continue;
+    let m=S.fcMem.get(k);if(!m){m={c:{},r:{}};S.fcMem.set(k,m)}
+    for(const sk of Object.keys(f.c||{}))if(Number(f.c[sk])>(m.c[sk]||0))m.c[sk]=Number(f.c[sk]);
+    for(const sk of Object.keys(f.r||{}))if(Number(f.r[sk])>(m.r[sk]||0))m.r[sk]=Number(f.r[sk]);
+  }
+}
 function fcStat(k,sk){
   const hb=((S.hb.get(k)||{}).bl||{})[sk]||{},n=Math.max(fcCounts().get(k+'|'+sk)||0,Number(hb.n)||0);
-  let c=hb.c?1:0;const f=S.fc&&S.fc.get(k);
-  if(f&&S.meta&&f.inv===S.meta.inv&&f.cl)c=f.cl[sk]?1:0;
+  let c=hb.c?1:0;const f=S.fcMem&&S.fcMem.get(k);
+  if(f&&(f.c[sk]||f.r[sk]))c=(f.c[sk]||0)>(f.r[sk]||0)?1:0;
   return{n,c};
 }
 setInterval(()=>{try{fcInit()}catch(e){}},2000);
