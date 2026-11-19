@@ -270,7 +270,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 89</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 90</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -829,7 +829,7 @@ function subscribe(){
   subs.push(db.collection('addrnew').onSnapshot(q=>{S.anew=new Map(q.docs.map(d=>[d.id,d.data()]));if(S.canEdit)rebuildAddr();try{adListRefresh()}catch(e){}scheduleRebuild()},err));
   if(S.canEdit)subs.push(db.collection('apur').onSnapshot(q=>{S.apur=new Map(q.docs.map(d=>[d.id,d.data()]));scheduleRebuild();if(S.tab==='apuracao')draw()},err));
   if(S.canEdit)subs.push(db.collection('addr').onSnapshot(q=>{S.addrDocs=new Map(q.docs.map(d=>[d.id,d.data()]));rebuildAddr();scheduleRebuild()},err));
-  if(S.canEdit)subs.push(db.collection('ops').onSnapshot(q=>{S.hb=new Map(q.docs.filter(d=>String(d.id).indexOf('fc~')!==0).map(d=>[d.id,d.data()]));if(S.isAdmin){peersChanged();relRefresh();try{blNotify()}catch(e){}}},err));
+  if(S.canEdit)subs.push(db.collection('ops').onSnapshot(q=>{S.hb=new Map(q.docs.filter(d=>String(d.id).indexOf('fc~')!==0).map(d=>[d.id,d.data()]));S.fc=new Map(q.docs.filter(d=>String(d.id).indexOf('fc~')===0).map(d=>[String(d.id).slice(3),d.data()]));if(S.isAdmin){peersChanged();relRefresh();try{blNotify()}catch(e){}}},err));
   if(S.canEdit)subs.push(db.collection('erp').onSnapshot(q=>{S.erp=new Map(q.docs.map(d=>[d.id,d.data()]));scheduleRebuild()},err));
 }
 async function init(){
@@ -2981,7 +2981,7 @@ function blClose(){
 }
 function blReopen(){const sk=S.opView.shelf;delete S.bl['!'+sk];blSave();$('#bllist').dataset.sig='';paintBlind();pushPresence(true);toast('Prateleira reaberta')}
 /* gestor: liberar prateleiras para equipes */
-const r1Block=(sk2,k)=>{const base=sk2.slice(0,-2),n=((((S.hb.get(k)||{}).bl)||{})[base]||{}).n||0;return n>0||teamOf(base).includes(k)};
+const r1Block=(sk2,k)=>{const base=sk2.slice(0,-2),n=fcStat(k,base).n||0;return n>0||teamOf(base).includes(k)};
 function relGrpStats(){
   let cp=null;try{cp=cpIndex()}catch(e){}
   const gOf=it=>{let g=String(it.grp||'').trim();if(!g&&cp&&cp.size){const c=cp.get(zc(it.code));if(c)g=String(c.grp||'').trim()}return g};
@@ -3008,12 +3008,12 @@ function relBody(ops,r2){
   r2=!!r2;const gst=relGrpStats();const sh=manualShelves().filter(s=>!!s.r2===r2);
   if(!sh.length)return'<div class="empty">'+(r2?'Nenhum grupo liberado para a 2ª contagem ainda. Digite o nome do grupo acima e toque em Adicionar.':'Nenhum grupo liberado ainda. Toque em "Trazer os grupos do inventário" ou digite o nome do grupo e toque em Adicionar.')+'</div>';
   return sh.map(s=>{const tm=teamOf(s.key).filter(k=>k!=='*'),base=r2?s.key.slice(0,-2):'';
-    const st=tm.map(k=>{const d=(S.hb.get(k)||{}).bl;const x=d&&d[s.key];return x?{k,n:x.n,c:x.c}:{k,n:0,c:0}});
+    const st=tm.map(k=>{const x=fcStat(k,s.key);return{k,n:x.n,c:x.c}});
     const tot=st.reduce((a,x)=>a+x.n,0),cl=st.filter(x=>x.c).length;
     const ed=S.relEd===s.key;
     return'<div class="gr"><div class="gh" style="display:flex;grid-template-columns:none;gap:8px;align-items:center;flex-wrap:wrap">'+(ed?'<input type="text" id="reled" maxlength="60" autocomplete="off" value="'+esc(s.name)+'" aria-label="Novo nome do grupo" style="flex:1;min-width:180px">':'<span class="nm" style="flex:1;min-width:180px;grid-column:auto">📍 '+esc(s.name)+relStatHtml(s,gst)+'</span>')+(tm.length?'<span class="chip '+(cl===tm.length?'ok':'warn')+'" style="flex:none">'+(cl===tm.length?'fechada':cl+'/'+tm.length+' fechadas')+' · '+tot+' contados</span>':'<span class="chip warn" style="flex:none">sem equipe</span>')+
       '<span style="display:flex;gap:6px;flex:none;width:250px;justify-content:flex-end">'+(ed?'<button class="btn sm primary" data-act="relsave" data-sk="'+esc(s.key)+'">Salvar</button><button class="btn sm" data-act="relcancel">Cancelar</button>':'<button class="btn sm" data-act="relprod" data-sk="'+esc(s.key)+'" title="Ver os produtos deste grupo">'+(S.relPr===s.key?'▾':'▸')+' Produtos</button><button class="btn sm" data-act="reledit" data-sk="'+esc(s.key)+'">Editar</button><button class="btn sm" data-act="relrm" data-sk="'+esc(s.key)+'">Remover</button>')+'</span></div>'+(S.relPr===s.key?relProdPanel(s,gst):'')+
-      '<div class="row" style="gap:6px 16px;flex-wrap:wrap">'+ops.map(o=>{const x=st.find(y=>y.k===o.key);const f1=r2&&(((S.hb.get(o.key)||{}).bl||{})[base]||{}).n,blk=r2&&r1Block(s.key,o.key);return'<label style="display:flex;gap:6px;align-items:center;min-height:32px'+(blk?';opacity:.55':'')+'"><input type="checkbox" data-chg="relteam" data-sk="'+esc(s.key)+'" data-k="'+esc(o.key)+'"'+(tm.includes(o.key)?' checked':'')+(blk?' disabled':'')+'> '+esc(o.name)+(x?' <span class="sub">· '+x.n+(x.c?' · fechou':'')+'</span>':'')+(blk?' <span class="chip warn" title="Quem conta a 1ª desta prateleira não pode fazer a 2ª">'+(f1?'fez a 1ª ('+f1+')':'equipe da 1ª')+' · bloqueado</span>':'')+'</label>'}).join('')+'</div></div>'}).join('');
+      '<div class="row" style="gap:6px 16px;flex-wrap:wrap">'+ops.map(o=>{const x=st.find(y=>y.k===o.key);const f1=r2&&fcStat(o.key,base).n,blk=r2&&r1Block(s.key,o.key);return'<label style="display:flex;gap:6px;align-items:center;min-height:32px'+(blk?';opacity:.55':'')+'"><input type="checkbox" data-chg="relteam" data-sk="'+esc(s.key)+'" data-k="'+esc(o.key)+'"'+(tm.includes(o.key)?' checked':'')+(blk?' disabled':'')+'> '+esc(o.name)+(x?' <span class="sub">· '+x.n+(x.c?' · fechou':'')+'</span>':'')+(blk?' <span class="chip warn" title="Quem conta a 1ª desta prateleira não pode fazer a 2ª">'+(f1?'fez a 1ª ('+f1+')':'equipe da 1ª')+' · bloqueado</span>':'')+'</label>'}).join('')+'</div></div>'}).join('');
 }
 async function relReopen(sk,k){
   if(!confirmOnce('rro'+sk+k)){toast('Toque de novo para reabrir a prateleira de '+nameOfKey(k),4000);return}
@@ -3833,7 +3833,7 @@ function relGroups(){
   const out=[];
   for(const sh of manualShelves()){
     const tm=teamOf(sh.key).filter(k=>k!=='*'),mem=[...tm],st={};
-    for(const [k,h] of S.hb){const x=((h||{}).bl||{})[sh.key];if(x&&(x.n>0||x.c)){st[k]=x;if(!mem.includes(k))mem.push(k)}}
+    for(const k of new Set([...S.hb.keys(),...(S.fc?S.fc.keys():[])])){const x=fcStat(k,sh.key);if(x&&(x.n>0||x.c)){st[k]=x;if(!mem.includes(k))mem.push(k)}}
     const closed=mem.filter(k=>st[k]&&st[k].c);
     if(!closed.length)continue;
     const a=(S.assign&&S.meta&&S.assign.inv===S.meta.inv&&S.assign.map)||{};
@@ -4014,11 +4014,6 @@ var _fcSig='',_fcDone='',_fcBusy=false,_fcT0=0;
 function fcId(){return S.meta?S.meta.inv+'|'+myKey():''}
 function fcReady(){return S.isAdmin||!S.meta||_fcDone===fcId()||(Date.now()-(_fcT0||(_fcT0=Date.now())))>8000}
 function fcClosed(){const b=blAll(),o={};for(const k of Object.keys(b))if(k[0]==='!')o[k.slice(1)]=b[k];return o}
-function fcPush(){
-  if(!S.db||!S.session||S.isAdmin||!S.meta||_fcDone!==fcId())return;
-  const cl=fcClosed(),sig=JSON.stringify(cl);if(sig===_fcSig)return;_fcSig=sig;
-  S.db.doc('ops/fc~'+myKey()).set({inv:S.meta.inv,cl,t:Date.now(),name:S.name}).catch(()=>{_fcSig=''});
-}
 /* refaz a lista de cada prateleira a partir do que este coletor já enviou ao banco */
 function fcLists(){
   const me=myKey(),b=blAll(),sh=new Map(manualShelves().map(s=>[s.key,s])),cand=new Map();
@@ -4054,11 +4049,67 @@ async function fcInit(){
       if(!(b[sk]&&b[sk].length))continue;
       b['!'+sk]=ts;ch=true;
     }
-    _fcDone=id;_fcSig='';
+    _fcDone=id;_fcSig='';_fcPrev=fcClosed();
     if(ch)blSave();else fcPush();
     if(ch){try{const h=$('#bllist');if(h)h.dataset.sig='';paintBlind()}catch(e){}try{draw(true)}catch(e){}toast('Suas prateleiras foram recuperadas neste aparelho',4000)}
     try{pushPresence(true)}catch(e){}
   }finally{_fcBusy=false}
+}
+var _fcPrev=null,_fcPushing=false;
+async function fcPush(){
+  if(!S.db||!S.session||S.isAdmin||!S.meta||_fcDone!==fcId()||_fcPushing)return;
+  const cl=fcClosed(),sig=JSON.stringify(cl);if(sig===_fcSig)return;
+  _fcPushing=true;
+  try{
+    let srv={};
+    try{const s=await S.db.doc('ops/fc~'+myKey()).get();if(s.exists){const d=s.data();if(d&&d.inv===S.meta.inv&&d.cl)srv=d.cl}}catch(e){}
+    const prev=_fcPrev||{},out=Object.assign({},srv);
+    for(const sk of Object.keys(cl))if(!(sk in srv))out[sk]=cl[sk];
+    for(const sk of Object.keys(prev))if(!(sk in cl))delete out[sk];
+    await S.db.doc('ops/fc~'+myKey()).set({inv:S.meta.inv,cl:out,t:Date.now(),name:S.name});
+    _fcPrev=Object.assign({},cl);_fcSig=sig;
+  }catch(e){}
+  finally{_fcPushing=false;if(JSON.stringify(fcClosed())!==_fcSig)setTimeout(()=>{try{fcPush()}catch(e){}},1500)}
+}
+/* traz para este aparelho os fechamentos feitos em outro aparelho do mesmo coletor */
+async function fcPull(){
+  if(!S.db||!S.session||S.isAdmin||!S.meta||_fcDone!==fcId())return;
+  try{
+    const s=await S.db.doc('ops/fc~'+myKey()).get();if(!s.exists)return;const d=s.data();if(!d||d.inv!==S.meta.inv||!d.cl)return;
+    const b=blAll(),m=(S.assign&&S.assign.inv===S.meta.inv&&S.assign.map)||{},me=myKey();let ch=false;
+    if(fcLists())ch=true;
+    for(const [sk,ts] of Object.entries(d.cl)){
+      if(b['!'+sk])continue;if((Number(m['ro:'+sk+':'+me])||0)>Number(ts))continue;if(!(b[sk]&&b[sk].length))continue;
+      b['!'+sk]=ts;ch=true;
+    }
+    if(ch){_fcPrev=Object.assign({},_fcPrev||{},fcClosed());blSave();try{const h=$('#bllist');if(h)h.dataset.sig='';paintBlind()}catch(e){}try{draw(true)}catch(e){}try{pushPresence(true)}catch(e){}}
+  }catch(e){}
+}
+setInterval(()=>{try{fcPull()}catch(e){}},30000);
+/* gestor: situação de cada prateleira por coletor, lida do banco (não do último sinal do aparelho) */
+var _fcc={k:null,m:new Map()};
+function fcCounts(){
+  if(_fcc.k===S.items)return _fcc.m;
+  const m=new Map(),shn=new Map(manualShelves().map(s=>[s.key,s.name]));
+  for(const it of S.items.values()){
+    const seen=new Set();
+    for(const c of(it.cnt||[]))for(const p of(c.parts||[])){
+      if(!p.ks)continue;const k=slug(p.op||'');
+      for(const sk of Object.keys(p.ks)){
+        const nm=shn.get(sk);if(nm===undefined)continue;
+        if(it.grp){const sx=exKey(String(nm).trim());if(isGrpShelf(sx)&&exKey(it.grp)!==sx)continue}
+        const key=k+'|'+sk+'|'+it.id;if(seen.has(key))continue;seen.add(key);
+        m.set(k+'|'+sk,(m.get(k+'|'+sk)||0)+1);
+      }
+    }
+  }
+  _fcc.k=S.items;_fcc.m=m;return m;
+}
+function fcStat(k,sk){
+  const hb=((S.hb.get(k)||{}).bl||{})[sk]||{},n=Math.max(fcCounts().get(k+'|'+sk)||0,Number(hb.n)||0);
+  let c=hb.c?1:0;const f=S.fc&&S.fc.get(k);
+  if(f&&S.meta&&f.inv===S.meta.inv&&f.cl)c=f.cl[sk]?1:0;
+  return{n,c};
 }
 setInterval(()=>{try{fcInit()}catch(e){}},2000);
 
