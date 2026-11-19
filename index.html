@@ -270,7 +270,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 80</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 81</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -4518,7 +4518,7 @@ async function inSetAsg(g,v){
 function inRows(){const m=inMeta();if(!m)return[];const set=new Set(m.groups||[]);return inInvRows().filter(r=>set.has(r.g))}
 function inState(){const m=new Map();for(const d of S.extras.values())if(d&&d.kind==='insp'&&d.st!=='undo'&&(d.rd||1)===inRound())m.set(d.rid,d);return m}
 const inDone=s=>!!s&&(s.st==='ok'||s.st==='nf'||s.st==='mv');
-const inDoneR=(r,st)=>!!r.cnt||inDone(st.get(r.rid));
+const inDoneR=(r,st)=>!!r.cnt;
 function inVisible(){
   const rows=inMeta()?inRows():[];if(S.isAdmin)return rows;
   const a=inAsg(),k=myKey();return rows.filter(r=>{const w=a[r.g];return w==='*'||w===k});
@@ -4643,7 +4643,7 @@ function drawInspPage(host,ro){
     if(S.q.ing&&!gl.includes(S.q.ing))S.q.ing='';
     host.innerHTML=opNav('inspetor')+ro+'<div><h1 class="hero">🔍 Inspetor</h1><div class="sub">Vá até cada prateleira e confira se o produto está no endereço indicado. A quantidade é opcional. Se estiver em outro lugar, use Remanejar.</div></div><div id="inprog"></div>'+
       '<div class="row" style="gap:8px;flex-wrap:wrap">'+(gl.length>1?'<div class="field" style="flex:1;min-width:160px"><label for="ing">GRUPO</label><select id="ing" data-chg="ing"><option value="">Todos os meus grupos</option>'+gl.map(g=>'<option value="'+esc(g)+'"'+(S.q.ing===g?' selected':'')+'>'+esc(g)+'</option>').join('')+'</select></div>':'')+
-      '<div class="field" style="min-width:140px"><label for="inf">MOSTRAR</label><select id="inf" data-chg="inf"><option value="todos"'+((S.q.inf||'todos')==='todos'?' selected':'')+'>Todos</option><option value="pend"'+(S.q.inf==='pend'?' selected':'')+'>Faltam</option><option value="feitos"'+(S.q.inf==='feitos'?' selected':'')+'>Já contados/conferidos</option></select></div></div>'+
+      '<div class="field" style="min-width:140px"><label for="inf">MOSTRAR</label><select id="inf" data-chg="inf"><option value="pend"'+((S.q.inf||'pend')==='pend'?' selected':'')+'>Faltam</option><option value="todos"'+(S.q.inf==='todos'?' selected':'')+'>Todos</option><option value="feitos"'+(S.q.inf==='feitos'?' selected':'')+'>Já contados/conferidos</option></select></div></div>'+
       '<div class="field"><label for="inq">BUSCAR</label><input type="search" id="inq" data-inp="inq" autocomplete="off" placeholder="Código, descrição ou prateleira" value="'+esc(S.q.inq||'')+'"></div><datalist id="inl"></datalist><div id="inlist" class="stack"></div>';
   }
   inRender(false);
@@ -4654,7 +4654,7 @@ function inProg(rows,st){
 }
 function inRender(force){
   const host=$('#inlist');if(!host)return;
-  const rows=inVisible(),st=inState(),sel=S.q.ing||'',q=qn(S.q.inq||''),f=S.q.inf||'todos';
+  const rows=inVisible(),st=inState(),sel=S.q.ing||'',q=qn(S.q.inq||''),f=S.q.inf||'pend';
   inProg(rows,st);
   let l=rows.filter(r=>!sel||r.g===sel);
   if(q)l=l.filter(r=>qn(r.code+' '+r.desc+' '+r.shelf+' '+r.sec).includes(q));
@@ -4681,6 +4681,8 @@ function inCard(r,st,all){
   const oth=(all.by.get(k)||[]).filter(x=>x.rid!==r.rid),adds=all.adds.get(k)||[];
   const ri=esc(r.rid);
   let h='<div class="card" data-ir="'+ri+'" style="box-shadow:none"><div class="bd stack" style="gap:8px"><div><span class="tag c">'+esc(r.code)+'</span> <span class="tag s">'+esc(inAddr(r.shelf,r.sec))+'</span></div><div class="desc"><b>'+esc(r.desc)+'</b>'+(r.un?' <span class="sub">· '+esc(r.un)+'</span>':'')+'</div>';
+  if(r.cnt)h+='<div><span class="chip ok">✓ Contado na '+inRound()+'ª contagem</span></div>';
+  return h+'</div></div>';
   if(oth.length)h+='<div><span class="chip warn">⚠ também cadastrado em: '+oth.map(x=>esc(inAddr(x.shelf,x.sec))).join(' · ')+'</span></div>';
   if(adds.length)h+='<div class="row" style="gap:6px;flex-wrap:wrap">'+adds.map(a=>'<span class="chip ok">＋ '+esc(a.to)+(a.qty!=null?' · '+fmtN(a.qty,3):'')+'</span><button class="btn sm" data-act="inundo" data-r="'+esc(a.rid)+'" title="Desfazer este endereço novo">✕</button>').join('')+'</div>';
   if(!d&&r.cnt){h+='<div><span class="chip ok">✓ Contado na '+inRound()+'ª contagem</span></div>';return h+'</div></div>'}
