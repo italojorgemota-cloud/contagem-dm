@@ -134,7 +134,7 @@ input[type=text],input[type=number],input[type=search],select{border:1px solid v
 .it[data-n="3"]{border-left:5px solid var(--warn)}.it[data-n="4"]{border-left:5px solid var(--bad)}
 .wg{border:1px solid var(--line);border-radius:12px;margin-top:10px;overflow:hidden}.wg>.wh{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 12px;background:var(--surface2)}.wg .gr{border-top:1px solid var(--line);padding:8px 12px}.wg .gh,.wg>.wh{display:grid;grid-template-columns:minmax(0,1fr) 200px 200px;gap:10px 14px;align-items:center}.wg .gl{display:flex;gap:10px;align-items:center;flex-wrap:wrap;min-width:0}.wg .gh .field,.wg>.wh .field{width:100%}.wg .gh select,.wg>.wh select{width:100%}@media (max-width:760px){.wg .gh,.wg>.wh{grid-template-columns:1fr 1fr}.wg .gl,.wg>.wh>.nm{grid-column:1/-1}}.wg .nm{font-weight:800;flex:1;min-width:160px}.wg .tg{appearance:none;border:0;background:none;cursor:pointer;font-size:14px;padding:4px 6px}.wg table{margin-top:6px}.wg select{min-height:32px;padding:4px 8px;font-size:12.5px}.warnad{color:var(--warn);font-weight:700;font-size:12px}.sel-bar{position:sticky;top:calc(env(safe-area-inset-top,0px) + 100px);z-index:6}
 .glist{display:flex;flex-direction:column;max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:10px}.grow-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px}.grow-item:last-child{border-bottom:0}.grow-item:hover{background:var(--surface2)}.grow-item .gn{flex:1;min-width:0;overflow-wrap:anywhere}.grow-item input{width:18px;height:18px;flex:none}
-.rtile{display:flex;flex-direction:column;gap:2px;padding:10px 14px;border-radius:12px;background:var(--surface2);min-width:110px}.rtile b{font-size:22px;font-family:var(--f)}.rtile.n3{background:var(--warn-soft)}.rtile.n4,.rtile.sem{background:var(--bad-soft)}
+.rtile.lk{border:0;text-align:left;cursor:pointer;font:inherit;color:inherit;transition:transform .12s,box-shadow .12s}.rtile.lk:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.14)}.rtile.lk:active{transform:none}.rtile .go{font-style:normal;font-size:11px;opacity:.6;margin-top:2px}.rtile{display:flex;flex-direction:column;gap:2px;padding:10px 14px;border-radius:12px;background:var(--surface2);min-width:110px}.rtile b{font-size:22px;font-family:var(--f)}.rtile.n3{background:var(--warn-soft)}.rtile.n4,.rtile.sem{background:var(--bad-soft)}
 .it .desc{font-weight:800;line-height:1.25;margin-top:3px}
 .it .in{display:flex;align-items:center;gap:6px}
 .it .un{font-size:11px;font-weight:700;color:var(--muted);width:26px}
@@ -270,7 +270,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 92</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 96</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -823,7 +823,7 @@ function subscribe(){
   subs.push(db.collection('finds').onSnapshot(q=>{S.finds=new Map(q.docs.map(d=>[d.id,d.data()]));scheduleRebuild()},err));
   subs.push(db.doc('gstat/current').onSnapshot(s=>{S.gstat=s.exists?s.data():null;scheduleRebuild()},err));
   subs.push(db.doc('third/current').onSnapshot(s=>{S.third=s.exists?s.data():null;scheduleRebuild()},err));
-  subs.push(db.collection('extras').onSnapshot(q=>{S.extras=new Map(q.docs.map(d=>[d.id,d.data()]));scheduleRebuild()},err));
+  subs.push(db.collection('extras').onSnapshot(q=>{S.extras=new Map(q.docs.map(d=>[d.id,d.data()]));scheduleRebuild();try{rrNotify()}catch(e){}},err));
   subs.push(db.collection('users').onSnapshot(q=>{S.users=new Map(q.docs.filter(d=>!(d.data()||{}).gone).map(d=>[d.id,d.data()]));S.ops=new Map([...S.users].filter(([,u])=>u.role==='op').map(([k,u])=>[k,{key:k,name:u.name}]));S.usersLoaded=true;validateSession();scheduleRebuild();draw()},err));
   subs.push(db.collection('addrtask').onSnapshot(q=>{S.atask=new Map(q.docs.map(d=>[d.id,d.data()]));scheduleRebuild()},err));
   subs.push(db.collection('addrnew').onSnapshot(q=>{S.anew=new Map(q.docs.map(d=>[d.id,d.data()]));if(S.canEdit)rebuildAddr();try{adListRefresh()}catch(e){}scheduleRebuild()},err));
@@ -1187,7 +1187,7 @@ function paintRow(el,it){
     $('.q',el).textContent='✓ '+fmtQ(m.q)+(it.un?' '+it.un:'');
     $('.pend',el).textContent=m.s===1?'enviado':'na fila de envio';
     $('.pend',el).className='chip pend '+(m.s===1?'ok':'warn');
-    $('.lnk:not(.nlb):not(.nlu)',el).hidden=it.cnt.some(c=>c.dev!==S.dev);
+    $('.lnk:not(.nlb):not(.nlu)',el).hidden=it.cnt.some(c=>c.dev!==S.dev)&&!rcOpen(it);
   }
 }
 let wl=null;
@@ -1293,10 +1293,10 @@ function vDashboard(){
     kpi('Divergências',fmtN(div),fmtP(pct(div,st.counted))+' dos contados','r')+
     kpi('Acurácia',fmtP(st.acc1),'1ª contagem que bateu com o ERP'+(st.accFinal!=null?' · final '+fmtP(st.accFinal):''),'g')+
     kpi('Valor divergente',fmtR(st.valDiv),'estimado pelas diferenças','a')+'</div>';
-  const tl=(cls,n,l,x)=>'<div class="rtile '+cls+'"><b>'+n+'</b><span>'+l+'</span>'+'<span class="sub">'+(x||'&nbsp;')+'</span></div>';
+  const tl=(cls,n,l,x,go)=>'<button type="button" class="rtile lk '+cls+'" data-act="rtgo" data-v="'+go+'" title="Abrir: '+l+'"><b>'+n+'</b><span>'+l+'</span>'+'<span class="sub">'+(x||'&nbsp;')+'</span><i class="go">abrir ›</i></button>';
   h+='<div class="card"><div class="hd"><h2>🔁 Fila de contagens</h2><span class="sub">itens aguardando cada rodada</span></div><div class="bd"><div class="row" style="gap:10px;align-items:stretch">'+
-    tl('n2',st.pend,'Aguardam 1ª contagem')+tl('n2',st.rec2,'Aguardam 2ª contagem')+tl('n3',st.rec3,'Aguardam 3ª contagem',st.rec3?'(1ª ≠ 2ª)':'')+tl('n4',st.rec4,'Aguardam 4ª contagem')+tl('sem',st.sem,'Sem consenso','decisão do supervisor')+
-    (st.unasg?tl('n3',st.unasg,'Sem responsável','3ª/4ª a atribuir'):'')+'</div></div></div>';
+    tl('n2',st.pend,'Aguardam 1ª contagem','','r1')+tl('n2',st.rec2,'Aguardam 2ª contagem','','r2')+tl('n3',st.rec3,'Aguardam 3ª contagem',st.rec3?'(1ª ≠ 2ª)':'','rec3')+tl('n4',st.rec4,'Aguardam 4ª contagem','','rec4')+tl('sem',st.sem,'Sem consenso','decisão do supervisor','sem')+
+    (st.unasg?tl('n3',st.unasg,'Sem responsável','3ª/4ª a atribuir','unasg'):'')+'</div></div></div>';
   if([...S.items.values()].some(it=>it.grp)){
     const gm=new Map();
     for(const it of S.items.values()){const g=it.grp||'(Sem grupo)';let o=gm.get(g);if(!o){o={n:g,tot:0,cont:0,closed:0,pend:0,busca:0,sh:new Map()};gm.set(g,o)}o.tot++;{let q=o.sh.get(it.sk);if(!q){q={key:it.sk,name:it.shelf,total:0,counted:0,closed:0,div:0,rec:0};o.sh.set(it.sk,q)}q.total++;if(it.state!=='pend'){q.counted++;if(it.state==='closed'){q.closed++;if(it.div)q.div++}else q.rec++}}if(it.state==='pend'){o.pend++;if(it.sreq&&(!it.find||it.find.t<it.sreq.t))o.busca++}else o.cont++;if(it.state==='closed')o.closed++}
@@ -3056,21 +3056,43 @@ async function relGrp(){
   if(!Object.keys(map).length){toast('Todos os grupos já estão na lista');return}
   try{await writeDoc(S.db.doc('assign/current'),{inv:S.meta.inv,map});toast(n+' grupo(s) adicionado(s)')}catch(e){toast('Não foi possível salvar')}
 }
+
+/* ===== recolher/expandir cards e reabrir 3ª/4ª contagem ===== */
+function relColGet(){if(!S.relCol){try{S.relCol=JSON.parse(store.get('ci:relcol')||'{}')||{}}catch(e){S.relCol={}}}return S.relCol}
+const relColBtn=v=>'<button class="btn sm" type="button" data-act="relcol" data-v="'+v+'" aria-expanded="'+(!relColGet()[v])+'" style="margin-left:auto">'+(relColGet()[v]?'▸ Expandir':'▾ Recolher')+'</button>';
+const relColHid=v=>relColGet()[v]?' hidden':'';
+function rcOpen(it){
+  const a=(S.assign&&S.meta&&S.assign.inv===S.meta.inv&&S.assign.map)||{},m=S.local.map[it.id];
+  const ro=Number(a['rc:'+it.id+':'+myKey()])||0;
+  return !!(ro&&m&&m.q!=null&&ro>(Number(m.t)||0));
+}
+function rc34Body(){
+  const q=String(S.rc34q||'').trim().toLowerCase(),a=(S.assign&&S.meta&&S.assign.inv===S.meta.inv&&S.assign.map)||{},rows=[];
+  for(const it of S.items.values())(it.cnt||[]).forEach((c,i)=>{if(i>=2&&!c.parts)rows.push({it,c,n:i+1})});
+  rows.sort((x,y)=>(y.c.t||0)-(x.c.t||0));
+  const L=rows.filter(r=>!q||(String(r.it.code)+' '+r.it.desc+' '+(r.c.op||'')).toLowerCase().includes(q)).slice(0,40);
+  if(!L.length)return'<div class="empty">'+(q?'Nenhuma recontagem encontrada.':'Nenhuma 3ª ou 4ª contagem enviada ainda.')+'</div>';
+  return'<div class="scroll"><table class="tbl"><thead><tr><th>Produto</th><th>Rodada</th><th>Coletor</th><th class="r">Qtd</th><th>Enviada</th><th></th></tr></thead><tbody>'+L.map(r=>{
+    const ro=Number(a['rc:'+r.it.id+':'+r.c.ok])||0,wait=ro>(r.c.t||0);
+    return'<tr><td class="wc"><span class="mono sub">'+esc(r.it.code)+'</span><br>'+esc(r.it.desc)+'</td><td>'+r.n+'ª</td><td>'+esc(r.c.op||'')+'</td><td class="r num">'+fmtQ(r.c.q)+'</td><td class="sub">'+esc(fmtDT(r.c.t))+'</td><td>'+(wait?'<span class="chip warn">aguardando o coletor</span>':'<button class="btn sm" data-act="rc34reopen" data-id="'+esc(r.it.id)+'" data-k="'+esc(r.c.ok||'')+'">↺ reabrir</button>')+'</td></tr>'}).join('')+'</tbody></table></div>';
+}
+document.addEventListener('input',e=>{const t=e.target;if(t&&t.id==='rc34q'){S.rc34q=t.value;const b=document.getElementById('rc34-body');if(b)b.innerHTML=rc34Body()}});
 function relHtml(ops){
   const n1=manualShelves().filter(s=>!s.r2).map(s=>'<option value="'+esc(s.name)+'">').join('');
-  return pauseCard()+'<div class="card"><div class="hd"><h2>📍 Liberar grupos para a equipe (1ª contagem)</h2></div><div class="bd stack">'+
+  return pauseCard()+'<div class="card" id="rel1-card" style="scroll-margin-top:96px"><div class="hd"><h2>📍 Liberar grupos para a equipe (1ª contagem)</h2>'+relColBtn(1)+'</div><div class="bd stack" id="relbd1"'+relColHid(1)+'>'+
     '<div class="sub">Os grupos do inventário já entram aqui sozinhos após a importação (ex.: 7702 — ABRASIVOS); eles também entram na lista da 2ª contagem. Se preferir, digite um nome e adicione manualmente. Depois marque quem vai contar. A contagem é às cegas: o colaborador digita o código de cada produto, o app mostra o endereço do cadastro e ele confirma. Mais de uma pessoa por prateleira: cada um conta o que encontrar.</div>'+
     '<div class="row" style="gap:8px;flex-wrap:nowrap"><input type="text" id="relname" autocomplete="off" placeholder="Nome do grupo, ex.: 7702 — ABRASIVOS" style="flex:1"><button class="btn primary" data-act="reladd" data-r="1">Adicionar</button></div>'+
     '<div class="row"><button class="btn sm" data-act="relgrp">⇣ Trazer os grupos do inventário</button><span class="sub">Use se algum grupo não apareceu ou se você removeu e quer de volta.</span></div>'+
     '<div id="rel-body">'+relBody(ops,false)+'</div></div></div>'+
-    '<div class="card" id="rel2-card" style="scroll-margin-top:96px"><div class="hd"><h2>📍 Liberar grupos para a equipe (2ª contagem)</h2></div><div class="bd stack">'+
+    '<div class="card" id="rel2-card" style="scroll-margin-top:96px"><div class="hd"><h2>📍 Liberar grupos para a equipe (2ª contagem)</h2>'+relColBtn(2)+'</div><div class="bd stack" id="relbd2"'+relColHid(2)+'>'+
     '<div class="sub">Mesmo formato da 1ª: libere o grupo para <b>outra equipe</b>, que conta de novo às cegas. Quem fez a 1ª contagem de um produto não consegue fazer a 2ª dele. A 3ª e a 4ª continuam por item divergente, na aba Divergências.</div>'+
     '<div class="row" style="gap:8px;flex-wrap:nowrap"><input type="text" id="relname2" list="relnames2" autocomplete="off" placeholder="Nome do grupo, ex.: 7702 — ABRASIVOS" style="flex:1"><datalist id="relnames2">'+n1+'</datalist><button class="btn primary" data-act="reladd" data-r="2">Adicionar</button></div>'+
     '<div class="row"><button class="btn sm" data-act="relsync2">⇣ Trazer todos os grupos da 1ª contagem</button><span class="sub">Os grupos da 1ª já entram aqui sozinhos, sem equipe. Basta marcar quem vai contar.</span></div>'+
     '<div id="rel-body2">'+relBody(ops,true)+'</div></div></div>'+
     '<div class="card"><div class="hd"><h2>↺ Prateleiras fechadas pelos coletores</h2></div><div class="bd stack">'+
     '<div class="sub">Quando o coletor fecha a prateleira, ela fica travada para ele. Se precisar corrigir algo, reabra aqui: ele volta a poder alterar as quantidades e fecha de novo. A 1ª e a 2ª contagem são independentes: reabrir uma não mexe na outra.</div>'+
-    '<div id="rel-closed">'+relClosedBody()+'</div></div></div>';
+    '<div id="rel-closed">'+relClosedBody()+'</div></div></div>'+
+    '<div class="card" id="rc34-card"><div class="hd"><h2>↺ 3ª e 4ª contagens enviadas</h2>'+relColBtn(3)+'</div><div class="bd stack" id="relbd3"'+relColHid(3)+'><div class="sub">Se o coletor enviou uma recontagem errada, reabra aqui: ele volta a poder alterar a quantidade daquele item e envia de novo. Funciona no mesmo aparelho em que ele enviou. Mostra as 40 mais recentes; use a busca para achar outro item.</div><input type="search" id="rc34q" class="search" placeholder="Filtrar por código, produto ou coletor" autocomplete="off" value="'+esc(S.rc34q||'')+'"><div id="rc34-body">'+rc34Body()+'</div></div></div>';
 }
 async function relAdd(r){
   const r2=String(r)==='2',i=$(r2?'#relname2':'#relname');const name=(i&&i.value||'').trim().slice(0,60);if(!name){toast('Digite o nome do grupo');return}
@@ -3109,10 +3131,11 @@ async function setTeam(sk,k,on){
   const cur=teamOf(sk).filter(x=>x!=='*'),s=new Set(cur);
   if(on)s.add(k);else s.delete(k);
   await setAssignKey('s:'+sk,[...s].join('|'));
+  try{await inSyncTeam(sk,[...s])}catch(e){console.error(e)}
 }
 
 let _relLast='';
-function relRefresh(){const h=$('#rel-body'),h2=$('#rel-body2');if(!h||!S.meta)return;try{relAutoFix()}catch(e){}const tb=$('#team-body');if(tb){const tt=teamBody();if(tb.innerHTML!==tt)tb.innerHTML=tt}const pb=$('#pause-body');if(pb){const pt=pauseBody();if(pb.innerHTML!==pt)pb.innerHTML=pt}const a=document.activeElement;if(a&&a.closest&&(a.closest('#rel-body')||a.closest('#rel-body2')))return;const ops=knownOps(),n=relBody(ops,false),n2=relBody(ops,true),n3=relClosedBody(),h3=$('#rel-closed');if(n+'§'+n2+'§'+n3!==_relLast){_relLast=n+'§'+n2+'§'+n3;h.innerHTML=n;if(h2)h2.innerHTML=n2;if(h3)h3.innerHTML=n3}}
+function relRefresh(){const h=$('#rel-body'),h2=$('#rel-body2');if(!h||!S.meta)return;try{relAutoFix()}catch(e){}const tb=$('#team-body');if(tb){const tt=teamBody();if(tb.innerHTML!==tt)tb.innerHTML=tt}const pb=$('#pause-body');if(pb){const pt=pauseBody();if(pb.innerHTML!==pt)pb.innerHTML=pt}const a=document.activeElement;if(a&&a.closest&&(a.closest('#rel-body')||a.closest('#rel-body2')))return;{const rb=$('#rc34-body');if(rb&&!(a&&a.id==='rc34q')){const t=rc34Body();if(rb.innerHTML!==t)rb.innerHTML=t}}const ops=knownOps(),n=relBody(ops,false),n2=relBody(ops,true),n3=relClosedBody(),h3=$('#rel-closed');if(n+'§'+n2+'§'+n3!==_relLast){_relLast=n+'§'+n2+'§'+n3;h.innerHTML=n;if(h2)h2.innerHTML=n2;if(h3)h3.innerHTML=n3}}
 
 const adm={};
 function defAddr(it){if(!it)return'';for(let i=it.cnt.length-1;i>=0;i--)if(it.cnt[i].a)return it.cnt[i].a;return addrsFor(it)[0]||''}
@@ -3919,6 +3942,25 @@ function ntShow(id,html){
   d.innerHTML='<div>'+html+'</div><div style="display:flex;gap:8px;margin-top:8px"><button class="btn sm primary" data-act="ntgo">Ver prateleiras</button><button class="btn sm" data-act="ntx">Dispensar</button></div>';
   box.appendChild(d);
 }
+
+/* ===== lembrar a posição da rolagem de cada tela ===== */
+function scrollKey(){return S.isAdmin?'T:'+S.tab:'P:'+((S.opView&&S.opView.page)||'')+'|'+((S.opView&&S.opView.kind)||'')+'|'+((S.opView&&S.opView.shelf)||'')}
+function scrollSave(){try{(S.scrollMem=S.scrollMem||new Map()).set(scrollKey(),window.scrollY)}catch(e){}}
+function scrollRestore(){try{const y=(S.scrollMem&&S.scrollMem.get(scrollKey()))||0,go=()=>window.scrollTo(0,y);go();requestAnimationFrame(go);setTimeout(go,120);setTimeout(go,400)}catch(e){}}
+/* ===== aviso sonoro quando o coletor pede para reabrir uma prateleira ===== */
+var _rrSeen=null,_rrInv=null,_rrT0=0;
+function rrNotify(){
+  if(!S.isAdmin||!S.meta||!S.extras)return;
+  const inv=S.meta.inv,key='ci:rrn:'+inv;
+  if(_rrSeen===null||_rrInv!==inv){try{_rrSeen=new Set(JSON.parse(localStorage.getItem(key)||'[]'))}catch(e){_rrSeen=new Set()}_rrInv=inv;_rrT0=Date.now()}
+  const open=rrOpenList(),save=()=>{try{localStorage.setItem(key,JSON.stringify([..._rrSeen].slice(-400)))}catch(e){}};
+  if(Date.now()-_rrT0<8000){let ch=false;for(const d of open)if(!_rrSeen.has(d.id)){_rrSeen.add(d.id);ch=true}if(ch)save();return}
+  const fresh=open.filter(d=>!_rrSeen.has(d.id));if(!fresh.length)return;
+  fresh.forEach(d=>_rrSeen.add(d.id));save();
+  for(const d of fresh)ntShow('rr'+d.id,'🔓 <b>'+esc(d.name||'Coletor')+'</b> pediu para reabrir a prateleira <b>'+esc(d.shelf||'')+'</b>.<br><span class="sub">Motivo: “'+esc(d.reason||'')+'”</span>');
+  ntBeep();
+  toast('🔓 Pedido de reabertura de prateleira',5000);
+}
 function blNotify(){
   if(!S.isAdmin||!S.meta)return;
   let G;try{G=relGroups()}catch(e){return}
@@ -4713,13 +4755,31 @@ function inPairs(){
   return m;
 }
 const inProducts=()=>null;
-async function inPublish(groups,round,on){
+async function inPublish(groups,round,on,quiet){
   const raw=inRaw();if(on===undefined)on=groups.length>0&&!(raw&&raw.on===false&&(raw.groups||[]).length>0);
   try{
     for(const id of [...S.atask.keys()].filter(k=>/^i\d+$/.test(k)))await S.db.doc('addrtask/'+id).delete();
     await S.db.doc('addrtask/imeta').set({on,t:Date.now(),groups,by:S.name,src:'inv',round:round||inRound()});
-    toast(!on?'Inspetor desligado':'Inspetor ligado: '+groups.length+(groups.length===1?' grupo':' grupos'),3000);
+    if(!quiet)toast(!on?'Inspetor desligado':'Inspetor ligado: '+groups.length+(groups.length===1?' grupo':' grupos'),3000);
   }catch(e){console.error(e);toast('Não foi possível salvar ('+((e&&e.code)||'erro')+')',4000)}
+}
+
+/* ao escolher a equipe da contagem (1ª ou 2ª), o Inspetor libera o grupo para essa equipe */
+async function inSyncTeam(sk,team){
+  if(!S.db||!S.meta||!S.items||!S.items.size)return;
+  const sh=manualShelves().find(x=>x.key===sk);if(!sh)return;
+  const ex=exKey(String(sh.name||'').trim()),g=(inGroups().find(x=>exKey(x.g)===ex)||{}).g;
+  if(!g)return;
+  const raw=inRaw(),groups=new Set((raw&&raw.groups)||[]),map=Object.assign({},inAsg());
+  const had=groups.has(g);
+  if(team.length){groups.add(g);map[g]=team.join('|')}else delete map[g];
+  try{await S.db.doc('addrtask/iasg').set({map,t:Date.now()})}catch(e){console.error(e)}
+  if(groups.size!==(had?groups.size:groups.size-1)||!had)await inPublish([...groups],undefined,undefined,true);
+}
+function inAdOpts(v){
+  let o=adOpts(v);
+  if(v&&String(v).includes('|')){const nm=String(v).split('|').map(nameOfKey).join(' + ');o+='<option value="'+esc(v)+'" selected>'+esc(nm)+' (equipe)</option>'}
+  return o;
 }
 async function inToggleGroup(g,on){
   const m=inRaw(),cur=new Set((m&&m.groups)||[]);
@@ -4739,7 +4799,7 @@ const inDone=s=>!!s&&(s.st==='ok'||s.st==='nf'||s.st==='mv');
 const inDoneR=(r,st)=>!!r.cnt;
 function inVisible(){
   const rows=inMeta()?inRows():[];if(S.isAdmin)return rows;
-  const a=inAsg(),k=myKey();return rows.filter(r=>{const w=a[r.g];return w==='*'||w===k});
+  const a=inAsg(),k=myKey();return rows.filter(r=>{const w=a[r.g];return w==='*'||String(w||'').split('|').includes(k)});
 }
 function inStats(rows,st){
   const o={tot:rows.length,done:0,cn:0,ok:0,nf:0,mv:0,add:0};
@@ -4804,7 +4864,7 @@ function vInspetor(){
   const gm=new Map(gs.map(x=>[x.g,x])),vis=[...rel].sort((x,y)=>x.localeCompare(y,'pt',{numeric:true})).map(g=>gm.get(g)||{g,n:0,na:0,sh:new Set()});
   h+='<div class="card"><div class="hd"><h2>Grupos a conferir</h2><span class="sub">'+(vis.length?fmtN(vis.length)+(vis.length===1?' grupo':' grupos'):'nenhum grupo adicionado')+'</span></div><div class="bd stack"><div class="row" style="gap:8px;flex-wrap:nowrap"><input type="text" id="inadd" list="ingl" autocomplete="off" placeholder="Número ou nome do grupo, ex.: 7705 (vários: separe com ;)" style="flex:1" aria-label="Adicionar grupo"><button class="btn primary" data-act="inadd">Adicionar</button></div><datalist id="ingl">'+gs.filter(x=>!rel.has(x.g)).map(x=>'<option value="'+esc(x.g)+'">').join('')+'</datalist>'+(vis.length?'':'<div class="empty">Clique em “Inspetor desligado — ligar” para liberar todos os grupos do inventário, ou digite acima só os que quer conferir.</div>')+(vis.length?'<div class="scroll"><table class="tbl"><thead><tr><th>Grupo</th><th class="r">Produtos</th><th class="r">Endereços</th><th class="r">Prateleiras</th><th>Responsável</th><th style="min-width:140px">Andamento</th><th></th></tr></thead><tbody>'+
     vis.map(x=>{const on=rel.has(x.g),b=byG.get(x.g)||{tot:0,done:0};
-      return'<tr><td><b>'+esc(x.g)+'</b></td><td class="r num">'+fmtN(x.n)+'</td><td class="r num">'+fmtN(x.na)+'</td><td class="r num">'+fmtN(x.sh.size)+'</td><td>'+(on?'<select data-chg="inag" data-g="'+esc(x.g)+'" aria-label="Responsável pelo grupo '+esc(x.g)+'">'+adOpts(a[x.g]||'')+'</select>':'<span class="sub">—</span>')+'</td><td>'+(on?'<div class="prog split"><b style="width:'+inPct(b.done,b.tot)+'%;background:var(--ok)"></b></div><span class="sub">'+fmtN(b.done)+' de '+fmtN(b.tot)+'</span>':'<span class="sub">não liberado</span>')+'</td><td>'+(on?'<button class="btn sm" data-act="inret" data-g="'+esc(x.g)+'">Retirar</button>':'<button class="btn sm primary" data-act="inlib" data-g="'+esc(x.g)+'">Liberar</button>')+'</td></tr>'}).join('')+'</tbody></table></div>':'')+'</div></div>';
+      return'<tr><td><b>'+esc(x.g)+'</b></td><td class="r num">'+fmtN(x.n)+'</td><td class="r num">'+fmtN(x.na)+'</td><td class="r num">'+fmtN(x.sh.size)+'</td><td>'+(on?'<select data-chg="inag" data-g="'+esc(x.g)+'" aria-label="Responsável pelo grupo '+esc(x.g)+'">'+inAdOpts(a[x.g]||'')+'</select>':'<span class="sub">—</span>')+'</td><td>'+(on?'<div class="prog split"><b style="width:'+inPct(b.done,b.tot)+'%;background:var(--ok)"></b></div><span class="sub">'+fmtN(b.done)+' de '+fmtN(b.tot)+'</span>':'<span class="sub">não liberado</span>')+'</td><td>'+(on?'<button class="btn sm" data-act="inret" data-g="'+esc(x.g)+'">Retirar</button>':'<button class="btn sm primary" data-act="inlib" data-g="'+esc(x.g)+'">Liberar</button>')+'</td></tr>'}).join('')+'</tbody></table></div>':'')+'</div></div>';
   return h;
 }
 
@@ -5233,6 +5293,11 @@ const ACT={
     const n=await setThird(map);if(n)toast(n+' liberado(s) para qualquer operador elegível',3500);
   },
   rnd(b){S.rf=b.dataset.v||'';lastListKey='';draw(true)},
+  rtgo(b){const v=b.dataset.v;
+    if(v==='r1')goHere('locais','#rel1-card');
+    else if(v==='r2')goHere('locais','#rel2-card');
+    else if(v==='unasg')goHere('divergencias','#third-card',{filter:'todas'});
+    else{S.tab='divergencias';S.filter=v;mainMode='';draw(true);window.scrollTo(0,0)}},
   gofalta(){goHere('locais','#rel2-card')},
   gothird(){goHere('divergencias','#third-card',{filter:'todas'})},
   gorr(){goHere('locais','#rr-box')},
@@ -5291,7 +5356,7 @@ const ACT={
   async xrm(b){if(!confirmOnce('xrm'+b.dataset.id)){toast('Toque em Excluir de novo para confirmar');return}try{await S.db.doc('extras/'+b.dataset.id).delete();toast('Cadastro excluído')}catch(e){toast('Não foi possível excluir')}},
   'xl-x':exportExtras,'ctrl-xlsx':exportCtrlXlsx,'ctrl-pdf':exportCtrlPdf,
   eye(b){const i=b.parentNode.querySelector('input');const on=i.type==='password';i.type=on?'text':'password';b.setAttribute('aria-pressed',on);b.setAttribute('aria-label',on?'Ocultar senha':'Mostrar senha');i.focus()},
-  tab(b){S.tab=b.dataset.v;mainMode='';draw(true);window.scrollTo(0,0)},
+  tab(b){scrollSave();S.tab=b.dataset.v;mainMode='';draw(true);scrollRestore()},
   sair(){if((pendingList().length||draftList().length)&&!confirmOnce('sair')){toast('Há contagens sem enviar. Toque em sair de novo para sair mesmo assim.',3500);return}logout()},
   pf(b){loginRole=b.dataset.v;$$('.pf').forEach(x=>x.setAttribute('aria-pressed',String(x===b)))},
   async login(b){
@@ -5321,7 +5386,7 @@ const ACT={
   },
   async resetpw(b){const u=S.users.get(b.dataset.k);if(!u||!u.email)return;try{await window.FB.resetEmail(u.email);toast('E-mail de nova senha enviado para '+u.email,5000)}catch(e){toast('Não foi possível enviar o e-mail',3500)}},
   async rmuser(b){if(!confirmOnce('rm'+b.dataset.k)){toast('Toque em Excluir de novo para confirmar');return}const u=S.users.get(b.dataset.k)||{};try{await window.FB.removeAccount(b.dataset.k,u.uid);toast('Acesso excluído')}catch(e){toast('Não foi possível excluir')}},
-  opage(b){const v=b.dataset.v;S.opView=v==='contagem'?{page:'contagem',kind:S.opView.kind||'shelf',shelf:S.opView.shelf||null}:{page:v,kind:'shelf',shelf:null};opMode='';lastListKey='';draw(true);window.scrollTo(0,0);pushPresence()},
+  opage(b){scrollSave();const v=b.dataset.v;S.opView=v==='contagem'?{page:'contagem',kind:S.opView.kind||'shelf',shelf:S.opView.shelf||null}:{page:v,kind:'shelf',shelf:null};opMode='';lastListKey='';draw(true);scrollRestore();pushPresence()},
   cpsave(){cpSave()},
   cpcancel(){S_cp=null;draw(true)},
   cpoff(){cpOff()},
@@ -5361,6 +5426,8 @@ const ACT={
   sboff(){sbOff()},
   relgrp(){relGrp()},
   absync(){abSync(true)},
+  relcol(b){const v=b.dataset.v,c=relColGet();c[v]=!c[v];try{store.set('ci:relcol',JSON.stringify(c))}catch(e){}const body=document.getElementById('relbd'+v);if(body)body.hidden=!!c[v];b.textContent=c[v]?'▸ Expandir':'▾ Recolher';b.setAttribute('aria-expanded',String(!c[v]))},
+  async rc34reopen(b){const id=b.dataset.id,k=b.dataset.k;if(!k)return;if(!confirmOnce('rc34'+id+k)){toast('Toque de novo para reabrir esta recontagem para '+nameOfKey(k),4000);return}await setAssignKey('rc:'+id+':'+k,Date.now());const bd=document.getElementById('rc34-body');if(bd)bd.innerHTML=rc34Body();toast('Recontagem reaberta para '+nameOfKey(k))},
   relreopen(b){relReopen(b.dataset.sk,b.dataset.k)},
   relrm(b){relRm(b.dataset.sk)},
   reledit(b){relEdit(b.dataset.sk)},
@@ -5392,8 +5459,8 @@ const ACT={
   async brkdel(b){const l=[...((S.brk&&S.brk.items)||[])];l.splice(+b.dataset.i,1);await brkSave(l)},
   async pausetoggle(){const was=pauseOn();if(!confirmOnce('pausetg')){toast(was?'Toque de novo para retomar a contagem':'Toque de novo para pausar a contagem de todos',4000);return}if(was){const a=(S.assign&&S.assign.map)||{},p=Number(a.pause)||0,k='pm:'+clkYmd();if(p)await setAssignKey(k,(Number(a[k])||0)+Math.max(0,Date.now()-p))}await setAssignKey('pause',was?'':Date.now());const h=$('#pause-body');if(h)h.innerHTML=pauseBody();toast(was?'Contagem retomada':'Contagem pausada')},
   addinv(){addToInv()},
-  openshelf(b){S.opView={page:'contagem',kind:'shelf',shelf:b.dataset.sk};S.q.op='';draw(true);window.scrollTo(0,0)},
-  openrecount(){S.rf='';S.rg='';S.opView={page:'contagem',kind:'recount',shelf:null};S.q.op='';draw(true);window.scrollTo(0,0)},
+  openshelf(b){scrollSave();S.opView={page:'contagem',kind:'shelf',shelf:b.dataset.sk};S.q.op='';draw(true);window.scrollTo(0,0)},
+  openrecount(){scrollSave();S.rf='';S.rg='';S.opView={page:'contagem',kind:'recount',shelf:null};S.q.op='';draw(true);window.scrollTo(0,0)},
   send(){editing.clear();sendDrafts()},
   clear(){if(!confirmOnce('clr')){toast('Toque em Limpar de novo para descartar os itens não enviados',3500);return}clearDrafts()},
   itf(b){S.itf=b.dataset.v;draw(true)},
