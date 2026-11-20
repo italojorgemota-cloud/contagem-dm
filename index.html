@@ -270,7 +270,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 91</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 92</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -3988,9 +3988,15 @@ function pauseSync(){
 }
 setInterval(()=>{try{pauseSync()}catch(e){}},1500);
 /* ===== a prateleira acompanha o coletor (celular -> tablet) e só aceita produtos do próprio grupo ===== */
+var _msn={a:null,inv:null,m:new Map()};
+function msName(sk){
+  const a=S.assign,inv=S.meta&&S.meta.inv;
+  if(_msn.a!==a||_msn.inv!==inv){_msn={a,inv,m:new Map()};const mp=(a&&S.meta&&a.inv===inv&&a.map)||{};for(const k of Object.keys(mp))if(k.startsWith('sn:')&&mp[k])_msn.m.set(k.slice(3),String(mp[k]))}
+  return _msn.m.get(sk);
+}
 var _sgc={k:null,m:new Map()};
 function isGrpShelf(sx){
-  if(_sgc.k!==S.items){_sgc.k=S.items;_sgc.m=new Map()}
+  const sig=(S.meta&&S.meta.inv)+'|'+S.items.size;if(_sgc.k!==sig){_sgc.k=sig;_sgc.m=new Map()}
   let v=_sgc.m.get(sx);
   if(v===undefined){v=false;for(const o of S.items.values()){if(o.xo||!o.grp)continue;if(exKey(o.grp)===sx){v=true;break}}_sgc.m.set(sx,v)}
   return v;
@@ -3998,9 +4004,9 @@ function isGrpShelf(sx){
 /* o produto pertence ao grupo desta prateleira? (prateleira que não é grupo aceita tudo) */
 function blGrpOk(sk,e){
   try{
-    const sh=manualShelves().find(s=>s.key===sk);if(!sh)return true;
+    const nm=msName(sk);if(nm===undefined)return true;
     const it=blItem(e.id);if(!it||!it.grp)return true;
-    const sx=exKey(String(sh.name||'').trim());
+    const sx=exKey(String(nm).trim());
     return !isGrpShelf(sx)||exKey(it.grp)===sx;
   }catch(x){return true}
 }
@@ -4183,12 +4189,14 @@ async function brkSave(items){
 /* ===== bloqueio: coletor só conta produtos dos grupos designados a ele ===== */
 function blAsgLock(it){
   if(S.isAdmin||!it||!S.meta)return null;
-  const a=(S.assign&&S.assign.inv===S.meta.inv&&S.assign.map)||{},me=myKey(),n=(it.cnt||[]).length;
+  const me=myKey(),sh=(typeof blShelf==='function')?blShelf():null;
+  if(sh&&inTeam(sh.key,me))return null;   /* quem está na equipe desta prateleira (1ª ou 2ª contagem) pode contar nela */
+  const a=(S.assign&&S.assign.inv===S.meta.inv&&S.assign.map)||{},rnd=sh?(sh.r2?2:1):((it.cnt||[]).length>=1?2:1);
   let w='';
-  if(n===0)w=a['i:'+it.id]||a[grpKey(it)]||'';
+  if(rnd===1)w=a['i:'+it.id]||a[grpKey(it)]||'';
   else{const t=(typeof thirdFor==='function')?thirdFor(it):null;w=(t&&t.k)||a['2i:'+it.id]||a['2'+grpKey(it)]||''}
   let l=String(w||'').split('|').filter(Boolean);
-  if(!l.length&&it.grp){const gx=exKey(it.grp),sh=manualShelves().find(x=>!!x.r2===(n>0)&&exKey(x.name)===gx);if(sh)l=teamOf(sh.key)}
+  if(!l.length&&it.grp){const gx=exKey(it.grp),s2=manualShelves().find(x=>!!x.r2===(rnd===2)&&exKey(x.name)===gx);if(s2)l=teamOf(s2.key)}
   if(!l.length||l.includes('*')||l.includes(me))return null;
   const nm=l.map(k=>{const o=knownOpsSafe().find(x=>x.key===k);return o?o.name:k});
   return{names:nm,grp:it.grp||'(Sem grupo)'};
@@ -4672,7 +4680,7 @@ S.inOpen=new Set();S.inOpenG=new Set();S.inMv=null;S.inAdd=null;
 /* ---- base: o próprio inventário (produto + local de cada item) ---- */
 let _inv=null;
 function inInvRows(){
-  if(_inv&&_inv.k===S.items&&_inv.r===inRound())return _inv.l;
+  if(_inv&&_inv.r===inRound()&&(_inv.k===S.items||Date.now()-(_inv.at||0)<4000))return _inv.l;
   const m=new Map();
   for(const it of S.items.values()){
     if(it.xo)continue;
@@ -4685,7 +4693,7 @@ function inInvRows(){
   const l=[...m.values()];
   l.forEach(r=>{r.cnt=r.cn===r.n});
   l.sort((a,b)=>a.shelf.localeCompare(b.shelf,'pt',{numeric:true})||a.sec.localeCompare(b.sec,'pt',{numeric:true})||a.code.localeCompare(b.code,'pt',{numeric:true}));
-  _inv={k:S.items,r:inRound(),l};return l;
+  _inv={k:S.items,r:inRound(),at:Date.now(),l};return l;
 }
 function inGroups(){
   const m=new Map();
@@ -4961,7 +4969,8 @@ const IN_ACT={
   inmodel(){inModel()}
 };
 
-const inPending=()=>{const v=inVisible(),st=inState();return v.filter(r=>!inDoneR(r,st)).length};
+var _inp={t:0,v:0,r:-1};
+const inPending=()=>{const now=Date.now();if(now-_inp.t<3000&&_inp.r===inRound())return _inp.v;const v=inVisible(),st=inState();_inp={t:now,r:inRound(),v:v.filter(r=>!inDoneR(r,st)).length};return _inp.v};
 
 /* ============ importação do ERP ============ */
 const normH=s=>String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
