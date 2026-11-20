@@ -270,7 +270,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 96</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 97</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -1424,7 +1424,7 @@ function vDiv(){
   if(!S.meta)return noInv();
   const all=divItems(),f=S.filter;
   const n=k=>all.filter(it=>dvKey(it)===k).length;
-  return assignBar()+faltaCard()+'<div class="kpis">'+kpi('Divergências entre contagens',fmtN(all.filter(it=>!/^f[12]$/.test(dvKey(it))).length),'itens cujas contagens não bateram','r')+kpi('Aguardando 3ª',fmtN(n('rec3')),'1ª ≠ 2ª','a')+kpi('Aguardando 4ª',fmtN(n('rec4')),'3 contagens sem igualdade','a')+kpi('Sem consenso',fmtN(n('sem')),'você decide a quantidade','r')+kpi('Resolvidas',fmtN(n('res')+n('dec')),'duas contagens iguais ou decisão sua','g')+'</div>'+nfDivCard()+
+  return'<div class="kpis">'+kpi('Divergências entre contagens',fmtN(all.filter(it=>!/^f[12]$/.test(dvKey(it))).length),'itens cujas contagens não bateram','r')+kpi('Aguardando 3ª',fmtN(n('rec3')),'1ª ≠ 2ª','a')+kpi('Aguardando 4ª',fmtN(n('rec4')),'3 contagens sem igualdade','a')+kpi('Sem consenso',fmtN(n('sem')),'você decide a quantidade','r')+kpi('Resolvidas',fmtN(n('res')+n('dec')),'duas contagens iguais ou decisão sua','g')+'</div>'+nfDivCard()+
   '<div class="card"><div class="bd stack"><div class="sub">Aqui a divergência é só entre as contagens físicas (1ª a 4ª). O saldo do ERP não é usado. Itens contados só na 1ª ou só na 2ª aparecem nos filtros "Só na 1ª" e "Só na 2ª".</div><div class="row"><div class="field" style="flex:1;min-width:200px"><label for="qdiv">BUSCAR</label><input type="search" id="qdiv" data-inp="qdiv" placeholder="Código ou descrição" value="'+esc(S.q.div)+'"></div>'+depSelect()+divGrpSelect()+'<button class="btn" data-act="csv-div">⬇ Exportar CSV</button><button class="btn" data-act="xl-div">⬇ Planilha .xlsx</button></div>'+
     '<div class="filters">'+[['todas','Todas'],['rec3','Aguarda 3ª'],['rec4','Aguarda 4ª'],['sem','Sem consenso'],['f1','Só na 1ª ('+n('f1')+')'],['f2','Só na 2ª ('+n('f2')+')'],['res','Resolvidas'],['dec','Decisão do supervisor'],['reab','Recontagem pedida']].map(([k,l])=>'<button class="btn sm" data-act="filter" data-v="'+k+'" aria-pressed="'+(f===k)+'">'+l+'</button>').join('')+'</div>'+
     '<div class="scroll"><table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th>Local</th><th>1ª</th><th>2ª</th><th>3ª</th><th>4ª</th><th>Status</th><th></th></tr></thead><tbody id="div-body">'+divRows()+'</tbody></table></div></div></div>';
@@ -5296,10 +5296,10 @@ const ACT={
   rtgo(b){const v=b.dataset.v;
     if(v==='r1')goHere('locais','#rel1-card');
     else if(v==='r2')goHere('locais','#rel2-card');
-    else if(v==='unasg')goHere('divergencias','#third-card',{filter:'todas'});
+    else if(v==='unasg'){S.tab='divergencias';S.filter='todas';mainMode='';draw(true);window.scrollTo(0,0)}
     else{S.tab='divergencias';S.filter=v;mainMode='';draw(true);window.scrollTo(0,0)}},
   gofalta(){goHere('locais','#rel2-card')},
-  gothird(){goHere('divergencias','#third-card',{filter:'todas'})},
+  gothird(){S.tab='divergencias';S.filter='todas';mainMode='';draw(true);window.scrollTo(0,0)},
   gorr(){goHere('locais','#rr-box')},
   goto2(){S.tab='locais';mainMode='';draw(true);window.scrollTo(0,0)},
   opensecond(b){S.rf='2';S.rg=(b&&b.dataset&&b.dataset.g)||'';S.opView={page:'contagem',kind:'recount',shelf:null};S.q.op='';draw(true);window.scrollTo(0,0)},
