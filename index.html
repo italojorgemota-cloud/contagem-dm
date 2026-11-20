@@ -270,7 +270,7 @@ async function showLogin(msg){
    '<div id="lerr" class="note bad" hidden></div><button class="btn primary" id="lgo" style="min-height:48px;font-size:15px">Entrar</button>'+
    '<button class="btn" id="lforgot">Esqueci minha senha</button>'+
    (bootOpen?'<button class="btn" id="lfirst">Primeiro acesso: criar o gestor</button>':'')+
-   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 97</p>');
+   '<p class="sub" style="margin:0;text-align:center">🔒 Cada pessoa tem o seu acesso. Depois de entrar, este aparelho fica conectado até tocar em "sair".</p><p class="sub" style="margin:0;text-align:center;font-size:11px">versão 98</p>');
   wire(async()=>{await auth.signInWithEmailAndPassword(val('le').trim(),val('lp'))});
   document.getElementById('lforgot').onclick=async()=>{const e=val('le').trim();const er=document.getElementById('lerr');
     if(!e){er.textContent='Digite seu e-mail acima e toque de novo.';er.hidden=false;return}
@@ -1325,8 +1325,8 @@ function itensRows(){
   if(q)l=l.filter(it=>(it.code+' '+it.desc).toLowerCase().includes(q));
   l.sort(byLoc);
   const shown=l.slice(0,250);
-  if(!shown.length)return'<tr><td colspan="6" class="empty">Nenhum item encontrado.</td></tr>';
-  return shown.map(it=>{const k=statusKey(it);return'<tr><td class="mono">'+esc(it.code)+'</td><td class="wc">'+esc(it.desc)+'</td><td>'+esc(locTxt(it))+'</td><td class="r num">'+fmtQ(it.erp)+' <span class="sub">'+esc(it.un)+'</span></td><td class="num">'+(it.cnt.length?it.cnt.map((c,i)=>'<span class="sub">'+ordn(i+1)+'</span> '+fmtQ(c.q)).join(' · '):'–')+'</td><td><span class="chip '+STATE_CHIP[k]+'">'+ST_CHIP_TXT[k]+'</span><div class="sub">'+it.cnt.length+(it.cnt.length===1?' contagem':' contagens')+'</div></td></tr>'}).join('')+(l.length>shown.length?'<tr><td colspan="6" class="sub" style="text-align:center">Mostrando 250 de '+l.length+'. Use a busca para filtrar.</td></tr>':'');
+  if(!shown.length)return'<tr><td colspan="7" class="empty">Nenhum item encontrado.</td></tr>';
+  return shown.map(it=>{const k=statusKey(it);return'<tr><td class="mono">'+esc(it.code)+'</td><td class="wc">'+esc(it.desc)+'</td><td>'+esc(locTxt(it))+'</td><td class="r num">'+fmtQ(it.erp)+' <span class="sub">'+esc(it.un)+'</span></td><td class="num">'+(it.cnt.length?it.cnt.map((c,i)=>'<span class="sub">'+ordn(i+1)+'</span> '+fmtQ(c.q)).join(' · '):'–')+'</td><td><span class="chip '+STATE_CHIP[k]+'">'+ST_CHIP_TXT[k]+'</span><div class="sub">'+it.cnt.length+(it.cnt.length===1?' contagem':' contagens')+'</div></td><td>'+(it.state==='closed'?'<button class="btn sm" data-act="reopen" data-id="'+esc(it.id)+'" title="Descarta as contagens atuais deste item e recomeça da 1ª">Zerar e recontar</button>':'')+'</td></tr>'}).join('')+(l.length>shown.length?'<tr><td colspan="7" class="sub" style="text-align:center">Mostrando 250 de '+l.length+'. Use a busca para filtrar.</td></tr>':'');
 }
 const depSelect=()=>'<div class="field"><label for="depsel">LOCAL</label><select id="depsel" data-chg="dep"><option value="">Todos</option>'+[...S.shelves.values()].sort((a,b)=>a.name.localeCompare(b.name,'pt',{numeric:true})).map(s=>'<option value="'+esc(s.key)+'"'+(S.dep===s.key?' selected':'')+'>'+esc(s.name)+'</option>').join('')+'</select></div>';
 function vItens(){
@@ -1334,7 +1334,7 @@ function vItens(){
   const f=S.itf;
   return'<div class="card"><div class="hd"><h2>📦 Itens do inventário</h2><span class="sub">'+fmtN(S.items.size)+' itens</span></div><div class="bd stack"><div class="row"><div class="field" style="flex:1;min-width:200px"><label for="qitens">BUSCAR</label><input type="search" id="qitens" data-inp="qitens" placeholder="Código ou descrição" value="'+esc(S.q.itens)+'"></div>'+depSelect()+'</div>'+
     '<div class="filters">'+[['todos','Todos'],['pend','Pendentes'],['rec','Em recontagem'],['div','Divergentes'],['ok','Conformes']].map(([k,l])=>'<button class="btn sm" data-act="itf" data-v="'+k+'" aria-pressed="'+(f===k)+'">'+l+'</button>').join('')+'</div>'+
-    '<div class="scroll"><table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th>Local</th><th class="r">Saldo ERP</th><th>Contagens</th><th>Status</th></tr></thead><tbody id="itens-body">'+itensRows()+'</tbody></table></div></div></div>';
+    '<div class="scroll"><table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th>Local</th><th class="r">Saldo ERP</th><th>Contagens</th><th>Status</th><th></th></tr></thead><tbody id="itens-body">'+itensRows()+'</tbody></table></div></div></div>';
 }
 
 /* ---- Divergências ---- */
